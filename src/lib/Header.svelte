@@ -3,6 +3,6 @@
 >
 	<h3 class="h3 font-bold text-tertiary-500">Denials Tracker</h3>
 	<div class="flex flex-row space-x-4">
-		<button type="button" class="variant-filled-primary btn">Sign in</button>
+		<a href="/signin" class="variant-filled-primary btn">Sign in</a>
 	</div>
 </div>
