@@ -59,7 +59,7 @@
 						$420.69
 					</div>
 					<div class="grid grid-rows-2">
-						<span class="text-slate-500">Tags</span>
+						<span class="text-slate-500">Labels</span>
 						<div>
 							<span class="variant-filled-success chip">Paid</span>
 							<span class="variant-filled-warning chip">Appealed</span>
@@ -148,7 +148,7 @@
 						$$0.00
 					</div>
 					<div class="grid grid-rows-2">
-						<span class="text-slate-500">Tags</span>
+						<span class="text-slate-500">Labels</span>
 						<div>
 							<span class="variant-filled-error chip">Denied</span>
 						</div>
