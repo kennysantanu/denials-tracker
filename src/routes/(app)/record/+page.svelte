@@ -32,7 +32,7 @@
 <div class="space-y-8">
 	<!-- Denial List Header -->
 	<div class="flex flex-row items-end justify-between">
-		Denial Records for Lastname, Firstname (x in total)
+		<p class="font-bold">Denial Records for Lastname, Firstname (x in total)</p>
 		<button type="button" class="btn font-bold text-tertiary-500">+ Add New Record</button>
 	</div>
 
