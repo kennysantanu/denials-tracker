@@ -23,14 +23,18 @@ export const load = async ({ request, locals: { supabase, safeGetSession } }) =>
 
 export const actions = {
 	signin: async ({ request, locals: { supabase, safeGetSession } }) => {
+		const { session } = await safeGetSession()
+
+		if (session) {
+			redirect(303, '/')
+		}
+
 		const form = await superValidate(request, zod(schema));
 
 		if (!form.valid) {
-		// Again, return { form } and things will just work.
 		return fail(400, { form });
 		}
 
-		// TODO: Do something with the validated form.data
 		let { data, error } = await supabase.auth.signInWithPassword({
 			email: form.data.username + '@supabase',
 			password: form.data.password
@@ -43,7 +47,11 @@ export const actions = {
 		// Redirect to the home page
 		redirect(302, '/auth/callback');
 	},
-	signout: async ({ locals: { supabase } }) => {
-		let { error } = await supabase.auth.signOut()
+	signout: async ({ locals: { supabase, safeGetSession } }) => {
+		const { session } = await safeGetSession()
+		if (session) {
+		  await supabase.auth.signOut()
+		  redirect(303, '/signin')
+		}
 	}
 };

@@ -3,6 +3,9 @@
 
 	export let data;
 
+	let { session, supabase } = data
+	$: ({ session, supabase } = data)
+
 	const { form, errors, constraints, message } = superForm(data.form);
 </script>
 
