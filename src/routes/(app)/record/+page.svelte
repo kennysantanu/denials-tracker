@@ -9,9 +9,9 @@
 	let showAddNewPatientForm: boolean = false;
 
 	// Functions
-	const formatDate = (dateString: Date): String => {
-		const date = new Date(dateString);
-		const formattedDate = `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear()}`;
+	const formatDate = (date: Date): String => {
+		const dateString = date.toString();
+		const formattedDate = `${dateString.substring(5, 7)}/${dateString.substring(8, 10)}/${dateString.substring(0, 4)}`;
 		return formattedDate;
 	};
 
