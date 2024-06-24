@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { superForm } from 'sveltekit-superforms';
 	import Ellipsis from '$lib/icons/Ellipsis-vertical.svelte';
 
@@ -13,6 +12,18 @@
 	let showAddNewDenialForm: boolean = false;
 
 	// SuperForm forms
+	const {
+		form: newPatientForm,
+		errors: newPatientFormErrors,
+		constraints: newPatientFormConstraints,
+		enhance: newPatientFormEnhance
+	} = superForm(data.newPatientForm, {
+		onUpdated() {
+			alert('New patient added successfully!');
+			reloadPage();
+		}
+	});
+
 	const {
 		form: newDenialForm,
 		errors: newDenialFormErrors,
@@ -62,28 +73,41 @@
 	{#if showAddNewPatientForm}
 		<div class="card space-y-6 p-6">
 			<h3 class="h3 text-tertiary-500">Create New Patient</h3>
-			<form
-				method="POST"
-				action="?/addNewPatient"
-				class="space-y-6"
-				use:enhance={() => {
-					return async () => {
-						alert('New patient added successfully!');
-						reloadPage();
-					};
-				}}
-			>
+			<form method="POST" action="?/addNewPatient" class="space-y-6" use:newPatientFormEnhance>
 				<label class="label">
 					<span class="text-tertiary-500">Last Name</span>
-					<input class="input" type="text" name="last_name" placeholder="Enter last name" />
+					<input
+						class="input"
+						type="text"
+						name="last_name"
+						placeholder="Enter last name"
+						aria-invalid={$newPatientFormErrors.last_name ? 'true' : undefined}
+						bind:value={$newPatientForm.last_name}
+						{...$newPatientFormConstraints.last_name}
+					/>
 				</label>
 				<label class="label">
 					<span class="text-tertiary-500">First Name</span>
-					<input class="input" type="text" name="first_name" placeholder="Enter first name" />
+					<input
+						class="input"
+						type="text"
+						name="first_name"
+						placeholder="Enter first name"
+						aria-invalid={$newPatientFormErrors.first_name ? 'true' : undefined}
+						bind:value={$newPatientForm.first_name}
+						{...$newPatientFormConstraints.first_name}
+					/>
 				</label>
 				<label class="label">
 					<span class="text-tertiary-500">Date of Birth</span>
-					<input class="input" name="date_of_birth" type="date" />
+					<input
+						class="input"
+						name="date_of_birth"
+						type="date"
+						aria-invalid={$newPatientFormErrors.date_of_birth ? 'true' : undefined}
+						bind:value={$newPatientForm.date_of_birth}
+						{...$newPatientFormConstraints.date_of_birth}
+					/>
 				</label>
 				<div class="space-x-4">
 					<button type="submit" class="variant-filled-primary btn">Save</button>

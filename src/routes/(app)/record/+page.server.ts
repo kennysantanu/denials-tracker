@@ -16,7 +16,9 @@ const schemaNewDenial = z.object({
     paid_amount: z.number().nonnegative(),
 });
 
-export const load = async ({ request, locals: { supabase, safeGetSession } }) => {
+export const load = async ({ request, locals: { supabase, safeGetSession } }) => {	
+    const newPatientForm = await superValidate(zod(schemaNewPatient));
+
     const newDenialForm = await superValidate(zod(schemaNewDenial));
     newDenialForm.data.billed_amount = 0;
     newDenialForm.data.paid_amount = 0;
@@ -26,7 +28,7 @@ export const load = async ({ request, locals: { supabase, safeGetSession } }) =>
     .select('*')
     .order('last_name', { ascending: true })
     
-    return { newDenialForm, patients: patients || [] }
+    return { newPatientForm, newDenialForm, patients: patients || [] }
 }
 
 export const actions = {
