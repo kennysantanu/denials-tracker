@@ -1,7 +1,6 @@
-import { superValidate } from 'sveltekit-superforms';
+import { superValidate, fail } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
-import { fail } from '@sveltejs/kit';
 
 const schemaNewPatient = z.object({
     last_name: z.string(),
@@ -9,14 +8,25 @@ const schemaNewPatient = z.object({
     date_of_birth: z.date(),
 });
 
-export const load = async ({ request, locals: { supabase, safeGetSession } }) => {	
+const schemaNewDenial = z.object({
+    patient_id: z.number(),
+    service_start_date: z.date(),
+    service_end_date: z.date().optional(),
+    billed_amount: z.number().nonnegative(),
+    paid_amount: z.number().nonnegative(),
+});
+
+export const load = async ({ request, locals: { supabase, safeGetSession } }) => {
+    const newDenialForm = await superValidate(zod(schemaNewDenial));
+    newDenialForm.data.billed_amount = 0;
+    newDenialForm.data.paid_amount = 0;
     
     let { data: patients, error } = await supabase
     .from('patients')
     .select('*')
     .order('last_name', { ascending: true })
     
-    return { patients: patients || [] }
+    return { newDenialForm, patients: patients || [] }
 }
 
 export const actions = {
@@ -42,7 +52,30 @@ export const actions = {
         }
 
         return { form };
+    },
+    createDenial: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const newDenialForm = await superValidate(request, zod(schemaNewDenial));        
 
-    }
+        if (!newDenialForm.valid) {
+            return fail(400, { newDenialForm });
+        }
 
+        const { data, error } = await supabase
+            .from('denials')
+            .insert([
+                {
+                    patient_id: newDenialForm.data.patient_id,
+                    service_start_date: newDenialForm.data.service_start_date,
+                    service_end_date: newDenialForm.data.service_end_date,
+                    billed_amount: newDenialForm.data.billed_amount,
+                    paid_amount: newDenialForm.data.paid_amount
+                },
+            ])
+
+        if (error) {
+            return fail(400, { newDenialForm });
+        }
+
+        return { newDenialForm };
+    },
 }

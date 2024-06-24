@@ -1,12 +1,29 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
 	import Ellipsis from '$lib/icons/Ellipsis-vertical.svelte';
 
 	// Variables
 	export let data;
 	let patientList = data.patients;
-	let selectedPatient: String = '';
+	let selectedPatientId: String = '';
+	let selectedPatientData = null;
+	$: selectedPatientData = patientList.find((patient) => patient.id === selectedPatientId);
 	let showAddNewPatientForm: boolean = false;
+	let showAddNewDenialForm: boolean = false;
+
+	// SuperForm forms
+	const {
+		form: newDenialForm,
+		errors: newDenialFormErrors,
+		constraints: newDenialFormConstraints,
+		enhance: newDenialFormEnhance
+	} = superForm(data.newDenialForm, {
+		onUpdated() {
+			alert('New denial added successfully!');
+			showAddNewDenialForm = !showAddNewDenialForm;
+		}
+	});
 
 	// Functions
 	const formatDate = (date: Date): String => {
@@ -25,7 +42,7 @@
 	<label class="label">
 		<span class="text-tertiary-500">Patient Select</span>
 		<div class="flex flex-row space-x-8">
-			<select class="select" bind:value={selectedPatient}>
+			<select class="select" bind:value={selectedPatientId}>
 				<option value="" disabled selected>Select a patient</option>
 				{#each patientList as patient}
 					<option value={patient.id}
@@ -80,7 +97,7 @@
 		</div>
 	{/if}
 
-	{#if selectedPatient}
+	{#if selectedPatientId}
 		<label class="label">
 			<span class="text-tertiary-500">Note</span>
 			<div class="flex flex-row space-x-4">
@@ -96,13 +113,84 @@
 </div>
 
 <!-- Denial List -->
-{#if selectedPatient}
+{#if selectedPatientId}
 	<div class="space-y-8">
 		<!-- Denial List Header -->
 		<div class="flex flex-row items-end justify-between">
-			<p class="font-bold">Denial Records for Lastname, Firstname (x in total)</p>
-			<button type="button" class="btn font-bold text-tertiary-500">+ Add New Record</button>
+			<p class="font-bold">
+				Denial Records for {selectedPatientData.last_name}, {selectedPatientData.first_name} (x in total)
+			</p>
+			<button
+				type="button"
+				class="btn font-bold text-tertiary-500"
+				on:click={() => (showAddNewDenialForm = !showAddNewDenialForm)}
+				disabled={showAddNewDenialForm || !data.session}>+ Add New Record</button
+			>
 		</div>
+		{#if showAddNewDenialForm}
+			<form method="POST" action="?/createDenial" use:newDenialFormEnhance>
+				<div class="card space-y-6 p-6">
+					<h3 class="h3 text-tertiary-500">Create New Denial</h3>
+					<div class="flex flex-wrap justify-between">
+						<input type="hidden" name="patient_id" value={selectedPatientData.id} />
+						<label class="label">
+							<span class="text-tertiary-500">From</span>
+							<input
+								class="input"
+								type="date"
+								name="service_start_date"
+								aria-invalid={$newDenialFormErrors.service_start_date ? 'true' : undefined}
+								bind:value={$newDenialForm.service_start_date}
+								{...$newDenialFormConstraints.service_start_date}
+							/>
+						</label>
+						<label class="label">
+							<span class="text-tertiary-500">To (optional)</span>
+							<input
+								class="input"
+								type="date"
+								name="service_end_date"
+								aria-invalid={$newDenialFormErrors.service_end_date ? 'true' : undefined}
+								bind:value={$newDenialForm.service_end_date}
+								{...$newDenialFormConstraints.service_end_date}
+							/>
+						</label>
+						<label class="label">
+							<span class="text-tertiary-500">Bill Amount</span>
+							<input
+								class="input"
+								type="number"
+								name="billed_amount"
+								aria-invalid={$newDenialFormErrors.billed_amount ? 'true' : undefined}
+								bind:value={$newDenialForm.billed_amount}
+								{...$newDenialFormConstraints.billed_amount}
+								step="0.01"
+							/>
+						</label>
+						<label class="label">
+							<span class="text-tertiary-500">Paid Amount</span>
+							<input
+								class="input"
+								type="number"
+								name="paid_amount"
+								aria-invalid={$newDenialFormErrors.paid_amount ? 'true' : undefined}
+								bind:value={$newDenialForm.paid_amount}
+								{...$newDenialFormConstraints.paid_amount}
+								step="0.01"
+							/>
+						</label>
+					</div>
+					<div class="space-x-4">
+						<button type="submit" class="variant-filled-primary btn">Save</button>
+						<button
+							type="button"
+							class="variant-filled-secondary btn"
+							on:click={() => (showAddNewDenialForm = !showAddNewDenialForm)}>Cancel</button
+						>
+					</div>
+				</div>
+			</form>
+		{/if}
 
 		<!-- Denial List Cards -->
 		<div class="card space-y-8 px-8 py-8">
