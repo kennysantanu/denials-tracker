@@ -5,8 +5,10 @@
 	// Variables
 	export let data;
 	let patientList = data.patients;
-	let selectedPatientId: String = '';
+	let selectedPatientId: string = '';
 	let selectedPatientData = null;
+	let denialsData = null;
+	let denialsDataLength = 0;
 	$: selectedPatientData = patientList.find((patient) => patient.id === selectedPatientId);
 	let showAddNewPatientForm: boolean = false;
 	let showAddNewDenialForm: boolean = false;
@@ -33,10 +35,17 @@
 		onUpdated() {
 			alert('New denial added successfully!');
 			showAddNewDenialForm = !showAddNewDenialForm;
+			getDenials(selectedPatientId);
 		}
 	});
 
 	// Functions
+	const getDenials = async (patient_id: string): Promise<void> => {
+		const response = await fetch(`/api/v1/denials?patientid=${patient_id}`);
+		denialsData = await response.json();
+		denialsDataLength = denialsData.length;
+	};
+
 	const formatDate = (date: Date): String => {
 		const dateString = date.toString();
 		const formattedDate = `${dateString.substring(5, 7)}/${dateString.substring(8, 10)}/${dateString.substring(0, 4)}`;
@@ -53,7 +62,11 @@
 	<label class="label">
 		<span class="text-tertiary-500">Patient Select</span>
 		<div class="flex flex-row space-x-8">
-			<select class="select" bind:value={selectedPatientId}>
+			<select
+				class="select"
+				bind:value={selectedPatientId}
+				on:change={getDenials(selectedPatientId)}
+			>
 				<option value="" disabled selected>Select a patient</option>
 				{#each patientList as patient}
 					<option value={patient.id}
@@ -138,11 +151,12 @@
 
 <!-- Denial List -->
 {#if selectedPatientId}
-	<div class="space-y-8">
+	<div class="m-2 space-y-8">
 		<!-- Denial List Header -->
 		<div class="flex flex-row items-end justify-between">
 			<p class="font-bold">
-				Denial Records for {selectedPatientData.last_name}, {selectedPatientData.first_name} (x in total)
+				Denial Records for {selectedPatientData.last_name}, {selectedPatientData.first_name} ({denialsDataLength}
+				in total)
 			</p>
 			<button
 				type="button"
@@ -214,6 +228,50 @@
 					</div>
 				</div>
 			</form>
+		{/if}
+
+		<!-- Denial List Cards -->
+		{#if denialsData && denialsDataLength > 0}
+			{#each denialsData as denialData}
+				<div class="card space-y-8 p-8">
+					<!-- Denial List Card Header -->
+					<div class="flex justify-between">
+						<div class="flex grow flex-wrap gap-4">
+							<div class="grow">
+								<div class="grid min-w-48 grid-rows-2">
+									<span class="text-slate-500">Date of Service</span>
+									{formatDate(denialData.service_start_date)}
+									{#if denialData.service_end_date}
+										- {formatDate(denialData.service_end_date)}
+									{/if}
+								</div>
+							</div>
+							<div class="grow">
+								<div class="grid grid-rows-2">
+									<span class="text-slate-500">Bill Amount</span>
+									${denialData.billed_amount}
+								</div>
+							</div>
+							<div class="grow">
+								<div class="grid grid-rows-2">
+									<span class="text-slate-500">Paid Amount</span>
+									${denialData.paid_amount}
+								</div>
+							</div>
+							<div class="grow">
+								<span class="text-slate-500">Labels</span>
+							</div>
+						</div>
+						<div>
+							<button type="button" class="btn-icon text-tertiary-500">
+								<Ellipsis />
+							</button>
+						</div>
+					</div>
+					<hr />
+					<button type="button" class="btn text-tertiary-500">+ Add New Note</button>
+				</div>
+			{/each}
 		{/if}
 
 		<!-- Denial List Cards -->
