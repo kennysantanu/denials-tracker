@@ -2,16 +2,37 @@
 	import { superForm } from 'sveltekit-superforms';
 	import Ellipsis from '$lib/icons/Ellipsis-vertical.svelte';
 
+	// Type definitions
+	type DenialsData = {
+		id: number;
+		created_at: string;
+		patient_id: number;
+		service_start_date: string;
+		service_end_date: string;
+		billed_amount: number;
+		paid_amount: number;
+		notes: {
+			id: number;
+			created_at: string;
+			modified_at: string | null;
+			note: string;
+			users: {
+				username: string;
+			};
+		}[];
+	}[];
+
 	// Variables
 	export let data;
 	let patientList = data.patients;
 	let selectedPatientId: string = '';
 	let selectedPatientData = null;
-	let denialsData = null;
+	let denialsData: DenialsData = [];
 	let denialsDataLength = 0;
 	$: selectedPatientData = patientList.find((patient) => patient.id === selectedPatientId);
 	let showAddNewPatientForm: boolean = false;
 	let showAddNewDenialForm: boolean = false;
+	let showAddNewNoteForm: boolean = false;
 
 	// SuperForm forms
 	const {
@@ -39,6 +60,19 @@
 		}
 	});
 
+	const {
+		form: newNoteForm,
+		errors: newNoteFormErrors,
+		constraints: newNoteFormConstraints,
+		enhance: newNoteFormEnhance
+	} = superForm(data.newNoteForm, {
+		onUpdated() {
+			alert('New note added successfully!');
+			showAddNewNoteForm = !showAddNewNoteForm;
+			getDenials(selectedPatientId);
+		}
+	});
+
 	// Functions
 	const getDenials = async (patient_id: string): Promise<void> => {
 		const response = await fetch(`/api/v1/denials?patientid=${patient_id}`);
@@ -46,7 +80,7 @@
 		denialsDataLength = denialsData.length;
 	};
 
-	const formatDate = (date: Date): String => {
+	const formatDate = (date: String): String => {
 		const dateString = date.toString();
 		const formattedDate = `${dateString.substring(5, 7)}/${dateString.substring(8, 10)}/${dateString.substring(0, 4)}`;
 		return formattedDate;
@@ -65,7 +99,7 @@
 			<select
 				class="select"
 				bind:value={selectedPatientId}
-				on:change={getDenials(selectedPatientId)}
+				on:change={async () => await getDenials(selectedPatientId)}
 			>
 				<option value="" disabled selected>Select a patient</option>
 				{#each patientList as patient}
@@ -260,6 +294,11 @@
 							</div>
 							<div class="grow">
 								<span class="text-slate-500">Labels</span>
+								<div>
+									<span class="variant-filled-success chip">Paid</span>
+									<span class="variant-filled-warning chip">Appealed</span>
+									<span class="variant-filled-error chip">Denied</span>
+								</div>
 							</div>
 						</div>
 						<div>
@@ -269,185 +308,59 @@
 						</div>
 					</div>
 					<hr />
-					<button type="button" class="btn text-tertiary-500">+ Add New Note</button>
+					<button
+						type="button"
+						class="btn text-tertiary-500"
+						on:click={() => (showAddNewNoteForm = !showAddNewNoteForm)}
+						disabled={showAddNewNoteForm || !data.session}>+ Add New Note</button
+					>
+					<!-- Add New Note Form -->
+
+					{#if showAddNewNoteForm}
+						<form method="POST" action="?/createNote" use:newNoteFormEnhance>
+							<div class="card space-y-6 p-6">
+								<h3 class="h3 text-tertiary-500">Create New Note</h3>
+								<input type="hidden" name="denial_id" value={denialData.id} />
+								<label class="label">
+									<span class="text-tertiary-500">Note</span>
+									<textarea
+										class="textarea"
+										rows="4"
+										name="note"
+										aria-invalid={$newNoteFormErrors.note ? 'true' : undefined}
+										bind:value={$newNoteForm.note}
+										{...$newNoteFormConstraints.note}
+									/>
+								</label>
+								<div class="space-x-4">
+									<button type="submit" class="variant-filled-primary btn">Save</button>
+									<button
+										type="button"
+										class="variant-filled-secondary btn"
+										on:click={() => (showAddNewNoteForm = !showAddNewNoteForm)}>Cancel</button
+									>
+								</div>
+							</div>
+						</form>
+					{/if}
+					{#if denialData.notes.length > 0}
+						{#each denialData.notes as noteData}
+							<div class="flex flex-row">
+								<div>
+									<span>({formatDate(noteData.created_at)})</span>
+									<span class="font-bold">{noteData.users.username}:</span>
+									<span class="text-surface-800">{noteData.note}</span>
+								</div>
+								<div>
+									<button type="button" class="btn-icon text-surface-800">
+										<Ellipsis />
+									</button>
+								</div>
+							</div>
+						{/each}
+					{/if}
 				</div>
 			{/each}
 		{/if}
-
-		<!-- Denial List Cards -->
-		<div class="card space-y-8 px-8 py-8">
-			<!-- Denial List Card Header -->
-			<div class="flex flex-wrap justify-between">
-				<div class="grid grid-rows-2">
-					<span class="text-slate-500">Date of Service</span>
-					01/01/2021 - 01/31/2021
-				</div>
-				<div class="grid grid-rows-2">
-					<span class="text-slate-500">Bill Amount</span>
-					$750.00
-				</div>
-				<div class="grid grid-rows-2">
-					<span class="text-slate-500">Paid Amount</span>
-					$420.69
-				</div>
-				<div class="grid grid-rows-2">
-					<span class="text-slate-500">Labels</span>
-					<div>
-						<span class="variant-filled-success chip">Paid</span>
-						<span class="variant-filled-warning chip">Appealed</span>
-						<span class="variant-filled-error chip">Denied</span>
-					</div>
-				</div>
-				<div>
-					<button type="button" class="btn-icon text-tertiary-500">
-						<Ellipsis />
-					</button>
-				</div>
-			</div>
-			<hr />
-			<button type="button" class="btn text-tertiary-500">+ Add New Note</button>
-			<div class="flex flex-row">
-				<div>
-					<span>(04/01/2024)</span>
-					<span class="font-bold">username:</span>
-					<span class="text-surface-800"
-						>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean convallis lorem sed
-						nulla tristique eleifend. Mauris lacinia dapibus magna, ut bibendum ex scelerisque eu.
-						Sed a fermentum nulla. Nullam molestie erat non mauris mattis euismod. Mauris nec dolor
-						ac ipsum viverra egestas sed ut risus. Nullam rhoncus dictum massa, vel condimentum
-						risus scelerisque sed. Aliquam non orci sem. Nunc eget rhoncus est.</span
-					>
-				</div>
-				<div>
-					<button type="button" class="btn-icon text-surface-800">
-						<Ellipsis />
-					</button>
-				</div>
-			</div>
-			<div class="flex flex-row">
-				<div>
-					<span>(04/01/2024)</span>
-					<span class="font-bold">username:</span>
-					<span class="text-surface-800"
-						>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque
-						laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi
-						architecto beatae vitae dicta sunt explicabo.</span
-					>
-				</div>
-				<div>
-					<button type="button" class="btn-icon text-surface-800">
-						<Ellipsis />
-					</button>
-				</div>
-			</div>
-			<div class="flex flex-row">
-				<div>
-					<span>(04/01/2024)</span>
-					<span class="font-bold">username:</span>
-					<span class="text-surface-800"
-						>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia
-						consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro
-						quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed
-						quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat
-						voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis
-						suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure
-						reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum
-						qui dolorem eum fugiat quo voluptas nulla pariatur?</span
-					>
-				</div>
-				<div>
-					<button type="button" class="btn-icon text-surface-800">
-						<Ellipsis />
-					</button>
-				</div>
-			</div>
-		</div>
-
-		<!-- Denial List Cards 2 -->
-		<div class="card space-y-8 px-8 py-8">
-			<!-- Denial List Card Header -->
-			<div class="flex flex-wrap justify-between">
-				<div class="grid grid-rows-2">
-					<span class="text-slate-500">Date of Service</span>
-					01/01/2020
-				</div>
-				<div class="grid grid-rows-2">
-					<span class="text-slate-500">Bill Amount</span>
-					$250.00
-				</div>
-				<div class="grid grid-rows-2">
-					<span class="text-slate-500">Paid Amount</span>
-					$$0.00
-				</div>
-				<div class="grid grid-rows-2">
-					<span class="text-slate-500">Labels</span>
-					<div>
-						<span class="variant-filled-error chip">Denied</span>
-					</div>
-				</div>
-				<div>
-					<button type="button" class="btn-icon text-tertiary-500">
-						<Ellipsis />
-					</button>
-				</div>
-			</div>
-			<hr />
-			<button type="button" class="btn text-tertiary-500">+ Add New Note</button>
-			<div class="flex flex-row">
-				<div>
-					<span>(04/01/2024)</span>
-					<span class="font-bold">username:</span>
-					<span class="text-surface-800"
-						>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean convallis lorem sed
-						nulla tristique eleifend. Mauris lacinia dapibus magna, ut bibendum ex scelerisque eu.
-						Sed a fermentum nulla. Nullam molestie erat non mauris mattis euismod. Mauris nec dolor
-						ac ipsum viverra egestas sed ut risus. Nullam rhoncus dictum massa, vel condimentum
-						risus scelerisque sed. Aliquam non orci sem. Nunc eget rhoncus est.</span
-					>
-				</div>
-				<div>
-					<button type="button" class="btn-icon text-surface-800">
-						<Ellipsis />
-					</button>
-				</div>
-			</div>
-			<div class="flex flex-row">
-				<div>
-					<span>(04/01/2024)</span>
-					<span class="font-bold">username:</span>
-					<span class="text-surface-800"
-						>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque
-						laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi
-						architecto beatae vitae dicta sunt explicabo.</span
-					>
-				</div>
-				<div>
-					<button type="button" class="btn-icon text-surface-800">
-						<Ellipsis />
-					</button>
-				</div>
-			</div>
-			<div class="flex flex-row">
-				<div>
-					<span>(04/01/2024)</span>
-					<span class="font-bold">username:</span>
-					<span class="text-surface-800"
-						>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia
-						consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro
-						quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed
-						quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat
-						voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis
-						suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure
-						reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum
-						qui dolorem eum fugiat quo voluptas nulla pariatur?</span
-					>
-				</div>
-				<div>
-					<button type="button" class="btn-icon text-surface-800">
-						<Ellipsis />
-					</button>
-				</div>
-			</div>
-		</div>
 	</div>
 {/if}

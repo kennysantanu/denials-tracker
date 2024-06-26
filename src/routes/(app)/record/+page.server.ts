@@ -16,19 +16,26 @@ const schemaNewDenial = z.object({
     paid_amount: z.number().nonnegative(),
 });
 
+const schemaNewNote = z.object({
+    denial_id: z.number(),
+    note: z.string(),
+});
+
 export const load = async ({ request, locals: { supabase, safeGetSession } }) => {	
     const newPatientForm = await superValidate(zod(schemaNewPatient));
 
     const newDenialForm = await superValidate(zod(schemaNewDenial));
     newDenialForm.data.billed_amount = 0;
     newDenialForm.data.paid_amount = 0;
+
+    const newNoteForm = await superValidate(zod(schemaNewNote));
     
     let { data: patients, error } = await supabase
     .from('patients')
     .select('*')
     .order('last_name', { ascending: true })
     
-    return { newPatientForm, newDenialForm, patients: patients || [] }
+    return { newPatientForm, newDenialForm, newNoteForm, patients: patients || [] }
 }
 
 export const actions = {
@@ -79,5 +86,37 @@ export const actions = {
         }
 
         return { newDenialForm };
+    },
+    createNote: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const sessionData = await safeGetSession();
+
+        const newNoteForm = await superValidate(request, zod(schemaNewNote));        
+
+        if (!newNoteForm.valid) {
+            return fail(400, { newNoteForm });
+        }
+        
+        const { data: insertedNote } = await supabase
+        .from('notes')
+        .insert([
+            {
+                user_id: sessionData.user.id,
+                note: newNoteForm.data.note,
+            },
+        ])
+        .select()
+
+        if (insertedNote) {
+            const { data, error} = await supabase
+            .from('denial_notes')
+            .insert([
+                {
+                    denial_id: newNoteForm.data.denial_id,
+                    note_id: insertedNote[0].id
+                },
+            ])
+        }        
+
+        return { newNoteForm };
     },
 }
