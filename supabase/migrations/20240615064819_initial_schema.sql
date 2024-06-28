@@ -563,6 +563,14 @@ to authenticated
 using (true);
 
 
+create policy "Enable insert for initial setup"
+on "public"."roles"
+as permissive
+for insert
+to anon
+with check (NOT EXISTS (SELECT 1 FROM "public"."users"));
+
+
 create policy "Enable all access for authenticated users"
 on "public"."users"
 as permissive
