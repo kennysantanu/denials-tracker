@@ -134,8 +134,12 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
  SET search_path TO ''
 AS $function$
 begin
-  insert into public.users (id)
-  values (new.id);
+  insert into public.users (id, username, role)
+  values (
+    new.id,
+    replace(new.email, '@supabase', ''),
+    1
+    );
   return new;
 end;
 $function$

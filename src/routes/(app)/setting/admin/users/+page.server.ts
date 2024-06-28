@@ -47,7 +47,7 @@ export const actions: Actions = {
         
             const { data: updateData, error: updateError } = await supabase
             .from('users')
-            .update({ username: form.data.username, role: form.data.role })
+            .update({ role: form.data.role })
             .eq('id', signupData.user.id)
 
             if (updateError) {
