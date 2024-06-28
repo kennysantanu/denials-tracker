@@ -14,6 +14,7 @@ const schemaNewDenial = z.object({
     service_end_date: z.date().optional(),
     billed_amount: z.number().nonnegative(),
     paid_amount: z.number().nonnegative(),
+    label_id: z.array(z.number()),
 });
 
 const schemaNewNote = z.object({
@@ -30,12 +31,17 @@ export const load = async ({ request, locals: { supabase, safeGetSession } }) =>
 
     const newNoteForm = await superValidate(zod(schemaNewNote));
     
-    let { data: patients, error } = await supabase
+    let { data: patients, error: errorPatients } = await supabase
     .from('patients')
     .select('*')
     .order('last_name', { ascending: true })
+
+    let { data: labels, error: errorLabels } = await supabase
+    .from('labels')
+    .select('*')
+    .order('order', { ascending: true })
     
-    return { newPatientForm, newDenialForm, newNoteForm, patients: patients || [] }
+    return { newPatientForm, newDenialForm, newNoteForm, patients: patients || [], labels: labels || []}
 }
 
 export const actions = {
@@ -69,7 +75,7 @@ export const actions = {
             return fail(400, { newDenialForm });
         }
 
-        const { data, error } = await supabase
+        const { data: denials, error: denialsError } = await supabase
             .from('denials')
             .insert([
                 {
@@ -80,11 +86,20 @@ export const actions = {
                     paid_amount: newDenialForm.data.paid_amount
                 },
             ])
+            .select('id')
 
-        if (error) {
+        if (denialsError) {
             return fail(400, { newDenialForm });
         }
 
+        for (const label_id of newDenialForm.data.label_id) {
+            const { } = await supabase
+                .from('denial_labels')
+                .insert([
+                { denial_id: denials[0].id, label_id: label_id },
+                ])
+        }
+        
         return { newDenialForm };
     },
     createNote: async ({ request, locals: { supabase, safeGetSession } }) => {

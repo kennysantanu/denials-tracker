@@ -20,6 +20,13 @@
 				username: string;
 			};
 		}[];
+		labels: {
+			id: number;
+			order: number;
+			label_name: string;
+			bg_color: string;
+			txt_color: string;
+		}[];
 	}[];
 
 	// Variables
@@ -92,7 +99,7 @@
 </script>
 
 <!-- Patient Card -->
-<div class="card w-full space-y-12 p-8">
+<div class="card m-2 w-full space-y-12 p-8">
 	<label class="label">
 		<span class="text-tertiary-500">Patient Select</span>
 		<div class="flex flex-row space-x-8">
@@ -203,53 +210,70 @@
 			<form method="POST" action="?/createDenial" use:newDenialFormEnhance>
 				<div class="card space-y-6 p-6">
 					<h3 class="h3 text-tertiary-500">Create New Denial</h3>
-					<div class="flex flex-wrap justify-between">
+					<div class="space-y-6">
 						<input type="hidden" name="patient_id" value={selectedPatientData.id} />
+						<div class="grid-row grid grid-cols-2 gap-6">
+							<label class="label">
+								<span class="text-tertiary-500">From</span>
+								<input
+									class="input"
+									type="date"
+									name="service_start_date"
+									aria-invalid={$newDenialFormErrors.service_start_date ? 'true' : undefined}
+									bind:value={$newDenialForm.service_start_date}
+									{...$newDenialFormConstraints.service_start_date}
+								/>
+							</label>
+							<label class="label">
+								<span class="text-tertiary-500">To (optional)</span>
+								<input
+									class="input"
+									type="date"
+									name="service_end_date"
+									aria-invalid={$newDenialFormErrors.service_end_date ? 'true' : undefined}
+									bind:value={$newDenialForm.service_end_date}
+									{...$newDenialFormConstraints.service_end_date}
+								/>
+							</label>
+							<label class="label">
+								<span class="text-tertiary-500">Bill Amount</span>
+								<input
+									class="input"
+									type="number"
+									name="billed_amount"
+									aria-invalid={$newDenialFormErrors.billed_amount ? 'true' : undefined}
+									bind:value={$newDenialForm.billed_amount}
+									{...$newDenialFormConstraints.billed_amount}
+									step="0.01"
+								/>
+							</label>
+							<label class="label">
+								<span class="text-tertiary-500">Paid Amount</span>
+								<input
+									class="input"
+									type="number"
+									name="paid_amount"
+									aria-invalid={$newDenialFormErrors.paid_amount ? 'true' : undefined}
+									bind:value={$newDenialForm.paid_amount}
+									{...$newDenialFormConstraints.paid_amount}
+									step="0.01"
+								/>
+							</label>
+						</div>
 						<label class="label">
-							<span class="text-tertiary-500">From</span>
-							<input
-								class="input"
-								type="date"
-								name="service_start_date"
-								aria-invalid={$newDenialFormErrors.service_start_date ? 'true' : undefined}
-								bind:value={$newDenialForm.service_start_date}
-								{...$newDenialFormConstraints.service_start_date}
-							/>
-						</label>
-						<label class="label">
-							<span class="text-tertiary-500">To (optional)</span>
-							<input
-								class="input"
-								type="date"
-								name="service_end_date"
-								aria-invalid={$newDenialFormErrors.service_end_date ? 'true' : undefined}
-								bind:value={$newDenialForm.service_end_date}
-								{...$newDenialFormConstraints.service_end_date}
-							/>
-						</label>
-						<label class="label">
-							<span class="text-tertiary-500">Bill Amount</span>
-							<input
-								class="input"
-								type="number"
-								name="billed_amount"
-								aria-invalid={$newDenialFormErrors.billed_amount ? 'true' : undefined}
-								bind:value={$newDenialForm.billed_amount}
-								{...$newDenialFormConstraints.billed_amount}
-								step="0.01"
-							/>
-						</label>
-						<label class="label">
-							<span class="text-tertiary-500">Paid Amount</span>
-							<input
-								class="input"
-								type="number"
-								name="paid_amount"
-								aria-invalid={$newDenialFormErrors.paid_amount ? 'true' : undefined}
-								bind:value={$newDenialForm.paid_amount}
-								{...$newDenialFormConstraints.paid_amount}
-								step="0.01"
-							/>
+							<span class="text-tertiary-500">Labels</span>
+							<select
+								class="select"
+								name="label_id"
+								multiple
+								aria-invalid={$newDenialFormErrors.label_id ? 'true' : undefined}
+								bind:value={$newDenialForm.label_id}
+								{...$newDenialFormConstraints.label_id}
+							>
+								{#each data.labels as label}
+									<option value={label.id}>{label.label_name}</option>
+								{/each}
+							</select>
 						</label>
 					</div>
 					<div class="space-x-4">
@@ -294,11 +318,17 @@
 							</div>
 							<div class="grow">
 								<span class="text-slate-500">Labels</span>
-								<div>
-									<span class="variant-filled-success chip">Paid</span>
-									<span class="variant-filled-warning chip">Appealed</span>
-									<span class="variant-filled-error chip">Denied</span>
-								</div>
+								{#if denialData.labels.length > 0}
+									<div class="flex flex-row flex-wrap space-x-2">
+										{#each denialData.labels as label}
+											<span
+												class="variant-filled chip"
+												style="background-color: {label.bg_color}; color: {label.txt_color};"
+												>{label.label_name}</span
+											>
+										{/each}
+									</div>
+								{/if}
 							</div>
 						</div>
 						<div>
@@ -314,8 +344,8 @@
 						on:click={() => (showAddNewNoteForm = !showAddNewNoteForm)}
 						disabled={showAddNewNoteForm || !data.session}>+ Add New Note</button
 					>
-					<!-- Add New Note Form -->
 
+					<!-- Add New Note Form -->
 					{#if showAddNewNoteForm}
 						<form method="POST" action="?/createNote" use:newNoteFormEnhance>
 							<div class="card space-y-6 p-6">

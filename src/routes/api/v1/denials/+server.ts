@@ -7,7 +7,7 @@ export const GET = async ({ url, locals: { supabase, safeGetSession } }) => {
     if (patientid) {
         let { data: denials, error } = await supabase
         .from('denials')
-        .select('*, notes(id, created_at, modified_at, note, users(username))')        
+        .select('*, notes(id, created_at, modified_at, note, users(username)), labels(*)')        
         .eq('patient_id', patientid)
         .order('service_start_date', { ascending: false })
         .order('created_at', { referencedTable: 'notes', ascending: false });
@@ -15,7 +15,7 @@ export const GET = async ({ url, locals: { supabase, safeGetSession } }) => {
         if (error) {
             return json({ error: 'Error fetching denials' }, { status: 500 });
         }
-        
+
         return json(denials);
     }
     else {        
