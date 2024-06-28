@@ -21,9 +21,8 @@
 			<div class="space-y-4">
 				<div class="h3 text-tertiary-500">Admin</div>
 				<ul class="space-y-4">
-					<li><a href="/setting/userlist">- User list</a></li>
-					<li><a href="/setting/createnewuser">- Create new user</a></li>
-					<li><a href="/setting/roles">- Roles</a></li>
+					<li><a href="/setting/admin/users">- Users</a></li>
+					<li><a href="/setting/admin/roles">- Roles</a></li>
 				</ul>
 				<div class="h3 text-tertiary-500">General</div>
 				<ul class="space-y-4">

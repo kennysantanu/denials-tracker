@@ -57,17 +57,11 @@ create table "public"."roles" (
 );
 
 
-create table "public"."user_roles" (
-    "created_at" timestamp with time zone not null default now(),
-    "user_id" uuid not null,
-    "role_id" bigint not null
-);
-
-
 create table "public"."users" (
     "id" uuid not null default auth.uid(),
     "created_at" timestamp with time zone not null default now(),
-    "username" character varying
+    "username" character varying,
+    "role" bigint null
 );
 
 
@@ -85,8 +79,6 @@ CREATE UNIQUE INDEX patients_pkey ON public.patients USING btree (id);
 
 CREATE UNIQUE INDEX roles_pkey ON public.roles USING btree (id);
 
-CREATE UNIQUE INDEX user_roles_pkey ON public.user_roles USING btree (user_id, role_id);
-
 CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id);
 
 alter table "public"."denial_labels" add constraint "denial_labels_pkey" PRIMARY KEY using index "denial_labels_pkey";
@@ -102,8 +94,6 @@ alter table "public"."notes" add constraint "notes_pkey" PRIMARY KEY using index
 alter table "public"."patients" add constraint "patients_pkey" PRIMARY KEY using index "patients_pkey";
 
 alter table "public"."roles" add constraint "roles_pkey" PRIMARY KEY using index "roles_pkey";
-
-alter table "public"."user_roles" add constraint "user_roles_pkey" PRIMARY KEY using index "user_roles_pkey";
 
 alter table "public"."users" add constraint "users_pkey" PRIMARY KEY using index "users_pkey";
 
@@ -131,14 +121,6 @@ alter table "public"."notes" add constraint "public_notes_user_id_fkey" FOREIGN 
 
 alter table "public"."notes" validate constraint "public_notes_user_id_fkey";
 
-alter table "public"."user_roles" add constraint "public_user_roles_role_id_fkey" FOREIGN KEY (role_id) REFERENCES roles(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
-
-alter table "public"."user_roles" validate constraint "public_user_roles_role_id_fkey";
-
-alter table "public"."user_roles" add constraint "public_user_roles_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
-
-alter table "public"."user_roles" validate constraint "public_user_roles_user_id_fkey";
-
 alter table "public"."users" add constraint "public_users_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
 
 alter table "public"."users" validate constraint "public_users_id_fkey";
@@ -152,8 +134,8 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
  SET search_path TO ''
 AS $function$
 begin
-  insert into public.users (id, username)
-  values (new.id, new.raw_user_meta_data ->> 'username');
+  insert into public.users (id)
+  values (new.id);
   return new;
 end;
 $function$
@@ -456,48 +438,6 @@ grant trigger on table "public"."roles" to "service_role";
 grant truncate on table "public"."roles" to "service_role";
 
 grant update on table "public"."roles" to "service_role";
-
-grant delete on table "public"."user_roles" to "anon";
-
-grant insert on table "public"."user_roles" to "anon";
-
-grant references on table "public"."user_roles" to "anon";
-
-grant select on table "public"."user_roles" to "anon";
-
-grant trigger on table "public"."user_roles" to "anon";
-
-grant truncate on table "public"."user_roles" to "anon";
-
-grant update on table "public"."user_roles" to "anon";
-
-grant delete on table "public"."user_roles" to "authenticated";
-
-grant insert on table "public"."user_roles" to "authenticated";
-
-grant references on table "public"."user_roles" to "authenticated";
-
-grant select on table "public"."user_roles" to "authenticated";
-
-grant trigger on table "public"."user_roles" to "authenticated";
-
-grant truncate on table "public"."user_roles" to "authenticated";
-
-grant update on table "public"."user_roles" to "authenticated";
-
-grant delete on table "public"."user_roles" to "service_role";
-
-grant insert on table "public"."user_roles" to "service_role";
-
-grant references on table "public"."user_roles" to "service_role";
-
-grant select on table "public"."user_roles" to "service_role";
-
-grant trigger on table "public"."user_roles" to "service_role";
-
-grant truncate on table "public"."user_roles" to "service_role";
-
-grant update on table "public"."user_roles" to "service_role";
 
 grant delete on table "public"."users" to "anon";
 
