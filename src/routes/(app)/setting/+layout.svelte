@@ -23,6 +23,7 @@
 				<ul class="space-y-4">
 					<li><a href="/setting/admin/users">- Users</a></li>
 					<li><a href="/setting/admin/roles">- Roles</a></li>
+					<li><a href="/setting/admin/labels">- Labels</a></li>
 				</ul>
 				<div class="h3 text-tertiary-500">General</div>
 				<ul class="space-y-4">
