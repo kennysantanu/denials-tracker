@@ -5,7 +5,18 @@
 	export let data: PageData;
 
 	// SuperForm forms
-	const { form: newLabelForm, constraints: newLabelFormConstraints } = superForm(data.newLabelForm);
+	const {
+		form: editLabelForm,
+		enhance: editLabelFormEnhance,
+		constraints: editLabelFormConstraints
+	} = superForm(data.editLabelForm);
+
+	const {
+		form: newLabelForm,
+		enhance: newLabelFormEnhance,
+		constraints: newLabelFormConstraints
+	} = superForm(data.newLabelForm);
+
 </script>
 
 <h2 class="h2 text-tertiary-500">List of Labels</h2>
@@ -20,7 +31,57 @@
 
 <hr />
 
-<form action="?/createLabel" method="post" class="space-y-4">
+<h2 class="h2 text-tertiary-500">Edit Label</h2>
+<form action="?/updateLabel" method="post" class="space-y-4" use:editLabelFormEnhance>
+	<label class="label">
+		<span class="text-tertiary-500">Labels</span>
+		<select
+			class="select"
+			name="label_id"
+			bind:value={$editLabelForm.label_id}
+			{...$editLabelFormConstraints.label_id}
+		>
+			{#each data.labels as label}
+				<option value={label.id}>{label.label_name}</option>
+			{/each}
+		</select>
+	</label>
+	<label class="label">
+		<span class="text-tertiary-500">Label Name</span>
+		<input
+			type="text"
+			name="label_name"
+			class="input"
+			bind:value={$editLabelForm.label_name}
+			{...$editLabelFormConstraints.label_name}
+		/>
+	</label>
+	<label class="label">
+		<span class="text-tertiary-500">Label Color</span>
+		<input
+			type="color"
+			name="bg_color"
+			bind:value={$editLabelForm.bg_color}
+			{...$editLabelFormConstraints.bg_color}
+		/>
+	</label>
+	<label class="label">
+		<span class="text-tertiary-500">Text Color</span>
+		<input
+			type="color"
+			name="txt_color"
+			bind:value={$editLabelForm.txt_color}
+			{...$editLabelFormConstraints.txt_color}
+		/>
+	</label>
+	<div class="space-x-4">
+		<button type="submit" class="variant-filled-primary btn">Update Label</button>
+	</div>
+</form>
+
+<hr />
+
+<form action="?/createLabel" method="post" class="space-y-4" use:newLabelFormEnhance>
 	<h2 class="h2 text-tertiary-500">Create New Label</h2>
 	<label class="label">
 		<span class="text-tertiary-500">Label Name</span>
