@@ -68,6 +68,18 @@ export const actions = {
 
         return { form };
     },
+    updatePatientNote: async ({ request , locals: { supabase, safeGetSession } }) => {
+        let form = await request.formData();
+
+        const patient_id = form.get('patient_id');
+        const note = form.get('note');
+
+        const { data, error } = await supabase
+        .from('patients')
+        .update({ note: note })
+        .eq( 'id', patient_id )
+
+    },
     createDenial: async ({ request, locals: { supabase, safeGetSession } }) => {
         const newDenialForm = await superValidate(request, zod(schemaNewDenial));        
 

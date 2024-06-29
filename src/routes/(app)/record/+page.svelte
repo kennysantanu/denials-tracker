@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
+	import { enhance } from '$app/forms';
 	import Ellipsis from '$lib/icons/Ellipsis-vertical.svelte';
+	import Pencil from '$lib/icons/Pencil-square.svelte';
 
 	// Type definitions
 	type DenialsData = {
@@ -31,7 +33,7 @@
 
 	// Variables
 	export let data;
-	let patientList = data.patients;
+	$: patientList = data.patients;
 	let selectedPatientId: string = '';
 	let selectedPatientData = null;
 	let denialsData: DenialsData = [];
@@ -40,6 +42,7 @@
 	let showAddNewPatientForm: boolean = false;
 	let showAddNewDenialForm: boolean = false;
 	let showAddNewNoteForm: boolean = false;
+	let editPatientNote: boolean = false;
 
 	// SuperForm forms
 	const {
@@ -124,6 +127,7 @@
 			>
 		</div>
 	</label>
+
 	{#if showAddNewPatientForm}
 		<div class="card space-y-6 p-6">
 			<h3 class="h3 text-tertiary-500">Create New Patient</h3>
@@ -175,18 +179,52 @@
 		</div>
 	{/if}
 
+	<!-- Patient's note -->
 	{#if selectedPatientId}
-		<label class="label">
-			<span class="text-tertiary-500">Note</span>
-			<div class="flex flex-row space-x-4">
-				<textarea class="textarea" rows="4" />
-				<div>
-					<button type="button" class="btn-icon text-tertiary-500">
-						<Ellipsis />
-					</button>
+		{#if editPatientNote}
+			<form
+				action="?/updatePatientNote"
+				method="post"
+				class="space-y-4"
+				use:enhance={() => {
+					return async ({ update }) => {
+						editPatientNote = !editPatientNote;
+						await update();
+					};
+				}}
+			>
+				<input hidden name="patient_id" value={selectedPatientId} />
+				<label class="label">
+					<span class="text-tertiary-500">Note</span>
+					<textarea class="textarea grow" name="note" rows="4" value={selectedPatientData.note} />
+				</label>
+				<div class="space-x-4">
+					<button type="submit" class="variant-filled-primary btn">Save</button>
+					<button
+						type="button"
+						class="variant-filled-secondary btn"
+						on:click={() => (editPatientNote = !editPatientNote)}>Cancel</button
+					>
 				</div>
+			</form>
+		{:else}
+			<div class="flex flex-nowrap space-x-4">
+				<div class="label grow">
+					<span class="text-tertiary-500">Note</span>
+					<p class="card p-2">
+						{selectedPatientData.note}
+					</p>
+				</div>
+
+				<button
+					type="button"
+					class="btn-icon text-tertiary-500"
+					on:click={() => (editPatientNote = !editPatientNote)}
+				>
+					<Pencil />
+				</button>
 			</div>
-		</label>
+		{/if}
 	{/if}
 </div>
 
