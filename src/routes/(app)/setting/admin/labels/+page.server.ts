@@ -3,15 +3,9 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import type { PageServerLoad, Actions } from './$types';
 
-// Form schema
-const schemaEditLabelForm = z.object({
-    label_id: z.number(),
-    label_name: z.string(),
-    bg_color: z.string(),
-    txt_color: z.string(),
-});
-
-const schemaNewLabelForm = z.object({
+// Superforms schema
+const labelsSchema = z.object({
+    id: z.number(),
     order: z.number(),
     label_name: z.string(),
     bg_color: z.string(),
@@ -20,78 +14,94 @@ const schemaNewLabelForm = z.object({
 
 // Server load function
 export const load = (async ({ locals: { supabase, safeGetSession } }) => {
-    const editLabelForm = await superValidate(zod(schemaEditLabelForm));
+    const editLabelForm = await superValidate(zod(labelsSchema), {
+        id: 'editLabelForm'
+    });
     editLabelForm.data.bg_color = '#dee2ed';
     editLabelForm.data.txt_color = '#000000';
 
-    const newLabelForm = await superValidate(zod(schemaNewLabelForm));
+    const newLabelForm = await superValidate(zod(labelsSchema), {
+        id: 'newLabelForm'
+    });
     newLabelForm.data.bg_color = '#dee2ed';
     newLabelForm.data.txt_color = '#000000';
+
+    const deleteLabelForm = await superValidate(zod(labelsSchema), {
+        id: 'deleteLabelForm'
+    });
     
     let { data: labels, error } = await supabase
     .from('labels')
     .select('*')
-    .order('order', { ascending: true });      
+    .order('order', { ascending: true });
 
-    return { editLabelForm, newLabelForm, labels: labels || []};
+    return { newLabelForm, editLabelForm, deleteLabelForm, labels: labels || []};
 }) satisfies PageServerLoad;
 
 // Form actions
 export const actions: Actions = {
-    updateLabel: async ({ request, locals: { supabase, safeGetSession } }) => {
-        const form = await superValidate(request, zod(schemaEditLabelForm));
-
-        if (!form.valid) {
-            return fail(400, { form });
-        }
-        
-        const { data, error } = await supabase
-            .from('labels')
-            .update({
-                label_name: form.data.label_name.trim(), 
-                bg_color: form.data.bg_color, 
-                txt_color: form.data.txt_color })
-            .eq('id', form.data.label_id)
-
-        if (error) {
-            return fail(400, { form });
-        }
-
-        return form;
-    },
     createLabel: async ({ request, locals: { supabase, safeGetSession } }) => {
-        const form = await superValidate(request, zod(schemaNewLabelForm));
+        const newLabelForm = await superValidate(request, zod(labelsSchema));
 
-        if (!form.valid) {
-            return fail(400, { form });
+        if (!newLabelForm.valid) {
+            return fail(400, { newLabelForm });
         }
 
-        let { count, error: countError } = await supabase
+        let { data: labelsData, error: labelsError } = await supabase
         .from('labels')
-        .select('*', { count: 'exact', head: true })
+        .select('order')
 
-        if (countError) {
-            return fail(400, { form });
+        if (labelsError) {
+            return fail(400, { newLabelForm });
         }
 
-        if (count) {
-            count = count + 1;
-        }        
+        if (!labelsData) {
+            labelsData = [];
+        }
 
-        const { data, error } = await supabase
+        let maxOrder = 0;
+
+        for ( const label of labelsData ) {
+            if (label.order > maxOrder) {
+                maxOrder = label.order;
+            }
+        }
+
+        const { } = await supabase
             .from('labels')
             .insert([
             { 
-                order: count, 
-                label_name: form.data.label_name.trim(), 
-                bg_color: form.data.bg_color, 
-                txt_color: form.data.txt_color},
+                order: maxOrder + 1, 
+                label_name: newLabelForm.data.label_name.trim(), 
+                bg_color: newLabelForm.data.bg_color, 
+                txt_color: newLabelForm.data.txt_color},
             ])
-                      
-        if (error) {
-            return fail(400, { form });
-        }
+    },
+    updateLabel: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const editLabelForm = await superValidate(request, zod(labelsSchema));
 
-        return form;
+        if (!editLabelForm.valid) {
+            return fail(400, { editLabelForm });
+        }
+        
+        const { } = await supabase
+            .from('labels')
+            .update({
+                label_name: editLabelForm.data.label_name.trim(), 
+                bg_color: editLabelForm.data.bg_color, 
+                txt_color: editLabelForm.data.txt_color })
+            .eq('id', editLabelForm.data.id)
+    },
+    deleteLabel: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const deleteLabelForm = await superValidate(request, zod(labelsSchema));
+
+        if (!deleteLabelForm.valid) {
+            return fail(400, { deleteLabelForm });
+        }
+        
+        const { } = await supabase
+            .from('labels')
+            .delete()
+            .eq('id', deleteLabelForm.data.id)
     },
 };
