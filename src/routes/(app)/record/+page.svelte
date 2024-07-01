@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance } from '$app/forms';
-	import Ellipsis from '$lib/icons/Ellipsis-vertical.svelte';
 	import Pencil from '$lib/icons/Pencil-square.svelte';
+	import DenialsCard from '$lib/DenialsCard.svelte';
 
 	// Type definitions
 	type DenialsData = {
@@ -41,7 +41,6 @@
 	$: selectedPatientData = patientList.find((patient) => patient.id === selectedPatientId);
 	let showAddNewPatientForm: boolean = false;
 	let showAddNewDenialForm: boolean = false;
-	let showAddNewNoteForm: boolean = false;
 	let editPatientNote: boolean = false;
 
 	// SuperForm forms
@@ -77,8 +76,6 @@
 		enhance: newNoteFormEnhance
 	} = superForm(data.newNoteForm, {
 		onUpdated() {
-			alert('New note added successfully!');
-			showAddNewNoteForm = !showAddNewNoteForm;
 			getDenials(selectedPatientId);
 		}
 	});
@@ -329,105 +326,9 @@
 		<!-- Denial List Cards -->
 		{#if denialsData && denialsDataLength > 0}
 			{#each denialsData as denialData}
-				<div class="card space-y-8 p-8">
-					<!-- Denial List Card Header -->
-					<div class="flex justify-between">
-						<div class="flex grow flex-wrap gap-4">
-							<div class="grow">
-								<div class="grid min-w-48 grid-rows-2">
-									<span class="text-slate-500">Date of Service</span>
-									{formatDate(denialData.service_start_date)}
-									{#if denialData.service_end_date}
-										- {formatDate(denialData.service_end_date)}
-									{/if}
-								</div>
-							</div>
-							<div class="grow">
-								<div class="grid grid-rows-2">
-									<span class="text-slate-500">Bill Amount</span>
-									${denialData.billed_amount}
-								</div>
-							</div>
-							<div class="grow">
-								<div class="grid grid-rows-2">
-									<span class="text-slate-500">Paid Amount</span>
-									${denialData.paid_amount}
-								</div>
-							</div>
-							<div class="grow">
-								<span class="text-slate-500">Labels</span>
-								{#if denialData.labels.length > 0}
-									<div class="flex flex-row flex-wrap space-x-2">
-										{#each denialData.labels as label}
-											<span
-												class="variant-filled chip"
-												style="background-color: {label.bg_color}; color: {label.txt_color};"
-												>{label.label_name}</span
-											>
-										{/each}
-									</div>
-								{/if}
-							</div>
-						</div>
-						<div>
-							<button type="button" class="btn-icon text-tertiary-500">
-								<Ellipsis />
-							</button>
-						</div>
-					</div>
-					<hr />
-					<button
-						type="button"
-						class="btn text-tertiary-500"
-						on:click={() => (showAddNewNoteForm = !showAddNewNoteForm)}
-						disabled={showAddNewNoteForm || !data.session}>+ Add New Note</button
-					>
-
-					<!-- Add New Note Form -->
-					{#if showAddNewNoteForm}
-						<form method="POST" action="?/createNote" use:newNoteFormEnhance>
-							<div class="card space-y-6 p-6">
-								<h3 class="h3 text-tertiary-500">Create New Note</h3>
-								<input type="hidden" name="denial_id" value={denialData.id} />
-								<label class="label">
-									<span class="text-tertiary-500">Note</span>
-									<textarea
-										class="textarea"
-										rows="4"
-										name="note"
-										aria-invalid={$newNoteFormErrors.note ? 'true' : undefined}
-										bind:value={$newNoteForm.note}
-										{...$newNoteFormConstraints.note}
-									/>
-								</label>
-								<div class="space-x-4">
-									<button type="submit" class="variant-filled-primary btn">Save</button>
-									<button
-										type="button"
-										class="variant-filled-secondary btn"
-										on:click={() => (showAddNewNoteForm = !showAddNewNoteForm)}>Cancel</button
-									>
-								</div>
-							</div>
-						</form>
-					{/if}
-					{#if denialData.notes.length > 0}
-						{#each denialData.notes as noteData}
-							<div class="flex flex-row">
-								<div>
-									<span>({formatDate(noteData.created_at)})</span>
-									<span class="font-bold">{noteData.users.username}:</span>
-									<span class="text-surface-800">{noteData.note}</span>
-								</div>
-								<div>
-									<button type="button" class="btn-icon text-surface-800">
-										<Ellipsis />
-									</button>
-								</div>
-							</div>
-						{/each}
-					{/if}
-				</div>
+				<DenialsCard
+				denialData={denialData}
+				/>
 			{/each}
 		{/if}
 	</div>
