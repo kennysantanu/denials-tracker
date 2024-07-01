@@ -90,7 +90,7 @@
 		<span class="text-tertiary-500">Label Select</span>
 		<select
 			class="select"
-			name="label_id"
+			name="id"
 			bind:value={$editLabelForm.id}
 			{...$editLabelFormConstraints.id}
 		>
