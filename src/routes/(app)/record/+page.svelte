@@ -328,6 +328,8 @@
 			{#each denialsData as denialData}
 				<DenialsCard
 				denialData={denialData}
+				getDenials={getDenials}
+				selectedPatientId={selectedPatientId}
 				/>
 			{/each}
 		{/if}

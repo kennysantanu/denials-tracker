@@ -2,10 +2,13 @@
 	import Ellipsis from '$lib/icons/Ellipsis-vertical.svelte';
 	import { enhance } from '$app/forms';
 	import { popup } from '@skeletonlabs/skeleton';
+	import DenialsNote from '$lib/DenialsNote.svelte';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
 	// Props
 	export let denialData;
+	export let getDenials;
+	export let selectedPatientId;
 
 	// Variables
 	let formElement: HTMLFormElement;
@@ -115,23 +118,7 @@
 	{/if}
 	{#if denialData.notes.length > 0}
 		{#each denialData.notes as noteData}
-			<div class="flex flex-row">
-				<div>
-					<span>({formatDate(noteData.created_at)})</span>
-					<span class="font-bold">{noteData.users.username}:</span>
-					<span class="text-surface-800">{noteData.note}</span>
-				</div>
-				<div>
-					<button type="button" class="btn-icon text-surface-800" use:popup={popupFeatured}>
-						<Ellipsis />
-					</button>
-					<div class="card shadow-xl" data-popup="popupFeatured">
-						<div><button class="btn">Edit</button></div>
-						<div><button class="btn">Delete</button></div>
-						<div class="bg-surface-100-800-token arrow" />
-					</div>
-				</div>
-			</div>
+			<DenialsNote {noteData} {getDenials} {selectedPatientId} />
 		{/each}
 	{/if}
 </div>

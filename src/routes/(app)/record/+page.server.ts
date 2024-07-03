@@ -146,4 +146,19 @@ export const actions = {
 
         return { newNoteForm };
     },
+    updateNote: async ({ request , locals: { supabase, safeGetSession } }) => {
+        const form = await request.formData();
+
+        const note_id = form.get('note_id');
+        const modified_at = new Date();
+        const note = form.get('note');
+
+        const { data, error } = await supabase
+        .from('notes')
+        .update({ 
+            modified_at: modified_at,
+            note: note
+         })
+        .eq( 'id', note_id )
+    },
 }
