@@ -161,4 +161,13 @@ export const actions = {
          })
         .eq( 'id', note_id )
     },
+    deleteNote: async ({ request , locals: { supabase, safeGetSession } }) => {
+        const form = await request.formData();
+
+        const { error } = await supabase
+        .from('notes')
+        .delete()
+        .eq('id', form.get('note_id'))
+        
+    },
 }

@@ -34,7 +34,25 @@
 			</button>
 			<div class="card shadow-xl" data-popup="popup-{noteData.id}">
 				<div><button class="btn" on:click={() => (showEditNoteForm = true)}>Edit</button></div>
-				<div><button class="btn">Delete</button></div>
+				<div>
+					<form
+						method="POST"
+						action="?/deleteNote"
+						use:enhance={({ cancel }) => {
+							if (!confirm('Delete note?')) {
+								cancel();
+							}
+
+							return async ({ update }) => {
+								getDenials(selectedPatientId);
+								update();
+							};
+						}}
+					>
+						<input hidden name="note_id" value={noteData.id} />
+						<button type="submit" class="btn">Delete</button>
+					</form>
+				</div>
 			</div>
 		</div>
 	{:else}
@@ -52,7 +70,7 @@
 		>
 			<div class="flex flex-col gap-6">
 				<input hidden name="note_id" value={noteData.id} />
-				<textarea rows=4 class="input" name="note" value={noteData.note} />
+				<textarea rows="4" class="input" name="note" value={noteData.note} />
 				<div class="space-x-4">
 					<button type="submit" class="variant-filled-primary btn">Save</button>
 					<button
