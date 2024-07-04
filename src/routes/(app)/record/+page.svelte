@@ -38,6 +38,7 @@
 	let selectedPatientData = null;
 	let denialsData: DenialsData = [];
 	let denialsDataLength = 0;
+	let labelsData = data.labels;
 	$: selectedPatientData = patientList.find((patient) => patient.id === selectedPatientId);
 	let showAddNewPatientForm: boolean = false;
 	let showAddNewDenialForm: boolean = false;
@@ -330,6 +331,7 @@
 				denialData={denialData}
 				getDenials={getDenials}
 				selectedPatientId={selectedPatientId}
+				labelsData={labelsData}
 				/>
 			{/each}
 		{/if}

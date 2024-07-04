@@ -114,6 +114,49 @@ export const actions = {
         
         return { newDenialForm };
     },
+    updateDenial: async ({ request , locals: { supabase, safeGetSession } }) => {
+        const form = await request.formData();
+
+        const denial_id = form.get('denial_id');
+        const service_start_date = form.get('service_start_date');
+        let service_end_date = form.get('service_end_date');
+        const billed_amount = form.get('billed_amount');
+        const paid_amount = form.get('paid_amount');
+        let label_ids = [];
+
+        if (service_end_date === '') {
+            service_end_date = null;
+        }
+
+        for (let [name, value] of form.entries()) {
+            if (name === 'label_id') {
+                label_ids.push(value);
+            }
+        }
+
+        const { } = await supabase
+        .from('denials')
+        .update({ 
+            service_start_date: service_start_date,
+            service_end_date: service_end_date,
+            billed_amount: billed_amount,
+            paid_amount: paid_amount
+         })
+        .eq( 'id', denial_id )
+
+        const { } = await supabase
+        .from('denial_labels')
+        .delete()
+        .eq( 'denial_id', denial_id )        
+
+        for (const label_id of label_ids) {
+            const { } = await supabase
+                .from('denial_labels')
+                .insert([
+                { denial_id: denial_id, label_id: label_id },
+                ])
+        }
+    },
     createNote: async ({ request, locals: { supabase, safeGetSession } }) => {
         const sessionData = await safeGetSession();
 
