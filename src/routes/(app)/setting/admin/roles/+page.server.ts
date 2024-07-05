@@ -13,13 +13,14 @@ const rolesSchema = z.object({
 export const load = (async ({ locals: { supabase, safeGetSession } }) => {
     const newRoleForm = await superValidate(zod(rolesSchema));
     const editRoleForm = await superValidate(zod(rolesSchema));
+    const deleteRoleForm = await superValidate(zod(rolesSchema));
     
     let { data: roles } = await supabase
     .from('roles')
     .select('*') 
     .order('id', { ascending: true })       
 
-    return { newRoleForm, editRoleForm, roles: roles || []};
+    return { newRoleForm, editRoleForm, deleteRoleForm, roles: roles || []};
 }) satisfies PageServerLoad;
 
 // Form actions
@@ -62,5 +63,23 @@ export const actions: Actions = {
         }
 
         return { editRoleForm };
+    },
+    deleteRole: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const deleteRoleForm = await superValidate(request, zod(rolesSchema));
+
+        if (!deleteRoleForm.valid) {
+            return fail(400, { deleteRoleForm });
+        }
+        
+        const { error } = await supabase
+            .from('roles')
+            .delete()
+            .eq('id', deleteRoleForm.data.id)
+
+        if (error) {
+            return fail(400, { deleteRoleForm });
+        }
+        
+        return { deleteRoleForm };
     },
 };
