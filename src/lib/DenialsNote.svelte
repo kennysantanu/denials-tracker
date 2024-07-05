@@ -21,7 +21,7 @@
 
 <div class="flex gap-2">
 	<span>({formatDate(noteData.created_at)})</span>
-	<span class="font-bold">{noteData.users.username}:</span>
+	<span class="font-bold">{noteData.created_by.username}:</span>
 	{#if !showEditNoteForm}
 		<span class="text-surface-800">{noteData.note}</span>
 		<div>

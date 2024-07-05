@@ -80,7 +80,23 @@
 				<div class="card shadow-xl" data-popup="popupDenial-{denialData.id}">
 					<div><button class="btn" on:click={() => (showEditDenialForm = true)}>Edit</button></div>
 					<div>
+						<form
+						method="POST"
+						action="?/deleteDenial"
+						use:enhance={({ cancel }) => {
+							if (!confirm('Delete denial?\nPlease note, this operation is irreversible!')) {
+								cancel();
+							}
+
+							return async ({ update }) => {
+								getDenials(selectedPatientId);
+								update();
+							};
+						}}
+					>
+						<input hidden name="denial_id" value={denialData.id} />
 						<button type="submit" class="btn">Delete</button>
+					</form>
 					</div>
 				</div>
 			</div>

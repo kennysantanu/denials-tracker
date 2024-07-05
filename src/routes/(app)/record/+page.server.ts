@@ -157,9 +157,16 @@ export const actions = {
                 ])
         }
     },
+    deleteDenial: async ({ request , locals: { supabase, safeGetSession } }) => {
+        const form = await request.formData();
+
+        const { } = await supabase
+        .from('denials')
+        .delete()
+        .eq('id', form.get('denial_id'))    
+    },
     createNote: async ({ request, locals: { supabase, safeGetSession } }) => {
         const sessionData = await safeGetSession();
-
         const newNoteForm = await superValidate(request, zod(schemaNewNote));        
 
         if (!newNoteForm.valid) {
@@ -170,36 +177,29 @@ export const actions = {
         .from('notes')
         .insert([
             {
-                user_id: sessionData.user.id,
+                denial_id: newNoteForm.data.denial_id,
+                created_by: sessionData.user.id,
                 note: newNoteForm.data.note,
             },
         ])
         .select()
 
-        if (insertedNote) {
-            const { data, error} = await supabase
-            .from('denial_notes')
-            .insert([
-                {
-                    denial_id: newNoteForm.data.denial_id,
-                    note_id: insertedNote[0].id
-                },
-            ])
-        }        
-
         return { newNoteForm };
     },
     updateNote: async ({ request , locals: { supabase, safeGetSession } }) => {
+        const sessionData = await safeGetSession();
         const form = await request.formData();
 
         const note_id = form.get('note_id');
         const modified_at = new Date();
+        const modified_by = sessionData.user.id;
         const note = form.get('note');
 
         const { data, error } = await supabase
         .from('notes')
         .update({ 
             modified_at: modified_at,
+            modified_by: modified_by,
             note: note
          })
         .eq( 'id', note_id )

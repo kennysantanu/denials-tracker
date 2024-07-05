@@ -15,10 +15,14 @@
 		paid_amount: number;
 		notes: {
 			id: number;
+			denial_id: number;
 			created_at: string;
 			modified_at: string | null;
 			note: string;
-			users: {
+			created_by: {
+				username: string;
+			};
+			modified_by: {
 				username: string;
 			};
 		}[];
@@ -327,12 +331,7 @@
 		<!-- Denial List Cards -->
 		{#if denialsData && denialsDataLength > 0}
 			{#each denialsData as denialData}
-				<DenialsCard
-				denialData={denialData}
-				getDenials={getDenials}
-				selectedPatientId={selectedPatientId}
-				labelsData={labelsData}
-				/>
+				<DenialsCard {denialData} {getDenials} {selectedPatientId} {labelsData} />
 			{/each}
 		{/if}
 	</div>
