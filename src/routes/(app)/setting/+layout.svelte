@@ -25,9 +25,9 @@
 					<li><a href="/setting/admin/roles">- Roles</a></li>
 					<li><a href="/setting/admin/labels">- Labels</a></li>
 				</ul>
-				<div class="h3 text-tertiary-500">General</div>
+				<div class="h3 text-tertiary-500">Manage</div>
 				<ul class="space-y-4">
-					<a href="/setting/">- Settings</a>
+					<li><a href="/setting/manage/patients">- Patients</a></li>
 				</ul>
 			</div>
 		</div>
