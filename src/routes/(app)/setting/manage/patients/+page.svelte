@@ -11,12 +11,29 @@
 	const {
 		form: updatePatientForm,
 		constraints: updatePatientFormConstraints,
-		enhance: updatePatientFormEnhanced
+		enhance: updatePatientFormEnhance
 	} = superForm(data.updatePatientForm, {
 		id: 'updatePatientForm',
 		onSubmit({}) {
 			selectedPatientId = 0;
 			alert('Patient updated!');
+		}
+	});
+
+	const {
+		form: deletePatientForm,
+		constraints: deletePatientFormConstraints,
+		enhance: deletePatientFormEnhance
+	} = superForm(data.deletePatientForm, {
+		id: 'deletePatientForm',
+		onSubmit({ cancel }) {
+			if (
+				!confirm(
+					`Are you sure you wish to delete this patient's record?\nThis action will permanently remove all associated denials and notes for the patient.\nPlease be aware, this operation cannot be undone!`
+				)
+			) {
+				cancel();
+			}
 		}
 	});
 
@@ -46,7 +63,7 @@
 		method="post"
 		id="updatePatientForm"
 		class="space-y-4"
-		use:updatePatientFormEnhanced
+		use:updatePatientFormEnhance
 	>
 		<input type="hidden" name="id" value={selectedPatientId} />
 		<label class="label">
@@ -89,3 +106,26 @@
 		</div>
 	</form>
 {/if}
+
+<hr />
+
+<h2 class="h2 text-tertiary-500">Delete Patient</h2>
+<form
+	action="?/deletePatient"
+	method="post"
+	id="deletePatientForm"
+	class="space-y-4"
+	use:deletePatientFormEnhance
+>
+	<label class="label">
+		<span class="text-tertiary-500">Patient Select</span>
+		<select class="select" name="id" bind:value={$deletePatientForm.id}>
+			{#each data.patients as patient}
+				<option value={patient.id}
+					>{patient.last_name}, {patient.first_name} ({formatDate(patient.date_of_birth)})</option
+				>
+			{/each}
+		</select>
+	</label>
+	<button type="submit" class="variant-filled-primary btn">Delete Patient</button>
+</form>

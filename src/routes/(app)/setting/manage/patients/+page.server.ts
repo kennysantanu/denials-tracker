@@ -15,13 +15,14 @@ const patientsSchema = z.object({
 // Server load function
 export const load = (async ({ locals: { supabase, safeGetSession } }) => {
     const updatePatientForm = await superValidate(zod(patientsSchema));
+    const deletePatientForm = await superValidate(zod(patientsSchema));
     
     let { data: patients } = await supabase
     .from('patients')
     .select('*') 
     .order('last_name', { ascending: true })       
 
-    return { updatePatientForm, patients: patients || []};
+    return { updatePatientForm, deletePatientForm, patients: patients || []};
 }) satisfies PageServerLoad;
 
 // Form actions
@@ -48,4 +49,20 @@ export const actions: Actions = {
 
         return { updatePatientForm };
     },
+    deletePatient: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const deletePatientForm = await superValidate(request, zod(patientsSchema));
+
+        console.log(deletePatientForm.data.id);
+
+        const { error } = await supabase
+            .from('patients')
+            .delete()
+            .eq('id', deletePatientForm.data.id)
+
+        if (error) {
+            return fail(400, { deletePatientForm });
+        }
+        
+        return { deletePatientForm };
+    }
 };
