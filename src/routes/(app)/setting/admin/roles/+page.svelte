@@ -43,7 +43,7 @@
 <h2 class="h2 text-tertiary-500">List of Roles</h2>
 <ol class="space-y-4">
 	{#each data.roles as role}
-		<li class="list-inside list-decimal">{role.role_name}</li>
+		<li class="list-inside list-decimal">{role.role_name} [{role.permissions}]</li>
 	{/each}
 </ol>
 
@@ -66,6 +66,22 @@
 			bind:value={$newRoleForm.role_name}
 			{...$newRoleFormConstraints.role_name}
 		/>
+	</label>
+	<label class="label">
+		<span class="text-tertiary-500">Permissions</span>
+
+		<label class="flex items-center space-x-2">
+			<input class="checkbox" type="checkbox" name="permissions_1" />
+			<p>Admin Setting</p>
+		</label>
+		<label class="flex items-center space-x-2">
+			<input class="checkbox" type="checkbox" name="permissions_2" checked />
+			<p>View Data</p>
+		</label>
+		<label class="flex items-center space-x-2">
+			<input class="checkbox" type="checkbox" name="permissions_3" checked />
+			<p>Edit Data</p>
+		</label>
 	</label>
 	<div class="space-x-4">
 		<button type="submit" class="variant-filled-primary btn">Create Role</button>
@@ -99,6 +115,22 @@
 			bind:value={$editRoleForm.role_name}
 			{...$editRoleFormConstraints.role_name}
 		/>
+	</label>
+	<label class="label">
+		<span class="text-tertiary-500">Permissions</span>
+
+		<label class="flex items-center space-x-2">
+			<input class="checkbox" type="checkbox" name="permissions_1" />
+			<p>Admin Setting</p>
+		</label>
+		<label class="flex items-center space-x-2">
+			<input class="checkbox" type="checkbox" name="permissions_2" checked />
+			<p>View Data</p>
+		</label>
+		<label class="flex items-center space-x-2">
+			<input class="checkbox" type="checkbox" name="permissions_3" checked />
+			<p>Edit Data</p>
+		</label>
 	</label>
 	<div class="space-x-4">
 		<button type="submit" class="variant-filled-primary btn">Edit Role</button>

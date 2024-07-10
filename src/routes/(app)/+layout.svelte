@@ -10,13 +10,13 @@
 <!-- Header Bar -->
 <div class="flex items-center justify-between bg-slate-200 px-24 py-3 drop-shadow-md">
 	<h3 class="h3 font-bold text-tertiary-500">Denials Tracker</h3>
-	{#if !data.session?.user.email}
+	{#if !data.user?.username}
 		<div class="flex flex-row space-x-4">
 			<a href="/signin" class="variant-filled-primary btn">Sign in</a>
 		</div>
 	{:else}
 		<div class="flex flex-row items-center space-x-4">
-			<p>Welcome back, {(data.session?.user.email).replace('@supabase', '')}</p>
+			<p>Welcome back, {data.user.username}</p>
 			<form method="POST" action="/signin?/signout">
 				<button type="submit" class="variant-filled-primary btn">Sign out</button>
 			</form>

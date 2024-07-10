@@ -39,7 +39,7 @@ export const actions: Actions = {
         const { error: rolesError } = await supabase
             .from('roles')
             .insert([
-            { role_name: 'Administrator' },
+                { role_name: 'Administrator', permissions: [1,2,3] },
             ])
 
         if (rolesError) {

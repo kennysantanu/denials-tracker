@@ -7,6 +7,9 @@ import type { PageServerLoad, Actions } from './$types';
 const rolesSchema = z.object({
     id: z.number(),
     role_name: z.string(),
+    permissions_1: z.string().optional(),
+    permissions_2: z.string().optional(),
+    permissions_3: z.string().optional(),
 });
 
 // Server load function
@@ -32,10 +35,22 @@ export const actions: Actions = {
             return fail(400, { newRoleForm });
         }
 
-        const { data, error } = await supabase
+        let permissions: Number[] = [];
+
+        if (newRoleForm.data.permissions_1 === 'on') {
+            permissions.push(1);
+        }
+        if (newRoleForm.data.permissions_2 === 'on') {
+            permissions.push(2);
+        }
+        if (newRoleForm.data.permissions_3 === 'on') {
+            permissions.push(3);
+        }
+
+        const { error } = await supabase
             .from('roles')
             .insert([
-            { role_name: newRoleForm.data.role_name.trim() },
+            { role_name: newRoleForm.data.role_name.trim(), permissions: permissions},
             ]);
 
         if (error) {
@@ -50,11 +65,28 @@ export const actions: Actions = {
         if (!editRoleForm.valid) {
             return fail(400, { editRoleForm });
         }
+
+        if (editRoleForm.data.id === 1) {
+            return fail(400, { editRoleForm });
+        }
+
+        let permissions: Number[] = [];
+
+        if (editRoleForm.data.permissions_1 === 'on') {
+            permissions.push(1);
+        }
+        if (editRoleForm.data.permissions_2 === 'on') {
+            permissions.push(2);
+        }
+        if (editRoleForm.data.permissions_3 === 'on') {
+            permissions.push(3);
+        }
         
         const { error } = await supabase
             .from('roles')
             .update({
                 role_name: editRoleForm.data.role_name.trim(),
+                permissions: permissions
             })
             .eq('id', editRoleForm.data.id)
 
