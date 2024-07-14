@@ -42,6 +42,8 @@ RUN --mount=type=bind,source=package.json,target=package.json \
 
 # Copy the rest of the source files into the image.
 COPY . .
+# Use the node.js configuration for the build.
+RUN mv -f svelte.config.node.js svelte.config.js
 # Run the build script.
 RUN npm run build
 
