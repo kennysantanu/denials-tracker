@@ -5,7 +5,7 @@
 	export let data: PageData;
 
 	// SuperForm forms
-	const { form, constraints } = superForm(data.form);
+	const { form, message, constraints, enhance } = superForm(data.form);
 </script>
 
 <div class="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8">
@@ -14,15 +14,16 @@
 	</div>
 
 	<div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-		<form class="space-y-6" action="?/createAdmin" method="POST">
+		<form class="space-y-6" action="?/createAdmin" method="POST" use:enhance>
 			<label class="label">
 				<span class="text-tertiary-500">Username</span>
 				<input
 					type="text"
 					name="username"
 					class="input"
-					bind:value={$form.username}
+					value="admin"
 					{...$constraints.username}
+					disabled
 				/>
 			</label>
 			<label class="label">
@@ -38,6 +39,9 @@
 			<button type="submit" class="variant-filled-primary btn flex w-full justify-center"
 				>Create Account</button
 			>
+			{#if $message}
+				<p class="text-center">{$message}</p>
+			{/if}
 		</form>
 	</div>
 </div>

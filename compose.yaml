@@ -6,3 +6,10 @@ services:
       NODE_ENV: production
     ports:
       - 3000:3000
+    networks:
+      - supabase
+
+networks:
+  supabase:
+    name: supabase_default
+    external: true
