@@ -26,6 +26,7 @@ FROM base as deps
 # into this layer.
 RUN --mount=type=bind,source=package.json,target=package.json \
     --mount=type=bind,source=package-lock.json,target=package-lock.json \
+    --mount=type=bind,source=svelte.config.node.js,target=svelte.config.js \
     --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev
 
@@ -33,15 +34,23 @@ RUN --mount=type=bind,source=package.json,target=package.json \
 # Create a stage for building the application.
 FROM deps as build
 
+# Define build arguments
+ARG SUPABASE_PUBLIC_URL
+ARG SUPABASE_ANON_KEY
+
 # Download additional development dependencies before building, as some projects require
 # "devDependencies" to be installed to build. If you don't need this, remove this step.
 RUN --mount=type=bind,source=package.json,target=package.json \
     --mount=type=bind,source=package-lock.json,target=package-lock.json \
+    --mount=type=bind,source=svelte.config.node.js,target=svelte.config.js \
     --mount=type=cache,target=/root/.npm \
     npm ci
 
 # Copy the rest of the source files into the image.
 COPY . .
+# Set environment variables from build arguments
+ENV PUBLIC_SUPABASE_URL=${SUPABASE_PUBLIC_URL}
+ENV PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
 # Use the node.js configuration for the build.
 RUN mv -f svelte.config.node.js svelte.config.js
 # Run the build script.
