@@ -1,3 +1,6 @@
+import { PUBLIC_SUPABASE_URL } from '$env/static/public'
+import { PRIVATE_SUPABASE_SERVICE_KEY } from '$env/static/private'
+import { createClient } from '@supabase/supabase-js'
 import { superValidate, fail } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
@@ -13,6 +16,7 @@ const schemaNewUserForm = z.object({
 // Server load function
 export const load = (async ({ locals: { supabase, safeGetSession } }) => {
     const newUserForm = await superValidate(zod(schemaNewUserForm));
+    const resetUserPasswordForm = await superValidate(zod(schemaNewUserForm));
     
 	let { data: usersData, error: usersError } = await supabase
 	.from('users')
@@ -22,7 +26,7 @@ export const load = (async ({ locals: { supabase, safeGetSession } }) => {
     .from('roles')
     .select('id, role_name')
 
-    return { newUserForm, usersData: usersData || [], rolesData: rolesData || []};
+    return { newUserForm, resetUserPasswordForm, usersData: usersData || [], rolesData: rolesData || []};
 }) satisfies PageServerLoad;
 
 // Form actions
@@ -59,5 +63,41 @@ export const actions: Actions = {
         }
 
         return form;
+    },
+    resetUserPassword: async ({ request }) => {
+        const resetUserPasswordForm = await superValidate(request, zod(schemaNewUserForm));
+
+        if (!resetUserPasswordForm.valid) {
+            return fail(400, { resetUserPasswordForm });
+        }
+
+        const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, PRIVATE_SUPABASE_SERVICE_KEY);   
+
+        const { data: usersData, error: usersError } = await supabaseAdmin
+        .from('users')
+        .select('id, username')
+
+        if (usersError) {
+            return fail(400, { resetUserPasswordForm });
+        }
+
+        let userId = '';
+        usersData.forEach((user) => {
+            console.log(user.username);
+            if (user.username === resetUserPasswordForm.data.username) {
+                userId = user.id;
+            }
+        });
+
+        if (userId === '') {
+            return fail(400, { resetUserPasswordForm });
+        }
+
+        await supabaseAdmin.auth.admin.updateUserById(
+            userId,
+            { password: resetUserPasswordForm.data.password }
+          )
+
+        return resetUserPasswordForm;
     },
 };

@@ -6,6 +6,9 @@
 
 	// SuperForm forms
 	const { form: newUserForm, constraints: newUserFormConstraints } = superForm(data.newUserForm);
+	const { form: resetUserPasswordForm, constraints: resetUserPasswordFormConstraints } = superForm(
+		data.resetUserPasswordForm
+	);
 </script>
 
 <h2 class="h2 text-tertiary-500">List of Users</h2>
@@ -55,4 +58,36 @@
 	<div class="space-x-4">
 		<button type="submit" class="variant-filled-primary btn">Create User</button>
 	</div>
+</form>
+
+<hr />
+
+<form action="?/resetUserPassword" method="post" id="resetUserPasswordForm" class="space-y-4">
+	<h2 class="h2 text-tertiary-500">Reset User Password</h2>
+	<label class="label">
+		<span class="text-tertiary-500">User Select</span>
+		<select
+			class="select"
+			name="username"
+			bind:value={$resetUserPasswordForm.username}
+			{...$resetUserPasswordFormConstraints.username}
+		>
+			{#each data.usersData as user}
+				<option value={user.username}>{user.username}</option>
+			{/each}
+		</select>
+	</label>
+	<label class="label">
+		<span class="text-tertiary-500">New Password</span>
+		<input
+			type="password"
+			name="password"
+			class="input"
+			bind:value={$resetUserPasswordForm.password}
+			{...$resetUserPasswordFormConstraints.password}
+		/>
+		<div class="space-x-4">
+			<button type="submit" class="variant-filled-primary btn">Reset Password</button>
+		</div>
+	</label>
 </form>
