@@ -21,7 +21,7 @@
 		<!-- Setting Sidebar Card -->
 		<div class="card w-96 basis-1/4 space-y-8 px-4 py-4">
 			<div class="space-y-4">
-				{#if (data.user?.role.permissions?.includes(1))}
+				{#if data.user?.role.permissions?.includes(1)}
 					<div class="h3 text-tertiary-500">Admin</div>
 					<ul class="space-y-4">
 						<li><a href="/setting/admin/users">- Users</a></li>
@@ -31,6 +31,7 @@
 				{/if}
 				<div class="h3 text-tertiary-500">Manage</div>
 				<ul class="space-y-4">
+					<li><a href="/setting/manage/account">- Account</a></li>
 					<li><a href="/setting/manage/patients">- Patients</a></li>
 				</ul>
 			</div>
