@@ -1,5 +1,6 @@
 
-export const load = async ({ request, locals: { supabase, safeGetSession } }) => {    
+export const load = async ({ parent, locals: { supabase, safeGetSession } }) => {   
+    await parent(); 
     
     return { }
 }

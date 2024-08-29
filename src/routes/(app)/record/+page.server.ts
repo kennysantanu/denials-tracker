@@ -22,7 +22,8 @@ const schemaNewNote = z.object({
     note: z.string(),
 });
 
-export const load = async ({ request, locals: { supabase, safeGetSession } }) => {	
+export const load = async ({ parent, locals: { supabase, safeGetSession } }) => {	
+    await parent();
     const newPatientForm = await superValidate(zod(schemaNewPatient));
 
     const newDenialForm = await superValidate(zod(schemaNewDenial));
