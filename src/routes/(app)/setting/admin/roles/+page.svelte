@@ -43,7 +43,7 @@
 <h2 class="h2 text-tertiary-500">List of Roles</h2>
 <ol class="space-y-4">
 	{#each data.roles as role}
-		<li class="list-inside list-decimal">{role.role_name} [{role.permissions}]</li>
+		<li class="list-inside list-decimal">{role.role_name}</li>
 	{/each}
 </ol>
 
@@ -69,20 +69,39 @@
 	</label>
 	<label class="label">
 		<span class="text-tertiary-500">Permissions</span>
-
-		<label class="flex items-center space-x-2">
-			<input class="checkbox" type="checkbox" name="permissions_1" />
-			<p>Admin Setting</p>
-		</label>
-		<label class="flex items-center space-x-2">
-			<input class="checkbox" type="checkbox" name="permissions_2" checked />
-			<p>View Data</p>
-		</label>
-		<label class="flex items-center space-x-2">
-			<input class="checkbox" type="checkbox" name="permissions_3" checked />
-			<p>Edit Data</p>
-		</label>
-	</label>
+		<div class="grid grid-cols-2 gap-4">
+			<div>
+				<p>Record page</p>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="record_read" checked />
+					<p>Read</p>
+				</label>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="record_write" checked />
+					<p>Write</p>
+				</label>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="record_delete" checked />
+					<p>Delete</p>
+				</label>
+			</div>
+			<div>
+				<p>Admin page</p>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="admin_read" />
+					<p>Read</p>
+				</label>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="admin_write" />
+					<p>Write</p>
+				</label>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="admin_delete" />
+					<p>Delete</p>
+				</label>
+			</div>
+		</div></label
+	>
 	<div class="space-x-4">
 		<button type="submit" class="variant-filled-primary btn">Create Role</button>
 	</div>
@@ -118,20 +137,39 @@
 	</label>
 	<label class="label">
 		<span class="text-tertiary-500">Permissions</span>
-
-		<label class="flex items-center space-x-2">
-			<input class="checkbox" type="checkbox" name="permissions_1" />
-			<p>Admin Setting</p>
-		</label>
-		<label class="flex items-center space-x-2">
-			<input class="checkbox" type="checkbox" name="permissions_2" checked />
-			<p>View Data</p>
-		</label>
-		<label class="flex items-center space-x-2">
-			<input class="checkbox" type="checkbox" name="permissions_3" checked />
-			<p>Edit Data</p>
-		</label>
-	</label>
+		<div class="grid grid-cols-2 gap-4">
+			<div>
+				<p>Record page</p>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="record_read" />
+					<p>Read</p>
+				</label>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="record_write" />
+					<p>Write</p>
+				</label>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="record_delete" />
+					<p>Delete</p>
+				</label>
+			</div>
+			<div>
+				<p>Admin page</p>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="admin_read" />
+					<p>Read</p>
+				</label>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="admin_write" />
+					<p>Write</p>
+				</label>
+				<label class="flex items-center space-x-2">
+					<input class="checkbox" type="checkbox" name="admin_delete" />
+					<p>Delete</p>
+				</label>
+			</div>
+		</div></label
+	>
 	<div class="space-x-4">
 		<button type="submit" class="variant-filled-primary btn">Edit Role</button>
 	</div>

@@ -38,8 +38,28 @@ export const actions: Actions = {
         const { error: roleError } = await supabase
             .from('roles')
             .insert([
-                { role_name: 'Administrator', permissions: [1,2,3] },
-            ])
+                { 
+                    role_name: 'Administrator', 
+                    permissions: [
+                        {
+                            page: 'record', 
+                            permissions: {
+                                read: true, 
+                                write: true, 
+                                delete: true,
+                            }
+                        },
+                        {
+                            page: 'admin', 
+                            permissions: {
+                                read: true, 
+                                write: true, 
+                                delete: true,
+                            }
+                        }
+                    ]
+                }
+            ]);
         
         if (!signupData.user) {
             return message(form, 'Error creating Administrator account!');     

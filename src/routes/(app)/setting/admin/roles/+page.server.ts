@@ -7,9 +7,12 @@ import type { PageServerLoad, Actions } from './$types';
 const rolesSchema = z.object({
     id: z.number(),
     role_name: z.string(),
-    permissions_1: z.string().optional(),
-    permissions_2: z.string().optional(),
-    permissions_3: z.string().optional(),
+    record_read: z.boolean().optional(),
+    record_write: z.boolean().optional(),
+    record_delete: z.boolean().optional(),
+    admin_read: z.boolean().optional(),
+    admin_write: z.boolean().optional(),
+    admin_delete: z.boolean().optional()
 });
 
 // Server load function
@@ -35,17 +38,24 @@ export const actions: Actions = {
             return fail(400, { newRoleForm });
         }
 
-        let permissions: Number[] = [];
-
-        if (newRoleForm.data.permissions_1 === 'on') {
-            permissions.push(1);
-        }
-        if (newRoleForm.data.permissions_2 === 'on') {
-            permissions.push(2);
-        }
-        if (newRoleForm.data.permissions_3 === 'on') {
-            permissions.push(3);
-        }
+        const permissions = [
+            {
+                page: "record",
+                permissions: {
+                    read: newRoleForm.data.record_read,
+                    write: newRoleForm.data.record_write,
+                    delete: newRoleForm.data.record_delete
+                }
+            },
+            {
+                page: "admin",
+                permissions: {
+                    read: newRoleForm.data.admin_read,
+                    write: newRoleForm.data.admin_write,
+                    delete: newRoleForm.data.admin_delete
+                }
+            }
+        ];
 
         const { error } = await supabase
             .from('roles')
@@ -70,17 +80,24 @@ export const actions: Actions = {
             return fail(400, { editRoleForm });
         }
 
-        let permissions: Number[] = [];
-
-        if (editRoleForm.data.permissions_1 === 'on') {
-            permissions.push(1);
-        }
-        if (editRoleForm.data.permissions_2 === 'on') {
-            permissions.push(2);
-        }
-        if (editRoleForm.data.permissions_3 === 'on') {
-            permissions.push(3);
-        }
+        const permissions = [
+            {
+                page: "record",
+                permissions: {
+                    read: editRoleForm.data.record_read,
+                    write: editRoleForm.data.record_write,
+                    delete: editRoleForm.data.record_delete
+                }
+            },
+            {
+                page: "admin",
+                permissions: {
+                    read: editRoleForm.data.admin_read,
+                    write: editRoleForm.data.admin_write,
+                    delete: editRoleForm.data.admin_delete
+                }
+            }
+        ];
         
         const { error } = await supabase
             .from('roles')
