@@ -8,6 +8,7 @@
 		<TabGroup justify="justify-center space-x-16">
 			<TabAnchor href="/record" selected={true}>Record</TabAnchor>
 			<TabAnchor href="/report">Report</TabAnchor>
+			<TabAnchor href="/file">File</TabAnchor>
 			<TabAnchor href="/setting">Setting</TabAnchor>
 		</TabGroup>
 	</div>

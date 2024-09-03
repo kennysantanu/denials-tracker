@@ -7,13 +7,13 @@
 	<div class="w-fit">
 		<TabGroup justify="justify-center space-x-16">
 			<TabAnchor href="/record">Record</TabAnchor>
-			<TabAnchor href="/report" selected={true}>Report</TabAnchor>
-			<TabAnchor href="/file">File</TabAnchor>
+			<TabAnchor href="/report">Report</TabAnchor>
+			<TabAnchor href="/file" selected={true}>File</TabAnchor>
 			<TabAnchor href="/setting">Setting</TabAnchor>
 		</TabGroup>
 	</div>
 </div>
 
-<div class="space-y-8">
+<div class="space-y-16">
 	<slot></slot>
 </div>
