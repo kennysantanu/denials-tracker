@@ -1,5 +1,5 @@
 import { PUBLIC_SUPABASE_URL } from '$env/static/public'
-import { PRIVATE_SUPABASE_SERVICE_KEY } from '$env/static/private'
+import { PRIVATE_SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private'
 import { createClient } from '@supabase/supabase-js'
 import { superValidate, fail } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
@@ -71,7 +71,7 @@ export const actions: Actions = {
             return fail(400, { resetUserPasswordForm });
         }
 
-        const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, PRIVATE_SUPABASE_SERVICE_KEY);   
+        const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, PRIVATE_SUPABASE_SERVICE_ROLE_KEY);   
 
         const { data: usersData, error: usersError } = await supabaseAdmin
         .from('users')
