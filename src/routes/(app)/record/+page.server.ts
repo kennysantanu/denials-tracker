@@ -107,7 +107,7 @@ export const actions = {
 
         for (const label_id of newDenialForm.data.label_id) {
             const { } = await supabase
-                .from('denial_labels')
+                .from('denials_labels')
                 .insert([
                 { denial_id: denials[0].id, label_id: label_id },
                 ])
@@ -146,13 +146,13 @@ export const actions = {
         .eq( 'id', denial_id )
 
         const { } = await supabase
-        .from('denial_labels')
+        .from('denials_labels')
         .delete()
         .eq( 'denial_id', denial_id )        
 
         for (const label_id of label_ids) {
             const { } = await supabase
-                .from('denial_labels')
+                .from('denials_labels')
                 .insert([
                 { denial_id: denial_id, label_id: label_id },
                 ])
