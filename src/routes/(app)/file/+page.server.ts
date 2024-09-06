@@ -34,7 +34,7 @@ export const actions = {
                     name: `${timestamp}/${file.name}`, 
                     size: file.size, 
                     mimetype: file.type, 
-                    metadata: { status: 'New' } 
+                    metadata: { status: 'New', note: '' } 
                 });
         }
         

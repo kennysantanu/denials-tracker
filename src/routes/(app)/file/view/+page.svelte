@@ -58,8 +58,8 @@
 	<form method="POST" action="?/updateFileInfo">
 		<div class="space-y-6 p-6">
 			<h3 class="h3 text-tertiary-500">File Info</h3>
-			<div class="grid grid-cols-5 gap-4">
-				{#if editFileInfo === true}
+			{#if editFileInfo === true}
+				<div class="grid grid-cols-5 gap-4">
 					<div class="grid grid-rows-2 gap-4">
 						<span class="text-slate-500">File Name</span>
 						<input type="text" name="name" value={data.fileData.name} class="input" disabled />
@@ -97,17 +97,25 @@
 							{/each}
 						</select>
 					</div>
-					<div class="flex space-x-4">
-						<button type="submit" class="variant-filled-primary btn">Save</button>
-						<button
-							type="button"
-							class="variant-filled-secondary btn"
-							on:click={() => {
-								editFileInfo = false;
-							}}>Cancel</button
-						>
+				</div>
+				<div>
+					<span class="text-slate-500">Note</span>
+					<div>
+						<textarea rows="4" class="input" name="note" value={data.fileData.metadata.note} />
 					</div>
-				{:else}
+				</div>
+				<div class="flex space-x-4">
+					<button type="submit" class="variant-filled-primary btn">Save</button>
+					<button
+						type="button"
+						class="variant-filled-secondary btn"
+						on:click={() => {
+							editFileInfo = false;
+						}}>Cancel</button
+					>
+				</div>
+			{:else}
+				<div class="grid grid-cols-5 gap-4">
 					<div class="grid grid-rows-2 gap-4">
 						<span class="text-slate-500">File Name</span>
 						{extractFileName(data.fileData.name)}
@@ -132,16 +140,20 @@
 						<span class="text-slate-500">Status</span>
 						{data.fileData.metadata.status}
 					</div>
-					<div>
-						<button
-							class="variant-filled-primary btn"
-							on:click={() => {
-								editFileInfo = true;
-							}}>Edit</button
-						>
-					</div>
-				{/if}
-			</div>
+				</div>
+				<div>
+					<span class="text-slate-500">Note</span>
+					<div class="whitespace-pre-wrap">{data.fileData.metadata.note}</div>
+				</div>
+				<div>
+					<button
+						class="variant-filled-primary btn"
+						on:click={() => {
+							editFileInfo = true;
+						}}>Edit</button
+					>
+				</div>
+			{/if}
 		</div>
 	</form>
 </div>

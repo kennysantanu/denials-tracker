@@ -24,10 +24,11 @@ export const actions = {
         const form = await request.formData();
         const name = form.get('name');
         const status = form.get('status');
+        const note = form.get('note');
 
         let { data, error } = await supabase
             .from('files')
-            .update({ metadata: { status } })
+            .update({ metadata: { status, note }})
             .eq('name', name);
 
         if (error) {
