@@ -64,6 +64,16 @@ export const actions: Actions = {
 
         return form;
     },
+    updateUserRole: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const form = await request.formData();
+        const username = form.get('username');
+        const role = form.get('role');
+
+        const { data, error } = await supabase
+            .from('users')
+            .update({ role: role })
+            .eq('username', username)
+    },
     resetUserPassword: async ({ request }) => {
         const resetUserPasswordForm = await superValidate(request, zod(schemaNewUserForm));
 

@@ -62,6 +62,33 @@
 
 <hr />
 
+<form action="?/updateUserRole" method="post" class="space-y-4">
+	<h2 class="h2 text-tertiary-500">Update User Role</h2>
+	<label class="label">
+		<span class="text-tertiary-500">User Select</span>
+		<select class="select" name="username">
+			<option value="" disabled selected>Select a user</option>
+			{#each data.usersData as user}
+				<option value={user.username}>{user.username}</option>
+			{/each}
+		</select>
+	</label>
+	<label class="label">
+		<span class="text-tertiary-500">Role</span>
+		<select name="role" class="select">
+			<option value="" disabled selected>Select role</option>
+			{#each data.rolesData as role}
+				<option value={role.id}>{role.role_name}</option>
+			{/each}
+		</select>
+	</label>
+	<div class="space-x-4">
+		<button type="submit" class="variant-filled-primary btn">Update User</button>
+	</div>
+</form>
+
+<hr />
+
 <form action="?/resetUserPassword" method="post" id="resetUserPasswordForm" class="space-y-4">
 	<h2 class="h2 text-tertiary-500">Reset User Password</h2>
 	<label class="label">
