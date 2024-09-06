@@ -87,7 +87,7 @@ export const defaultTheme: CustomThemeConfig = {
 		'--color-error-800': '106 10 29', // #6a0a1d
 		'--color-error-900': '87 8 24', // #570818
 		// surface | #d9d9d9
-		'--color-surface-50': '249 249 249', // #f9f9f9
+		'--color-surface-50': '255 255 255', // #ffffff
 		'--color-surface-100': '247 247 247', // #f7f7f7
 		'--color-surface-200': '246 246 246', // #f6f6f6
 		'--color-surface-300': '240 240 240', // #f0f0f0
