@@ -37,6 +37,7 @@
 
 	// Variables
 	export let data;
+	export let form;
 	$: patientList = data.patients;
 	let selectedPatientId: string = '';
 	let selectedPatientData = null;
@@ -331,7 +332,7 @@
 		<!-- Denial List Cards -->
 		{#if denialsData && denialsDataLength > 0}
 			{#each denialsData as denialData}
-				<DenialsCard {denialData} {getDenials} {selectedPatientId} {labelsData} />
+				<DenialsCard {form} {denialData} {getDenials} {selectedPatientId} {labelsData} />
 			{/each}
 		{/if}
 	</div>

@@ -19,8 +19,13 @@ const schemaNewDenial = z.object({
 
 const schemaNewNote = z.object({
     denial_id: z.number(),
+    attachmentList: z.array(z.string()),
     note: z.string(),
 });
+
+const formatDate = (dateString: string): string => {
+    return dateString.replace(/-/g, '/');
+}
 
 export const load = async ({ parent, locals: { supabase, safeGetSession } }) => {	
     await parent();
@@ -174,7 +179,7 @@ export const actions = {
             return fail(400, { newNoteForm });
         }
         
-        const { data: insertedNote } = await supabase
+        const { data: insertedNote, error } = await supabase
         .from('notes')
         .insert([
             {
@@ -183,7 +188,25 @@ export const actions = {
                 note: newNoteForm.data.note,
             },
         ])
-        .select()
+        .select('id')
+        .single();
+
+        if (error) {
+            return fail(400, { newNoteForm });
+        }
+
+        const attachmentList = newNoteForm.data.attachmentList[0].split(',');
+
+        for (const name of attachmentList) {
+            const {error} = await supabase
+                .from('notes_files')
+                .insert([
+                    {
+                        note_id: insertedNote.id,
+                        file_name: name,
+                    },
+                ]);
+        }  
 
         return { newNoteForm };
     },
@@ -213,5 +236,31 @@ export const actions = {
         .delete()
         .eq('id', form.get('note_id'))
         
+    },
+    getFileList: async ({ request, locals: { supabase, safeGetSession } }) => {
+
+        const form = await request.formData();
+        const date = form.get('date');
+
+        if (!date) {
+            return { fileList: [] };
+        }
+
+        const folderPath = formatDate(date);
+
+        const { data, error } = await supabase
+            .from('files')
+            .select('name, created_at, size, metadata')
+            .like('name', `%${folderPath}%`)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            return { fileList: [] };
+        }
+
+        let fileList = data;
+
+        return { fileList };
+
     },
 }

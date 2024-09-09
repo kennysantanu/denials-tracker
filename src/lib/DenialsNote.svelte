@@ -17,13 +17,26 @@
 		const formattedDate = `${dateString.substring(5, 7)}/${dateString.substring(8, 10)}/${dateString.substring(0, 4)}`;
 		return formattedDate;
 	};
+
+	const extractFileName = (path: string) => {
+		return path.split('/').pop();
+	};
 </script>
 
-<div class="flex gap-2">
-	<span>({formatDate(noteData.created_at)})</span>
-	<span class="font-bold">{noteData.created_by.username}:</span>
+<div class="flex">
 	{#if !showEditNoteForm}
-		<span class="text-surface-800">{noteData.note}</span>
+		<div>
+			<span>({formatDate(noteData.created_at)})</span>
+			<span class="font-bold">{noteData.created_by.username}:</span>
+			<span class="text-surface-800">{noteData.note}</span>
+			{#if noteData.files.length > 0}
+				<div class="space-x-2">
+					{#each noteData.files as file}
+						<a class="chip variant-filled" href="/file/view?name={file.name}" target="_blank">{extractFileName(file.name)}</a>
+					{/each}
+				</div>
+			{/if}
+		</div>
 		<div>
 			<button
 				type="button"
