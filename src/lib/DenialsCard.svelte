@@ -5,12 +5,13 @@
 	import DenialsNote from '$lib/DenialsNote.svelte';
 
 	// Props
+	export let data;
 	export let form;
 	export let denialData;
 	export let getDenials;
 	export let selectedPatientId;
 	export let labelsData;
-	
+
 	// Variables
 	let formElement: HTMLFormElement;
 	let attachmentList: string[] = [];
@@ -97,7 +98,13 @@
 					<Ellipsis />
 				</button>
 				<div class="card shadow-xl" data-popup="popupDenial-{denialData.id}">
-					<div><button class="btn" on:click={() => (showEditDenialForm = true)}>Edit</button></div>
+					{#if data.user?.role.permissions.denial_edit == true}
+						<div>
+							<button class="btn" on:click={() => (showEditDenialForm = true)}>Edit</button>
+						</div>
+					{:else}
+						<div><button class="btn" disabled>Edit</button></div>
+					{/if}
 					<div>
 						<form
 							method="POST"
@@ -113,8 +120,12 @@
 								};
 							}}
 						>
-							<input hidden name="denial_id" value={denialData.id} />
-							<button type="submit" class="btn">Delete</button>
+							{#if data.user?.role.permissions.denial_delete == true}
+								<input hidden name="denial_id" value={denialData.id} />
+								<button type="submit" class="btn">Delete</button>
+							{:else}
+								<button type="button" class="btn" disabled>Delete</button>
+							{/if}
 						</form>
 					</div>
 				</div>
@@ -203,11 +214,15 @@
 	<hr />
 
 	<!-- Denial Notes -->
-	<button
-		type="button"
-		class="btn text-tertiary-500"
-		on:click={() => (showAddNewNoteForm = !showAddNewNoteForm)}>+ Add New Note</button
-	>
+	{#if data.user?.role.permissions.note_create == true}
+		<button
+			type="button"
+			class="btn text-tertiary-500"
+			on:click={() => (showAddNewNoteForm = !showAddNewNoteForm)}>+ Add New Note</button
+		>
+	{:else}
+		<button type="button" class="btn text-tertiary-500" disabled>+ Add New Note</button>
+	{/if}
 
 	<!-- Add New Note Form -->
 	{#if showAddNewNoteForm}
@@ -232,7 +247,7 @@
 					<textarea class="textarea" rows="4" name="note" />
 				</label>
 				<div>
-					{#if !showAttachFileForm}
+					{#if data.user?.role.permissions.attachment_add == true}
 						<button
 							type="button"
 							class="btn text-tertiary-500"
@@ -319,7 +334,7 @@
 	<!-- Denial Note List -->
 	{#if denialData.notes.length > 0}
 		{#each denialData.notes as noteData}
-			<DenialsNote {noteData} {getDenials} {selectedPatientId} />
+			<DenialsNote {data} {noteData} {getDenials} {selectedPatientId} />
 		{/each}
 	{/if}
 </div>

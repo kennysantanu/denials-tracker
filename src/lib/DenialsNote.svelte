@@ -4,6 +4,7 @@
 	import { popup } from '@skeletonlabs/skeleton';
 
 	// Props
+	export let data;
 	export let noteData;
 	export let getDenials;
 	export let selectedPatientId;
@@ -32,7 +33,9 @@
 			{#if noteData.files.length > 0}
 				<div class="space-x-2">
 					{#each noteData.files as file}
-						<a class="chip variant-filled" href="/file/view?name={file.name}" target="_blank">{extractFileName(file.name)}</a>
+						<a class="variant-filled chip" href="/file/view?name={file.name}" target="_blank"
+							>{extractFileName(file.name)}</a
+						>
 					{/each}
 				</div>
 			{/if}
@@ -46,26 +49,34 @@
 				<Ellipsis />
 			</button>
 			<div class="card shadow-xl" data-popup="popup-{noteData.id}">
-				<div><button class="btn" on:click={() => (showEditNoteForm = true)}>Edit</button></div>
-				<div>
-					<form
-						method="POST"
-						action="?/deleteNote"
-						use:enhance={({ cancel }) => {
-							if (!confirm('Delete note?')) {
-								cancel();
-							}
+				{#if data.user?.role.permissions.note_edit == true}
+					<div><button class="btn" on:click={() => (showEditNoteForm = true)}>Edit</button></div>
+				{:else}
+					<div><button class="btn" disabled>Edit</button></div>
+				{/if}
+				{#if data.user?.role.permissions.note_delete == true}
+					<div>
+						<form
+							method="POST"
+							action="?/deleteNote"
+							use:enhance={({ cancel }) => {
+								if (!confirm('Delete note?')) {
+									cancel();
+								}
 
-							return async ({ update }) => {
-								getDenials(selectedPatientId);
-								update();
-							};
-						}}
-					>
-						<input hidden name="note_id" value={noteData.id} />
-						<button type="submit" class="btn">Delete</button>
-					</form>
-				</div>
+								return async ({ update }) => {
+									getDenials(selectedPatientId);
+									update();
+								};
+							}}
+						>
+							<input hidden name="note_id" value={noteData.id} />
+							<button type="submit" class="btn">Delete</button>
+						</form>
+					</div>
+				{:else}
+					<div><button class="btn" disabled>Delete</button></div>
+				{/if}
 			</div>
 		</div>
 	{:else}

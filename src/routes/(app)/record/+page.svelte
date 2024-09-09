@@ -240,12 +240,18 @@
 				Denial Records for {selectedPatientData.last_name}, {selectedPatientData.first_name} ({denialsDataLength}
 				in total)
 			</p>
-			<button
-				type="button"
-				class="btn font-bold text-tertiary-500"
-				on:click={() => (showAddNewDenialForm = !showAddNewDenialForm)}
-				disabled={showAddNewDenialForm || !data.session}>+ Add New Record</button
-			>
+			{#if data.user?.role.permissions.denial_create == true}
+				<button
+					type="button"
+					class="btn font-bold text-tertiary-500"
+					on:click={() => (showAddNewDenialForm = !showAddNewDenialForm)}
+					disabled={showAddNewDenialForm || !data.session}>+ Add New Record</button
+				>
+			{:else}
+				<button type="button" class="btn font-bold text-tertiary-500" disabled
+					>+ Add New Record</button
+				>
+			{/if}
 		</div>
 		{#if showAddNewDenialForm}
 			<form method="POST" action="?/createDenial" use:newDenialFormEnhance>
@@ -332,7 +338,7 @@
 		<!-- Denial List Cards -->
 		{#if denialsData && denialsDataLength > 0}
 			{#each denialsData as denialData}
-				<DenialsCard {form} {denialData} {getDenials} {selectedPatientId} {labelsData} />
+				<DenialsCard {data} {form} {denialData} {getDenials} {selectedPatientId} {labelsData} />
 			{/each}
 		{/if}
 	</div>

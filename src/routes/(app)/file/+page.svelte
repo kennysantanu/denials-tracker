@@ -63,13 +63,17 @@
 			</ul>
 		{/if}
 		<div class="space-x-4">
-			<button
-				type="submit"
-				class="variant-filled-primary btn"
-				on:click={() => {
-					handleSubmit(event);
-				}}>Upload</button
-			>
+			{#if data.user?.role.permissions.file_upload == true}
+				<button
+					type="submit"
+					class="variant-filled-primary btn"
+					on:click={() => {
+						handleSubmit(event);
+					}}>Upload</button
+				>
+			{:else}
+				<button type="button" class="variant-filled-primary btn" disabled>Upload</button>
+			{/if}
 			<button
 				type="button"
 				class="variant-filled-secondary btn"
@@ -102,8 +106,8 @@
 					<li>
 						<a href="/file/view?name={file.name}" target="_blank">{extractFileName(file.name)}</a>
 					</li>
-						<p>{formatFileSize(file.size)}</p>
-						<p>{file.metadata.status}</p>
+					<p>{formatFileSize(file.size)}</p>
+					<p>{file.metadata.status}</p>
 				</div>
 			{/each}
 		{/if}

@@ -7,23 +7,54 @@ import type { PageServerLoad, Actions } from './$types';
 const rolesSchema = z.object({
     id: z.number(),
     role_name: z.string(),
-    record_read: z.boolean().optional(),
-    record_write: z.boolean().optional(),
-    record_delete: z.boolean().optional(),
-    admin_read: z.boolean().optional(),
-    admin_write: z.boolean().optional(),
-    admin_delete: z.boolean().optional()
+    permissions: z.object({
+        denial_read: z.boolean().optional(),
+        denial_create: z.boolean().optional(),
+        denial_edit: z.boolean().optional(),
+        denial_delete: z.boolean().optional(),
+        note_create: z.boolean().optional(),
+        note_edit: z.boolean().optional(),
+        note_delete: z.boolean().optional(),
+        attachment_add: z.boolean().optional(),
+        attachment_remove: z.boolean().optional(),
+        file_read: z.boolean().optional(),
+        file_upload: z.boolean().optional(),
+        file_edit: z.boolean().optional(),
+        file_delete: z.boolean().optional(),
+        admin_read: z.boolean().optional(),
+    })
 });
 
 // Server load function
 export const load = (async ({ locals: { supabase, safeGetSession } }) => {
-    const newRoleForm = await superValidate(zod(rolesSchema));
+    let newRoleForm = await superValidate(zod(rolesSchema));
     const editRoleForm = await superValidate(zod(rolesSchema));
     const deleteRoleForm = await superValidate(zod(rolesSchema));
+
+    const permissions = 
+            {
+                denial_read: true,
+                denial_create: false,
+                denial_edit: false,
+                denial_delete: false,
+                note_create: false,
+                note_edit: false,
+                note_delete: false,
+                attachment_add: false,
+                attachment_remove: false,
+                file_read: true,
+                file_upload: false,
+                file_edit: false,
+                file_delete: false,
+                admin_read: false,
+            }
+        ;
+
+    newRoleForm.data.permissions = permissions;
     
     let { data: roles } = await supabase
     .from('roles')
-    .select('*') 
+    .select('id, role_name, permissions') 
     .order('id', { ascending: true })       
 
     return { newRoleForm, editRoleForm, deleteRoleForm, roles: roles || []};
@@ -38,24 +69,24 @@ export const actions: Actions = {
             return fail(400, { newRoleForm });
         }
 
-        const permissions = [
+        const permissions = 
             {
-                page: "record",
-                permissions: {
-                    read: newRoleForm.data.record_read,
-                    write: newRoleForm.data.record_write,
-                    delete: newRoleForm.data.record_delete
-                }
-            },
-            {
-                page: "admin",
-                permissions: {
-                    read: newRoleForm.data.admin_read,
-                    write: newRoleForm.data.admin_write,
-                    delete: newRoleForm.data.admin_delete
-                }
+                denial_read: newRoleForm.data.permissions.denial_read,
+                denial_create: newRoleForm.data.permissions.denial_create,
+                denial_edit: newRoleForm.data.permissions.denial_edit,
+                denial_delete: newRoleForm.data.permissions.denial_delete,
+                note_create: newRoleForm.data.permissions.note_create,
+                note_edit: newRoleForm.data.permissions.note_edit,
+                note_delete: newRoleForm.data.permissions.note_delete,
+                attachment_add: newRoleForm.data.permissions.attachment_add,
+                attachment_remove: newRoleForm.data.permissions.attachment_remove,
+                file_read: newRoleForm.data.permissions.file_read,
+                file_upload: newRoleForm.data.permissions.file_upload,
+                file_edit: newRoleForm.data.permissions.file_edit,
+                file_delete: newRoleForm.data.permissions.file_delete,
+                admin_read: newRoleForm.data.permissions.admin_read,
             }
-        ];
+        ;
 
         const { error } = await supabase
             .from('roles')
@@ -80,24 +111,24 @@ export const actions: Actions = {
             return fail(400, { editRoleForm });
         }
 
-        const permissions = [
+        const permissions = 
             {
-                page: "record",
-                permissions: {
-                    read: editRoleForm.data.record_read,
-                    write: editRoleForm.data.record_write,
-                    delete: editRoleForm.data.record_delete
-                }
-            },
-            {
-                page: "admin",
-                permissions: {
-                    read: editRoleForm.data.admin_read,
-                    write: editRoleForm.data.admin_write,
-                    delete: editRoleForm.data.admin_delete
-                }
+                denial_read: editRoleForm.data.permissions.denial_read,
+                denial_create: editRoleForm.data.permissions.denial_create,
+                denial_edit: editRoleForm.data.permissions.denial_edit,
+                denial_delete: editRoleForm.data.permissions.denial_delete,
+                note_create: editRoleForm.data.permissions.note_create,
+                note_edit: editRoleForm.data.permissions.note_edit,
+                note_delete: editRoleForm.data.permissions.note_delete,
+                attachment_add: editRoleForm.data.permissions.attachment_add,
+                attachment_remove: editRoleForm.data.permissions.attachment_remove,
+                file_read: editRoleForm.data.permissions.file_read,
+                file_upload: editRoleForm.data.permissions.file_upload,
+                file_edit: editRoleForm.data.permissions.file_edit,
+                file_delete: editRoleForm.data.permissions.file_delete,
+                admin_read: editRoleForm.data.permissions.admin_read,
             }
-        ];
+        ;
         
         const { error } = await supabase
             .from('roles')

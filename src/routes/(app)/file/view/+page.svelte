@@ -146,12 +146,16 @@
 					<div class="whitespace-pre-wrap">{data.fileData.metadata.note}</div>
 				</div>
 				<div>
-					<button
-						class="variant-filled-primary btn"
-						on:click={() => {
-							editFileInfo = true;
-						}}>Edit</button
-					>
+					{#if data.user?.role.permissions.file_edit == true}
+						<button
+							class="variant-filled-primary btn"
+							on:click={() => {
+								editFileInfo = true;
+							}}>Edit</button
+						>
+					{:else}
+						<button class="variant-filled-primary btn" disabled>Edit</button>
+					{/if}
 				</div>
 			{/if}
 		</div>
