@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { enhance } from '$app/forms';
 	import { createGrid } from 'ag-grid-community';
 	import 'ag-grid-community/styles/ag-grid.css';
 	import 'ag-grid-community/styles/ag-theme-quartz.css';
+	import type { GridOptions } from 'ag-grid-community';
 
-	export let form;
+	export let data;
 	let agGrid;
-	$: denialData = form?.denials || [];
+	let denialData = data.denials;
 
-	const gridOptions = {
+	const gridOptions: GridOptions = {
 		columnDefs: [
 			{
 				headerName: 'Patient',
@@ -31,32 +31,44 @@
 			},
 			{
 				headerName: 'Labels',
-				cellRenderer: (denialData) => {
+				valueGetter: (params) => {
+					const labels = params.data.labels;
+					const labelNames = labels.map((label) => label.label_name);
+					return labelNames.join(' ');
+				},
+				cellRenderer: (params) => {
 					const eDiv = document.createElement('div');
 					eDiv.classList.add('flex');
 					eDiv.classList.add('flex-wrap');
 					eDiv.classList.add('space-x-2');
-					for (let label of denialData.data.labels) {
+					for (let label of params.data.labels) {
 						const span = document.createElement('span');
-						span.innerHTML = `<span class="variant-filled chip" style="background-color: ${label.bg_color}; color: ${label.txt_color};">${label.label_name}</span>`;
+						span.innerHTML = `<span class="variant-filled badge" style="background-color: ${label.bg_color}; color: ${label.txt_color};">${label.label_name}</span>`;
 						eDiv.appendChild(span);
 					}
 					return eDiv;
+				},
+				filter: 'agTextColumnFilter',
+				filterParams: {
+					buttons: ['reset'],
+					filterOptions: ['contains', 'notContains', 'blank', 'notBlank']
 				}
 			},
 			{
 				headerName: 'Last Note',
-				valueGetter: (params) => params.data.notes[0].created_at,
+				valueGetter: (params) => {
+					return params.data.notes[0]?.created_at;
+				},
 				valueFormatter: (params) => {
-					const fDate = formatDate(params.data.notes[0].created_at);
-					return `(${fDate}) ${params.data.notes[0].note}`;
-				}
+					if (params.data.notes[0]) {
+						const fDate = formatDate(params.data.notes[0].created_at);
+						return `(${fDate}) ${params.data.notes[0].note}`;
+					}
+					return '';
+				},
+				flex: 1
 			}
 		]
-	};
-
-	const updateGrid = () => {
-		agGrid!.setGridOption('rowData', denialData);
 	};
 
 	const formatDate = (date: String): String => {
@@ -67,53 +79,12 @@
 
 	onMount(() => {
 		const myGridElement = document.querySelector('#agGrid');
-		agGrid = createGrid(myGridElement, gridOptions);
+		if (myGridElement) {
+			agGrid = createGrid(myGridElement as HTMLElement, gridOptions);
+			agGrid.setGridOption('rowData', denialData);
+		}
 	});
 </script>
 
-<!-- Filter Card -->
-<form
-	action="?/getDenialReport"
-	method="post"
-	use:enhance={() => {
-		return async ({ result, update }) => {
-			updateGrid();
-			update();
-		};
-	}}
->
-	<div class="card px-8 py-8">
-		<div class="flex flex-wrap items-end justify-between space-x-8">
-			<label class="label">
-				<span class="text-tertiary-500">Filter</span>
-				<select class="select">
-					<option value="1">Option 1</option>
-					<option value="2">Option 2</option>
-					<option value="3">Option 3</option>
-				</select>
-			</label>
-			<label class="label">
-				<span class="text-tertiary-500">Condition</span>
-				<select class="select">
-					<option value="1">Option 1</option>
-					<option value="2">Option 2</option>
-					<option value="3">Option 3</option>
-				</select>
-			</label>
-			<label class="label">
-				<span class="text-tertiary-500">Value</span>
-				<select class="select">
-					<option value="1">Option 1</option>
-					<option value="2">Option 2</option>
-					<option value="3">Option 3</option>
-				</select>
-			</label>
-			<div>
-				<button type="submit" class="variant-filled-primary btn">Create Report</button>
-			</div>
-		</div>
-	</div>
-</form>
-
-<!-- Table -->
+<!-- AG Grid Table -->
 <div id="agGrid" class="ag-theme-quartz h-screen"></div>
