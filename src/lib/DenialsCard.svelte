@@ -15,6 +15,7 @@
 	// Variables
 	let formElement: HTMLFormElement;
 	let attachmentList: string[] = [];
+	$: fileList = form?.fileList ?? [];
 	let showAddNewNoteForm: boolean = false;
 	let showEditDenialForm: boolean = false;
 	let showAttachFileForm: boolean = false;
@@ -234,7 +235,7 @@
 			use:enhance={() => {
 				(showAddNewNoteForm = false),
 					(attachmentList = []),
-					(form.fileList = []),
+					(fileList = []),
 					(showAttachFileForm = false);
 			}}
 		>
@@ -279,13 +280,13 @@
 							</div>
 						</form>
 						<ul class="list-inside list-decimal space-y-4">
-							{#if form?.fileList}
+							{#if fileList.length > 0}
 								<div class="grid grid-cols-3 gap-4">
 									<p class="text-slate-500">File Name</p>
 									<p class="text-slate-500">Size</p>
 									<p class="text-slate-500">Status</p>
 								</div>
-								{#each form.fileList as file}
+								{#each fileList as file}
 									<div class="grid grid-cols-4 gap-4">
 										<li>
 											<a href="/file/view?name={file.name}" target="_blank"
@@ -312,7 +313,7 @@
 							type="button"
 							class="variant-filled-primary btn"
 							on:click={() => {
-								(showAttachFileForm = false), (form.fileList = []);
+								(showAttachFileForm = false), (fileList = []);
 							}}>Close</button
 						>
 					</div>
