@@ -40,24 +40,22 @@ export const actions: Actions = {
             .insert([
                 { 
                     role_name: 'Administrator', 
-                    permissions: [
-                        {
-                            page: 'record', 
-                            permissions: {
-                                read: true, 
-                                write: true, 
-                                delete: true,
-                            }
-                        },
-                        {
-                            page: 'admin', 
-                            permissions: {
-                                read: true, 
-                                write: true, 
-                                delete: true,
-                            }
-                        }
-                    ]
+                    permissions: {
+                        denial_read: true,
+                        denial_create: true,
+                        denial_edit: true,
+                        denial_delete: true,
+                        note_create: true,
+                        note_edit: true,
+                        note_delete: true,
+                        attachment_add: true,
+                        attachment_remove: true,
+                        file_read: true,
+                        file_upload: true,
+                        file_edit: true,
+                        file_delete: true,
+                        admin_read: true,
+                    }
                 }
             ]);
         
