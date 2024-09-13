@@ -67,6 +67,7 @@ FROM base as final
 
 # Use production node environment by default.
 ENV NODE_ENV production
+ENV BODY_SIZE_LIMIT Infinity
 
 # Run the application as a non-root user.
 USER node
