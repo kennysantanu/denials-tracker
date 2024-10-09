@@ -105,152 +105,156 @@
 </script>
 
 <!-- Patient Card -->
-<div class="card m-2 w-full space-y-12 p-8">
-	<label class="label">
-		<span class="text-tertiary-500">Patient Select</span>
-		<div class="flex flex-row space-x-8">
-			<select
-				class="select"
-				bind:value={selectedPatientId}
-				on:change={async () => await getDenials(selectedPatientId)}
-			>
-				<option value="" disabled selected>Select a patient</option>
-				{#each patientList as patient}
-					<option value={patient.id}
-						>{patient.last_name}, {patient.first_name} ({formatDate(patient.date_of_birth)})</option
-					>
-				{/each}
-			</select>
-
-			<button
-				type="button"
-				class="variant-filled-secondary btn"
-				on:click={() => (showAddNewPatientForm = !showAddNewPatientForm)}
-				disabled={showAddNewPatientForm || !data.session}>Add New Patient</button
-			>
-		</div>
-	</label>
-
-	{#if showAddNewPatientForm}
-		<div class="card space-y-6 p-6">
-			<h3 class="h3 text-tertiary-500">Create New Patient</h3>
-			<form method="POST" action="?/addNewPatient" class="space-y-6" use:newPatientFormEnhance>
-				<label class="label">
-					<span class="text-tertiary-500">Last Name</span>
-					<input
-						class="input"
-						type="text"
-						name="last_name"
-						placeholder="Enter last name"
-						aria-invalid={$newPatientFormErrors.last_name ? 'true' : undefined}
-						bind:value={$newPatientForm.last_name}
-						{...$newPatientFormConstraints.last_name}
-					/>
-				</label>
-				<label class="label">
-					<span class="text-tertiary-500">First Name</span>
-					<input
-						class="input"
-						type="text"
-						name="first_name"
-						placeholder="Enter first name"
-						aria-invalid={$newPatientFormErrors.first_name ? 'true' : undefined}
-						bind:value={$newPatientForm.first_name}
-						{...$newPatientFormConstraints.first_name}
-					/>
-				</label>
-				<label class="label">
-					<span class="text-tertiary-500">Date of Birth</span>
-					<input
-						class="input"
-						name="date_of_birth"
-						type="date"
-						aria-invalid={$newPatientFormErrors.date_of_birth ? 'true' : undefined}
-						bind:value={$newPatientForm.date_of_birth}
-						{...$newPatientFormConstraints.date_of_birth}
-					/>
-				</label>
-				<div class="space-x-4">
-					<button type="submit" class="variant-filled-primary btn">Save</button>
-					<button
-						type="button"
-						class="variant-filled-secondary btn"
-						on:click={() => (showAddNewPatientForm = !showAddNewPatientForm)}>Cancel</button
-					>
-				</div>
-			</form>
-		</div>
-	{/if}
-
-	<!-- Patient's note -->
-	{#if selectedPatientId}
-		{#if editPatientNote}
-			<form
-				action="?/updatePatientNote"
-				method="post"
-				class="space-y-4"
-				use:enhance={() => {
-					return async ({ update }) => {
-						editPatientNote = !editPatientNote;
-						await update();
-					};
-				}}
-			>
-				<input hidden name="patient_id" value={selectedPatientId} />
-				<label class="label">
-					<span class="text-tertiary-500">Note</span>
-					<textarea class="textarea grow" name="note" rows="4" value={selectedPatientData.note} />
-				</label>
-				<div class="space-x-4">
-					<button type="submit" class="variant-filled-primary btn">Save</button>
-					<button
-						type="button"
-						class="variant-filled-secondary btn"
-						on:click={() => (editPatientNote = !editPatientNote)}>Cancel</button
-					>
-				</div>
-			</form>
-		{:else}
-			<div class="flex flex-nowrap space-x-4">
-				<div class="label grow">
-					<span class="text-tertiary-500">Note</span>
-					<p class="card p-2">
-						{selectedPatientData.note}
-					</p>
-				</div>
+<div class="m-2 space-y-8">
+	<div class="card w-full space-y-8 p-8 ring-surface-300">
+		<label class="label">
+			<span class="text-tertiary-500">Patient Select</span>
+			<div class="flex flex-row space-x-8">
+				<select
+					class="select shadow-inner"
+					bind:value={selectedPatientId}
+					on:change={async () => await getDenials(selectedPatientId)}
+				>
+					<option value="" disabled selected>Select a patient</option>
+					{#each patientList as patient}
+						<option value={patient.id}
+							>{patient.last_name}, {patient.first_name} ({formatDate(
+								patient.date_of_birth
+							)})</option
+						>
+					{/each}
+				</select>
 
 				<button
 					type="button"
-					class="btn-icon text-tertiary-500"
-					on:click={() => (editPatientNote = !editPatientNote)}
+					class="variant-filled-secondary btn"
+					on:click={() => (showAddNewPatientForm = !showAddNewPatientForm)}
+					disabled={showAddNewPatientForm || !data.session}>Add New Patient</button
 				>
-					<Pencil />
-				</button>
+			</div>
+		</label>
+
+		{#if showAddNewPatientForm}
+			<div class="card space-y-6 p-6">
+				<h3 class="h3 text-tertiary-500">Create New Patient</h3>
+				<form method="POST" action="?/addNewPatient" class="space-y-6" use:newPatientFormEnhance>
+					<label class="label">
+						<span class="text-tertiary-500">Last Name</span>
+						<input
+							class="input"
+							type="text"
+							name="last_name"
+							placeholder="Enter last name"
+							aria-invalid={$newPatientFormErrors.last_name ? 'true' : undefined}
+							bind:value={$newPatientForm.last_name}
+							{...$newPatientFormConstraints.last_name}
+						/>
+					</label>
+					<label class="label">
+						<span class="text-tertiary-500">First Name</span>
+						<input
+							class="input"
+							type="text"
+							name="first_name"
+							placeholder="Enter first name"
+							aria-invalid={$newPatientFormErrors.first_name ? 'true' : undefined}
+							bind:value={$newPatientForm.first_name}
+							{...$newPatientFormConstraints.first_name}
+						/>
+					</label>
+					<label class="label">
+						<span class="text-tertiary-500">Date of Birth</span>
+						<input
+							class="input"
+							name="date_of_birth"
+							type="date"
+							aria-invalid={$newPatientFormErrors.date_of_birth ? 'true' : undefined}
+							bind:value={$newPatientForm.date_of_birth}
+							{...$newPatientFormConstraints.date_of_birth}
+						/>
+					</label>
+					<div class="space-x-4">
+						<button type="submit" class="variant-filled-primary btn">Save</button>
+						<button
+							type="button"
+							class="variant-filled-secondary btn"
+							on:click={() => (showAddNewPatientForm = !showAddNewPatientForm)}>Cancel</button
+						>
+					</div>
+				</form>
 			</div>
 		{/if}
-	{/if}
+
+		<!-- Patient's note -->
+		{#if selectedPatientId}
+			{#if editPatientNote}
+				<form
+					action="?/updatePatientNote"
+					method="post"
+					class="space-y-4"
+					use:enhance={() => {
+						return async ({ update }) => {
+							editPatientNote = !editPatientNote;
+							await update();
+						};
+					}}
+				>
+					<input hidden name="patient_id" value={selectedPatientId} />
+					<label class="label">
+						<span class="text-tertiary-500">Note</span>
+						<textarea class="textarea grow" name="note" rows="4" value={selectedPatientData.note} />
+					</label>
+					<div class="space-x-4">
+						<button type="submit" class="variant-filled-primary btn">Save</button>
+						<button
+							type="button"
+							class="variant-filled-secondary btn"
+							on:click={() => (editPatientNote = !editPatientNote)}>Cancel</button
+						>
+					</div>
+				</form>
+			{:else}
+				<div class="flex flex-nowrap space-x-4">
+					<div class="label grow">
+						<span class="text-tertiary-500">Note</span>
+						<p class="card whitespace-pre-line p-3 shadow-inner ring-surface-300">
+							{selectedPatientData.note}
+						</p>
+					</div>
+
+					<button
+						type="button"
+						class="btn-icon text-tertiary-500"
+						on:click={() => (editPatientNote = !editPatientNote)}
+					>
+						<Pencil />
+					</button>
+				</div>
+			{/if}
+		{/if}
+	</div>
 </div>
+
+<div class="p-8"></div>
 
 <!-- Denial List -->
 {#if selectedPatientId}
 	<div class="m-2 space-y-8">
 		<!-- Denial List Header -->
 		<div class="flex flex-row items-end justify-between">
-			<p class="font-bold">
+			<p>
 				Denial Records for {selectedPatientData.last_name}, {selectedPatientData.first_name} ({denialsDataLength}
 				in total)
 			</p>
 			{#if data.user?.role.permissions.denial_create == true}
 				<button
 					type="button"
-					class="btn font-bold text-tertiary-500"
+					class="btn text-tertiary-500"
 					on:click={() => (showAddNewDenialForm = !showAddNewDenialForm)}
 					disabled={showAddNewDenialForm || !data.session}>+ Add New Record</button
 				>
 			{:else}
-				<button type="button" class="btn font-bold text-tertiary-500" disabled
-					>+ Add New Record</button
-				>
+				<button type="button" class="btn text-tertiary-500" disabled>+ Add New Record</button>
 			{/if}
 		</div>
 		{#if showAddNewDenialForm}

@@ -4,18 +4,6 @@
 	export let data;
 </script>
 
-<!-- Navigation Bar -->
-<div class="flex flex-col items-center px-4 py-16">
-	<div class="w-fit">
-		<TabGroup justify="justify-center space-x-16">
-			<TabAnchor href="/record">Record</TabAnchor>
-			<TabAnchor href="/report">Report</TabAnchor>
-			<TabAnchor href="/file">File</TabAnchor>
-			<TabAnchor href="/setting" selected={true}>Setting</TabAnchor>
-		</TabGroup>
-	</div>
-</div>
-
 <!-- Setting Card -->
 <div class="card w-full space-y-12 px-8 py-8">
 	<div class="flex flex-row space-x-16">

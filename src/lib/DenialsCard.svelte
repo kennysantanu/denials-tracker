@@ -45,7 +45,7 @@
 </script>
 
 <!-- Denial List Cards -->
-<div class="card space-y-8 p-8">
+<div class="card p-8 ring-surface-300">
 	<!-- Denial List Card Header -->
 	{#if !showEditDenialForm}
 		<div class="flex justify-between">
@@ -53,22 +53,28 @@
 				<div class="grow">
 					<div class="grid min-w-48 grid-rows-2">
 						<span class="text-slate-500">Date of Service</span>
-						{formatDate(denialData.service_start_date)}
-						{#if denialData.service_end_date}
-							- {formatDate(denialData.service_end_date)}
-						{/if}
+						<span class="font-bold">
+							{formatDate(denialData.service_start_date)}
+							{#if denialData.service_end_date}
+								- {formatDate(denialData.service_end_date)}
+							{/if}
+						</span>
 					</div>
 				</div>
 				<div class="grow">
 					<div class="grid grid-rows-2">
 						<span class="text-slate-500">Bill Amount</span>
-						${denialData.billed_amount}
+						<span class="font-bold">
+							${denialData.billed_amount}
+						</span>
 					</div>
 				</div>
 				<div class="grow">
 					<div class="grid grid-rows-2">
 						<span class="text-slate-500">Paid Amount</span>
-						${denialData.paid_amount}
+						<span class="font-bold">
+							${denialData.paid_amount}
+						</span>
 					</div>
 				</div>
 				<div class="grow">
@@ -89,7 +95,7 @@
 			<div>
 				<button
 					type="button"
-					class="btn-icon text-surface-800"
+					class="btn-icon text-tertiary-500"
 					use:popup={{
 						event: 'click',
 						target: 'popupDenial-' + denialData.id,
@@ -212,130 +218,132 @@
 		</form>
 	{/if}
 
-	<hr />
+	<hr class="my-4" />
 
 	<!-- Denial Notes -->
-	{#if data.user?.role.permissions.note_create == true}
-		<button
-			type="button"
-			class="btn text-tertiary-500"
-			on:click={() => (showAddNewNoteForm = !showAddNewNoteForm)}>+ Add New Note</button
-		>
-	{:else}
-		<button type="button" class="btn text-tertiary-500" disabled>+ Add New Note</button>
-	{/if}
+	<div class="space-y-4">
+		{#if data.user?.role.permissions.note_create == true}
+			<button
+				type="button"
+				class="btn text-tertiary-500"
+				on:click={() => (showAddNewNoteForm = !showAddNewNoteForm)}>+ Add New Note</button
+			>
+		{:else}
+			<button type="button" class="btn text-tertiary-500" disabled>+ Add New Note</button>
+		{/if}
 
-	<!-- Add New Note Form -->
-	{#if showAddNewNoteForm}
-		<form
-			method="POST"
-			action="?/createNote"
-			id="newNoteForm"
-			bind:this={formElement}
-			use:enhance={() => {
-				(showAddNewNoteForm = false),
-					(attachmentList = []),
-					(fileList = []),
-					(showAttachFileForm = false);
-			}}
-		>
-			<div class="card space-y-6 p-6">
-				<h3 class="h3 text-tertiary-500">Create New Note</h3>
-				<input type="hidden" name="denial_id" value={denialData.id} />
-				<input type="hidden" name="attachmentList" value={attachmentList} />
-				<label class="label">
-					<span class="text-tertiary-500">Note</span>
-					<textarea class="textarea" rows="4" name="note" />
-				</label>
-				<div>
-					{#if data.user?.role.permissions.attachment_add == true}
-						<button
-							type="button"
-							class="btn text-tertiary-500"
-							on:click={() => (showAttachFileForm = !showAttachFileForm)}>+ Attach File</button
-						>
-					{:else}
-						<button type="button" class="btn text-tertiary-500" disabled>+ Attach File</button>
-					{/if}
-					{#each attachmentList as attachment}
-						<button
-							class="variant-filled chip m-2 hover:variant-filled-error"
-							on:click={(event) => {
-								event.preventDefault(),
-									(attachmentList = attachmentList.filter((item) => item !== attachment));
-							}}
-						>
-							<span>{attachment}</span>
-							<span>x</span>
-						</button>
-					{/each}
-				</div>
-				{#if showAttachFileForm}
-					<div class="card space-y-6 p-6">
-						<h3 class="h3 text-tertiary-500">File List</h3>
-						<form method="POST" action="?/getFileList" use:enhance>
-							<div class="flex space-x-4">
-								<input type="date" name="date" class="input" required />
-								<button class="variant-filled-primary btn">Show</button>
-							</div>
-						</form>
-						<ul class="list-inside list-decimal space-y-4">
-							{#if fileList.length > 0}
-								<div class="grid grid-cols-3 gap-4">
-									<p class="text-slate-500">File Name</p>
-									<p class="text-slate-500">Size</p>
-									<p class="text-slate-500">Status</p>
+		<!-- Add New Note Form -->
+		{#if showAddNewNoteForm}
+			<form
+				method="POST"
+				action="?/createNote"
+				id="newNoteForm"
+				bind:this={formElement}
+				use:enhance={() => {
+					(showAddNewNoteForm = false),
+						(attachmentList = []),
+						(fileList = []),
+						(showAttachFileForm = false);
+				}}
+			>
+				<div class="card space-y-6 p-6">
+					<h3 class="h3 text-tertiary-500">Create New Note</h3>
+					<input type="hidden" name="denial_id" value={denialData.id} />
+					<input type="hidden" name="attachmentList" value={attachmentList} />
+					<label class="label">
+						<span class="text-tertiary-500">Note</span>
+						<textarea class="textarea" rows="4" name="note" />
+					</label>
+					<div>
+						{#if data.user?.role.permissions.attachment_add == true}
+							<button
+								type="button"
+								class="btn text-tertiary-500"
+								on:click={() => (showAttachFileForm = !showAttachFileForm)}>+ Attach File</button
+							>
+						{:else}
+							<button type="button" class="btn text-tertiary-500" disabled>+ Attach File</button>
+						{/if}
+						{#each attachmentList as attachment}
+							<button
+								class="variant-filled chip m-2 hover:variant-filled-error"
+								on:click={(event) => {
+									event.preventDefault(),
+										(attachmentList = attachmentList.filter((item) => item !== attachment));
+								}}
+							>
+								<span>{attachment}</span>
+								<span>x</span>
+							</button>
+						{/each}
+					</div>
+					{#if showAttachFileForm}
+						<div class="card space-y-6 p-6">
+							<h3 class="h3 text-tertiary-500">File List</h3>
+							<form method="POST" action="?/getFileList" use:enhance>
+								<div class="flex space-x-4">
+									<input type="date" name="date" class="input" required />
+									<button class="variant-filled-primary btn">Show</button>
 								</div>
-								{#each fileList as file}
-									<div class="grid grid-cols-4 gap-4">
-										<li>
-											<a href="/file/view?name={file.name}" target="_blank"
-												>{extractFileName(file.name)}</a
-											>
-										</li>
-										<p>{formatFileSize(file.size)}</p>
-										<p>{file.metadata.status}</p>
-										<div>
-											<button
-												class="variant-filled-primary btn"
-												on:click={(event) => {
-													event.preventDefault(),
-														attachmentList.push(file.name),
-														(attachmentList = attachmentList);
-												}}>Add</button
-											>
-										</div>
+							</form>
+							<ul class="list-inside list-decimal space-y-4">
+								{#if fileList.length > 0}
+									<div class="grid grid-cols-3 gap-4">
+										<p class="text-slate-500">File Name</p>
+										<p class="text-slate-500">Size</p>
+										<p class="text-slate-500">Status</p>
 									</div>
-								{/each}
-							{/if}
-						</ul>
+									{#each fileList as file}
+										<div class="grid grid-cols-4 gap-4">
+											<li>
+												<a href="/file/view?name={file.name}" target="_blank"
+													>{extractFileName(file.name)}</a
+												>
+											</li>
+											<p>{formatFileSize(file.size)}</p>
+											<p>{file.metadata.status}</p>
+											<div>
+												<button
+													class="variant-filled-primary btn"
+													on:click={(event) => {
+														event.preventDefault(),
+															attachmentList.push(file.name),
+															(attachmentList = attachmentList);
+													}}>Add</button
+												>
+											</div>
+										</div>
+									{/each}
+								{/if}
+							</ul>
+							<button
+								type="button"
+								class="variant-filled-primary btn"
+								on:click={() => {
+									(showAttachFileForm = false), (fileList = []);
+								}}>Close</button
+							>
+						</div>
+					{/if}
+					<div class="space-x-4">
+						<button type="submit" class="variant-filled-primary btn">Save</button>
 						<button
 							type="button"
-							class="variant-filled-primary btn"
+							class="variant-filled-secondary btn"
 							on:click={() => {
-								(showAttachFileForm = false), (fileList = []);
-							}}>Close</button
+								(showAddNewNoteForm = false), (attachmentList = []);
+							}}>Cancel</button
 						>
 					</div>
-				{/if}
-				<div class="space-x-4">
-					<button type="submit" class="variant-filled-primary btn">Save</button>
-					<button
-						type="button"
-						class="variant-filled-secondary btn"
-						on:click={() => {
-							(showAddNewNoteForm = false), (attachmentList = []);
-						}}>Cancel</button
-					>
 				</div>
-			</div>
-		</form>
-	{/if}
+			</form>
+		{/if}
 
-	<!-- Denial Note List -->
-	{#if denialData.notes.length > 0}
-		{#each denialData.notes as noteData}
-			<DenialsNote {data} {noteData} {getDenials} {selectedPatientId} />
-		{/each}
-	{/if}
+		<!-- Denial Note List -->
+		{#if denialData.notes.length > 0}
+			{#each denialData.notes as noteData}
+				<DenialsNote {data} {noteData} {getDenials} {selectedPatientId} />
+			{/each}
+		{/if}
+	</div>
 </div>

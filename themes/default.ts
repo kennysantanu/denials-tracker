@@ -6,7 +6,7 @@ export const defaultTheme: CustomThemeConfig = {
 		// =~= Theme Properties =~=
 		'--theme-font-family-base': `system-ui`,
 		'--theme-font-family-heading': `system-ui`,
-		'--theme-font-color-base': '0 0 0',
+		'--theme-font-color-base': '87 87 87',
 		'--theme-font-color-dark': '255 255 255',
 		'--theme-rounded-base': '8px',
 		'--theme-rounded-container': '8px',
@@ -88,9 +88,9 @@ export const defaultTheme: CustomThemeConfig = {
 		'--color-error-900': '87 8 24', // #570818
 		// surface | #d9d9d9
 		'--color-surface-50': '255 255 255', // #ffffff
-		'--color-surface-100': '247 247 247', // #f7f7f7
-		'--color-surface-200': '246 246 246', // #f6f6f6
-		'--color-surface-300': '240 240 240', // #f0f0f0
+		'--color-surface-100': '255 255 255', // #ffffff
+		'--color-surface-200': '255 255 255', // #ffffff
+		'--color-surface-300': '228 228 228', // #e4e4e4
 		'--color-surface-400': '228 228 228', // #e4e4e4
 		'--color-surface-500': '217 217 217', // #d9d9d9
 		'--color-surface-600': '195 195 195', // #c3c3c3

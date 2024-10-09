@@ -43,7 +43,7 @@
 		<div>
 			<button
 				type="button"
-				class="btn-icon text-surface-800"
+				class="btn-icon h-5 text-surface-800"
 				use:popup={{ event: 'click', target: 'popup-' + noteData.id, placement: 'bottom' }}
 			>
 				<Ellipsis />
