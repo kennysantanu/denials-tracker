@@ -3,7 +3,7 @@
 	import { createGrid } from 'ag-grid-community';
 	import 'ag-grid-community/styles/ag-grid.css';
 	import 'ag-grid-community/styles/ag-theme-quartz.css';
-	import type { GridOptions } from 'ag-grid-community';
+	import type { GridOptions, ICellRendererParams } from 'ag-grid-community';
 
 	export let data;
 	let agGrid;
@@ -14,9 +14,9 @@
 			{
 				headerName: 'Patient',
 				valueGetter: (params) => params.data.patients.last_name,
-				valueFormatter: (params) => {
+				cellRenderer: (params: ICellRendererParams) => {
 					const fDate = formatDate(params.data.patients.date_of_birth);
-					return `${params.data.patients.last_name}, ${params.data.patients.first_name} (${fDate})`;
+					return `<a href="/record?patient_id=${params.data.patients.id}" target="_blank">${params.data.patients.last_name}, ${params.data.patients.first_name} (${fDate})</a>`;
 				}
 			},
 			{
@@ -36,7 +36,7 @@
 					const labelNames = labels.map((label) => label.label_name);
 					return labelNames.join(' ');
 				},
-				cellRenderer: (params) => {
+				cellRenderer: (params: ICellRendererParams) => {
 					const eDiv = document.createElement('div');
 					eDiv.classList.add('flex');
 					eDiv.classList.add('flex-wrap');
@@ -62,7 +62,7 @@
 				valueFormatter: (params) => {
 					if (params.data.notes[0]) {
 						const fDate = formatDate(params.data.notes[0].created_at);
-						return `(${fDate}) ${params.data.notes[0].note}`;
+						return `(${fDate}) ${params.data.notes[0].created_by.username}: ${params.data.notes[0].note}`;
 					}
 					return '';
 				},
@@ -71,7 +71,7 @@
 		]
 	};
 
-	const formatDate = (date: String): String => {
+	const formatDate = (date: string): string => {
 		const dateString = date.toString();
 		const formattedDate = `${dateString.substring(5, 7)}/${dateString.substring(8, 10)}/${dateString.substring(2, 4)}`;
 		return formattedDate;

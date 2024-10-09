@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
 	import Pencil from '$lib/icons/Pencil-square.svelte';
 	import DenialsCard from '$lib/DenialsCard.svelte';
 
@@ -39,7 +41,7 @@
 	export let data;
 	export let form;
 	$: patientList = data.patients;
-	let selectedPatientId: string = '';
+	let selectedPatientId: number;
 	let selectedPatientData = null;
 	let denialsData: DenialsData = [];
 	let denialsDataLength = 0;
@@ -87,7 +89,7 @@
 	});
 
 	// Functions
-	const getDenials = async (patient_id: string): Promise<void> => {
+	const getDenials = async (patient_id: number): Promise<void> => {
 		const response = await fetch(`/api/v1/denials?patientid=${patient_id}`);
 		denialsData = await response.json();
 		denialsDataLength = denialsData.length;
@@ -102,6 +104,21 @@
 	const reloadPage = (): void => {
 		location.reload();
 	};
+
+	onMount(() => {
+		// Access the search parameters
+		const searchParams = $page.url.searchParams;
+		const patientId = searchParams.get('patient_id');
+
+		// Get patient id from URL
+		if (patientId !== null) {
+			const parsedPatientId = parseInt(patientId, 10);
+			if (!isNaN(parsedPatientId) && parsedPatientId > 0) {
+				selectedPatientId = parsedPatientId;
+				getDenials(selectedPatientId);
+			}
+		}
+	});
 </script>
 
 <!-- Patient Card -->
