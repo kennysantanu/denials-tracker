@@ -22,6 +22,7 @@
 				<ul class="space-y-4">
 					<li><a href="/setting/manage/account">- Account</a></li>
 					<li><a href="/setting/manage/patients">- Patients</a></li>
+					<li><a href="/setting/manage/insurances">- Insurances</a></li>
 				</ul>
 			</div>
 		</div>
