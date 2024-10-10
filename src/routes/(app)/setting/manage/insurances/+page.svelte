@@ -23,6 +23,13 @@
 		message: updateInsuranceFormMessage,
 		enhance: updateInsuranceFormEnhance
 	} = superForm(data.updateInsuranceForm, { id: 'updateInsuranceForm' });
+
+	const {
+		form: deleteInsuranceForm,
+		constraints: deleteInsuranceFormConstraints,
+		message: deleteInsuranceFormMessage,
+		enhance: deleteInsuranceFormEnhance
+	} = superForm(data.deleteInsuranceForm, { id: 'deleteInsuranceForm' });
 </script>
 
 <h2 class="h2 text-tertiary-500">Add New Insurance</h2>
@@ -65,7 +72,7 @@
 			{/each}
 		</select>
 	</label>
-	{#if selectedInsuranceId > 0}
+	{#if selectedInsuranceData}
 		<label class="label">
 			<span class="text-tertiary-500">Insurance Name</span>
 			<input
@@ -89,5 +96,29 @@
 		{#if $updateInsuranceFormMessage}
 			<div class="variant-filled-success">{$updateInsuranceFormMessage}</div>
 		{/if}
+	{/if}
+</form>
+
+<hr />
+
+<h2 class="h2 text-tertiary-500">Delete Insurance</h2>
+<form
+	action="?/deleteInsurance"
+	method="post"
+	id="deleteInsuranceForm"
+	class="space-y-4"
+	use:deleteInsuranceFormEnhance
+>
+	<label class="label">
+		<span class="text-tertiary-500">Insurance Select</span>
+		<select class="select" name="id" bind:value={$deleteInsuranceForm.id}>
+			{#each data.insurances as insurance}
+				<option value={insurance.id}>{insurance.name}</option>
+			{/each}
+		</select>
+	</label>
+	<button type="submit" class="variant-filled-primary btn">Delete Insurance</button>
+	{#if $deleteInsuranceFormMessage}
+		<div class="variant-filled-success">{$deleteInsuranceFormMessage}</div>
 	{/if}
 </form>

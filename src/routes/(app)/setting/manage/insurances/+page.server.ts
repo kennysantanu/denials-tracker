@@ -14,13 +14,14 @@ const insurancesSchema = z.object({
 export const load: PageServerLoad = (async ({ locals: { supabase, safeGetSession } }) => {
     const createInsuranceForm = await superValidate(zod(insurancesSchema));
     const updateInsuranceForm = await superValidate(zod(insurancesSchema));
+    const deleteInsuranceForm = await superValidate(zod(insurancesSchema));
     
     let { data: insurances } = await supabase
     .from('insurances')
     .select('*') 
     .order('name', { ascending: true })       
 
-    return { createInsuranceForm, updateInsuranceForm, insurances: insurances || []};
+    return { createInsuranceForm, updateInsuranceForm, deleteInsuranceForm, insurances: insurances || []};
 });
 
 // Form actions
@@ -28,13 +29,9 @@ export const actions: Actions = {
     createInsurance: async ({ request, locals: { supabase, safeGetSession } }) => {
         const createInsuranceForm = await superValidate(request, zod(insurancesSchema));
 
-        console.log(createInsuranceForm);
-
         if (!createInsuranceForm.valid) {
             return fail(400, { createInsuranceForm });
         }
-
-        console.log(createInsuranceForm);
 
         const { error } = await supabase
             .from('insurances')
@@ -44,7 +41,6 @@ export const actions: Actions = {
             })
 
         if (error) {
-            console.log(error);
             return fail(400, { createInsuranceForm });
         }
 
@@ -71,4 +67,18 @@ export const actions: Actions = {
 
         return message(updateInsuranceForm, 'Insurance updated successfully!');
     },
+    deleteInsurance: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const deleteInsuranceForm = await superValidate(request, zod(insurancesSchema));
+
+        const { error } = await supabase
+            .from('insurances')
+            .delete()
+            .eq('id', deleteInsuranceForm.data.id)
+
+        if (error) {
+            return fail(400, { deleteInsuranceForm });
+        }
+        
+        return message(deleteInsuranceForm, 'Insurance deleted successfully!');
+    }
 };
