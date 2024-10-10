@@ -13,13 +13,14 @@ const insurancesSchema = z.object({
 // Server load function
 export const load: PageServerLoad = (async ({ locals: { supabase, safeGetSession } }) => {
     const createInsuranceForm = await superValidate(zod(insurancesSchema));
+    const updateInsuranceForm = await superValidate(zod(insurancesSchema));
     
     let { data: insurances } = await supabase
     .from('insurances')
     .select('*') 
     .order('name', { ascending: true })       
 
-    return { createInsuranceForm, insurances: insurances || []};
+    return { createInsuranceForm, updateInsuranceForm, insurances: insurances || []};
 });
 
 // Form actions
@@ -48,5 +49,26 @@ export const actions: Actions = {
         }
 
         return message(createInsuranceForm, 'Insurance added successfully!');
+    },
+    updateInsurance: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const updateInsuranceForm = await superValidate(request, zod(insurancesSchema));
+
+        if (!updateInsuranceForm.valid) {
+            return fail(400, { updateInsuranceForm });
+        }
+        
+        const { error } = await supabase
+            .from('insurances')
+            .update({
+                name: updateInsuranceForm.data.name.trim(),
+                note: updateInsuranceForm.data.note
+            })
+            .eq('id', updateInsuranceForm.data.id)
+
+        if (error) {
+            return fail(400, { updateInsuranceForm });
+        }
+
+        return message(updateInsuranceForm, 'Insurance updated successfully!');
     },
 };
