@@ -20,7 +20,7 @@
 </script>
 
 <svelte:head>
-	<title>Denial Tracker</title>
+	<title>Denials Tracker</title>
 </svelte:head>
 
 <slot></slot>
