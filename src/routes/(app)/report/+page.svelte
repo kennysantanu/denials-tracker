@@ -30,6 +30,31 @@
 				valueFormatter: (params) => `$${params.value}`
 			},
 			{
+				headerName: 'Insurances',
+				valueGetter: (params) => {
+					const insurances = params.data.insurances;
+					const insuranceNames = insurances.map((insurance) => insurance.name);
+					return insuranceNames.join(' ');
+				},
+				cellRenderer: (params: ICellRendererParams) => {
+					const eDiv = document.createElement('div');
+					eDiv.classList.add('flex');
+					eDiv.classList.add('flex-wrap');
+					eDiv.classList.add('space-x-2');
+					for (let insurance of params.data.insurances) {
+						const span = document.createElement('span');
+						span.innerHTML = `<span class="variant-ringed-surface badge" >${insurance.name}</span>`;
+						eDiv.appendChild(span);
+					}
+					return eDiv;
+				},
+				filter: 'agTextColumnFilter',
+				filterParams: {
+					buttons: ['reset'],
+					filterOptions: ['contains', 'notContains', 'blank', 'notBlank']
+				}
+			},
+			{
 				headerName: 'Labels',
 				valueGetter: (params) => {
 					const labels = params.data.labels;
