@@ -19,4 +19,8 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Denial Tracker</title>
+</svelte:head>
+
 <slot></slot>
