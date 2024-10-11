@@ -328,21 +328,37 @@
 								/>
 							</label>
 						</div>
-						<label class="label">
-							<span class="text-tertiary-500">Labels</span>
-							<select
-								class="select"
-								name="label_id"
-								multiple
-								aria-invalid={$newDenialFormErrors.label_id ? 'true' : undefined}
-								bind:value={$newDenialForm.label_id}
-								{...$newDenialFormConstraints.label_id}
-							>
-								{#each data.labels as label}
-									<option value={label.id}>{label.label_name}</option>
-								{/each}
-							</select>
-						</label>
+						<div class="grid-row grid grid-cols-2 gap-6">
+							<label class="label">
+								<span class="text-tertiary-500">Insurances (optional)</span>
+								<select
+									class="select"
+									name="insurance_id"
+									multiple
+									aria-invalid={$newDenialFormErrors.insurance_id ? 'true' : undefined}
+									{...$newDenialFormConstraints.insurance_id}
+								>
+									{#each data.insurances as insurance}
+										<option value={insurance.id}>{insurance.name}</option>
+									{/each}
+								</select>
+							</label>
+							<label class="label">
+								<span class="text-tertiary-500">Labels</span>
+								<select
+									class="select"
+									name="label_id"
+									multiple
+									aria-invalid={$newDenialFormErrors.label_id ? 'true' : undefined}
+									bind:value={$newDenialForm.label_id}
+									{...$newDenialFormConstraints.label_id}
+								>
+									{#each data.labels as label}
+										<option value={label.id}>{label.label_name}</option>
+									{/each}
+								</select>
+							</label>
+						</div>
 					</div>
 					<div class="space-x-4">
 						<button type="submit" class="variant-filled-primary btn">Save</button>

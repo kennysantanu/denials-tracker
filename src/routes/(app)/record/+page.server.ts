@@ -14,6 +14,7 @@ const schemaNewDenial = z.object({
     service_end_date: z.date().optional(),
     billed_amount: z.number().nonnegative(),
     paid_amount: z.number().nonnegative(),
+    insurance_id: z.array(z.number()).optional(),
     label_id: z.array(z.number()),
 });
 
@@ -42,12 +43,17 @@ export const load = async ({ parent, locals: { supabase, safeGetSession } }) => 
     .select('*')
     .order('last_name', { ascending: true })
 
+    let { data: insurances, error: errorInsurances } = await supabase
+        .from('insurances')
+        .select('*')
+        .order('name', { ascending: true })
+
     let { data: labels, error: errorLabels } = await supabase
     .from('labels')
     .select('*')
     .order('order', { ascending: true })
     
-    return { newPatientForm, newDenialForm, newNoteForm, patients: patients || [], labels: labels || []}
+    return { newPatientForm, newDenialForm, newNoteForm, patients: patients || [], insurances: insurances || [], labels: labels || []}
 }
 
 export const actions = {
@@ -110,6 +116,16 @@ export const actions = {
             return fail(400, { newDenialForm });
         }
 
+        if (newDenialForm.data.insurance_id != undefined) {
+            for (const insurance_id of newDenialForm.data.insurance_id) {
+                const { } = await supabase
+                    .from('denials_insurances')
+                    .insert([
+                    { denial_id: denials[0].id, insurance_id: insurance_id },
+                    ])
+            }
+        }        
+
         for (const label_id of newDenialForm.data.label_id) {
             const { } = await supabase
                 .from('denials_labels')
@@ -128,6 +144,7 @@ export const actions = {
         let service_end_date = form.get('service_end_date');
         const billed_amount = form.get('billed_amount');
         const paid_amount = form.get('paid_amount');
+        let insurance_ids = form.getAll('insurances');
         let label_ids = [];
 
         if (service_end_date === '') {
@@ -151,9 +168,22 @@ export const actions = {
         .eq( 'id', denial_id )
 
         const { } = await supabase
-        .from('denials_labels')
-        .delete()
-        .eq( 'denial_id', denial_id )        
+            .from('denials_insurances')
+            .delete()
+            .eq( 'denial_id', denial_id )
+
+        for (const insurance_id of insurance_ids) {
+            const { } = await supabase
+                .from('denials_insurances')
+                .insert([
+                { denial_id: denial_id, insurance_id: insurance_id },
+                ])
+        }
+
+        const { } = await supabase
+            .from('denials_labels')
+            .delete()
+            .eq( 'denial_id', denial_id )        
 
         for (const label_id of label_ids) {
             const { } = await supabase

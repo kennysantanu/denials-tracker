@@ -49,8 +49,8 @@
 	<!-- Denial List Card Header -->
 	{#if !showEditDenialForm}
 		<div class="flex justify-between">
-			<div class="flex grow flex-wrap gap-4">
-				<div class="grow">
+			<div class="grid w-full grid-cols-5">
+				<div>
 					<div class="grid min-w-48 grid-rows-2">
 						<span class="text-slate-500">Date of Service</span>
 						<span class="font-bold">
@@ -61,7 +61,7 @@
 						</span>
 					</div>
 				</div>
-				<div class="grow">
+				<div>
 					<div class="grid grid-rows-2">
 						<span class="text-slate-500">Bill Amount</span>
 						<span class="font-bold">
@@ -69,7 +69,7 @@
 						</span>
 					</div>
 				</div>
-				<div class="grow">
+				<div>
 					<div class="grid grid-rows-2">
 						<span class="text-slate-500">Paid Amount</span>
 						<span class="font-bold">
@@ -77,16 +77,32 @@
 						</span>
 					</div>
 				</div>
-				<div class="grow">
+				<div>
+					<span class="text-slate-500">Insurances</span>
+					{#if denialData.insurances.length > 0}
+						<div class="flex flex-wrap gap-2">
+							{#each denialData.insurances as insurance}
+								<button
+									class="variant-ringed-surface chip hover:variant-filled-primary"
+									on:click={() => alert(insurance.note)}
+								>
+									<span>{insurance.name}</span>
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+				<div>
 					<span class="text-slate-500">Labels</span>
 					{#if denialData.labels.length > 0}
-						<div class="flex flex-row flex-wrap space-x-2">
+						<div class="flex flex-wrap gap-2">
 							{#each denialData.labels as label}
-								<span
+								<div
 									class="variant-filled chip"
 									style="background-color: {label.bg_color}; color: {label.txt_color};"
-									>{label.label_name}</span
 								>
+									{label.label_name}
+								</div>
 							{/each}
 						</div>
 					{/if}
@@ -197,14 +213,35 @@
 							/>
 						</label>
 					</div>
-					<label class="label">
-						<span class="text-tertiary-500">Labels</span>
-						<select class="select" name="label_id" multiple required>
-							{#each labelsData as label}
-								<option value={label.id}>{label.label_name}</option>
-							{/each}
-						</select>
-					</label>
+					<div class="grid-row grid grid-cols-2 gap-6">
+						<label class="label">
+							<span class="text-tertiary-500">Insurances (optional)</span>
+							<select
+								class="select"
+								name="insurances"
+								value={denialData.insurances.map((insurance) => insurance.id)}
+								multiple
+							>
+								{#each data.insurances as insurance}
+									<option value={insurance.id}>{insurance.name}</option>
+								{/each}
+							</select>
+						</label>
+						<label class="label">
+							<span class="text-tertiary-500">Labels</span>
+							<select
+								class="select"
+								name="label_id"
+								value={denialData.labels.map((label) => label.id)}
+								multiple
+								required
+							>
+								{#each labelsData as label}
+									<option value={label.id}>{label.label_name}</option>
+								{/each}
+							</select>
+						</label>
+					</div>
 				</div>
 				<div class="space-x-4">
 					<button type="submit" class="variant-filled-primary btn">Save</button>
