@@ -54,7 +54,7 @@
 </script>
 
 <!-- File Info -->
-<div class="card">
+<div class="card ring-surface-300">
 	<form method="POST" action="?/updateFileInfo">
 		<div class="space-y-6 p-6">
 			<h3 class="h3 text-tertiary-500">File Info</h3>

@@ -48,7 +48,8 @@
 				</TabGroup>
 			</div>
 		</div>
-
-		<slot></slot>
+		<div class="m-2 space-y-8">
+			<slot></slot>
+		</div>
 	</div>
 </div>
