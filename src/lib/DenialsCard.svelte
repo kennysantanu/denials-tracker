@@ -49,17 +49,15 @@
 	<!-- Denial List Card Header -->
 	{#if !showEditDenialForm}
 		<div class="flex justify-between">
-			<div class="grid w-full grid-cols-5">
-				<div>
-					<div class="grid min-w-48 grid-rows-2">
-						<span class="text-slate-500">Date of Service</span>
-						<span class="font-bold">
-							{formatDate(denialData.service_start_date)}
-							{#if denialData.service_end_date}
-								- {formatDate(denialData.service_end_date)}
-							{/if}
-						</span>
-					</div>
+			<div class="grid w-full grid-cols-2 space-y-4 md:grid-cols-3 xl:grid-cols-5">
+				<div class="col-span-2 grid min-w-48 grid-rows-2 md:col-span-1">
+					<span class="text-slate-500">Date of Service</span>
+					<span class="font-bold">
+						{formatDate(denialData.service_start_date)}
+						{#if denialData.service_end_date}
+							- {formatDate(denialData.service_end_date)}
+						{/if}
+					</span>
 				</div>
 				<div>
 					<div class="grid grid-rows-2">
