@@ -249,6 +249,50 @@ export const actions = {
         const modified_by = sessionData.user.id;
         const note = form.get('note');
 
+        const {data: attachmentListOriginalObject} = await supabase
+            .from('notes_files')
+            .select('file_name')
+            .eq('note_id', note_id);
+
+        let attachmentListOriginal: string[] = [];
+        if (attachmentListOriginalObject) {
+            attachmentListOriginal = attachmentListOriginalObject.map((attachment) => attachment.file_name);
+            console.log(attachmentListOriginal);
+        }
+
+        const attachmentStrings = String(form.get('attachmentList'));
+        let attachmentList: string[] = [];
+
+        if (attachmentStrings) {
+            attachmentList = attachmentStrings.split(',');
+            console.log(attachmentList);
+        }
+
+        const attachmentListToAdd = attachmentList.filter((name) => !attachmentListOriginal.includes(name));
+        const attachmentListToDelete = attachmentListOriginal.filter((name) => !attachmentList.includes(name));
+
+        console.log("attachmentListToAdd", attachmentListToAdd);
+        console.log("attachmentListToDelete", attachmentListToDelete);
+
+        for (const name of attachmentListToAdd) {
+            const {error} = await supabase
+                .from('notes_files')
+                .insert([
+                    {
+                        note_id: note_id,
+                        file_name: name,
+                    },
+                ]);
+        }
+
+        for (const name of attachmentListToDelete) {
+            const {error} = await supabase
+                .from('notes_files')
+                .delete()
+                .eq('note_id', note_id)
+                .eq('file_name', name);
+        }
+
         const { data, error } = await supabase
         .from('notes')
         .update({ 

@@ -379,7 +379,7 @@
 		<!-- Denial Note List -->
 		{#if denialData.notes.length > 0}
 			{#each denialData.notes as noteData}
-				<DenialsNote {data} {noteData} {getDenials} {selectedPatientId} />
+				<DenialsNote {data} {form} {noteData} {getDenials} {selectedPatientId} />
 			{/each}
 		{/if}
 	</div>
