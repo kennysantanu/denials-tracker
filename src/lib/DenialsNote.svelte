@@ -2,7 +2,6 @@
 	import Ellipsis from '$lib/icons/Ellipsis-vertical.svelte';
 	import { enhance } from '$app/forms';
 	import { popup } from '@skeletonlabs/skeleton';
-	import { onMount } from 'svelte';
 
 	// Props
 	export let data;
@@ -39,12 +38,6 @@
 	const extractFileName = (path: string) => {
 		return path.split('/').pop();
 	};
-
-	onMount(() => {
-		if (noteData.files) {
-			attachmentList = noteData.files.map((file) => file.name);
-		}
-	});
 </script>
 
 <div class="flex">
@@ -73,7 +66,18 @@
 			</button>
 			<div class="card shadow-xl" data-popup="popup-{noteData.id}">
 				{#if data.user?.role.permissions.note_edit == true}
-					<div><button class="btn" on:click={() => (showEditNoteForm = true)}>Edit</button></div>
+					<div>
+						<button
+							class="btn"
+							on:click={() => {
+								showEditNoteForm = true;
+
+								if (noteData.files) {
+									attachmentList = noteData.files.map((file) => file.name);
+								}
+							}}>Edit</button
+						>
+					</div>
 				{:else}
 					<div><button class="btn" disabled>Edit</button></div>
 				{/if}
