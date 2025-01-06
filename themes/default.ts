@@ -14,7 +14,7 @@ export const defaultTheme: CustomThemeConfig = {
 		// =~= Theme On-X Colors =~=
 		'--on-primary': '255 255 255',
 		'--on-secondary': 'var(--color-tertiary-500)',
-		'--on-tertiary': '0 0 0',
+		'--on-tertiary': '255 255 255',
 		'--on-success': '0 0 0',
 		'--on-warning': '0 0 0',
 		'--on-error': '255 255 255',

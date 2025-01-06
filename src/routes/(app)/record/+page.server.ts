@@ -334,7 +334,7 @@ export const actions = {
 
         let fileList = data;
 
-        return { fileList };
+        return { fileList, folderPath };
 
     },
 }

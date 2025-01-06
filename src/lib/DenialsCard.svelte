@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { popup } from '@skeletonlabs/skeleton';
 	import DenialsNote from '$lib/DenialsNote.svelte';
+	import FilesCalendar from '$lib/FilesCalendar.svelte';
 
 	// Props
 	export let data;
@@ -13,6 +14,7 @@
 	export let labelsData;
 
 	// Variables
+	const supabase = data.supabase;
 	let formElement: HTMLFormElement;
 	let attachmentList: string[] = [];
 	$: fileList = form?.fileList ?? [];
@@ -315,6 +317,7 @@
 					{#if showAttachFileForm}
 						<div class="card space-y-6 p-6">
 							<h3 class="h3 text-tertiary-500">File List</h3>
+							<FilesCalendar {supabase} />
 							<form method="POST" action="?/getFileList" use:enhance>
 								<div class="flex space-x-4">
 									<input type="date" name="date" class="input" required />
@@ -323,7 +326,8 @@
 							</form>
 							<ul class="list-inside list-decimal space-y-4">
 								{#if fileList.length > 0}
-									<div class="grid grid-cols-3 gap-4">
+									<h3 class="h3 text-tertiary-500">File List for {form?.folderPath}</h3>
+									<div class="grid grid-cols-4 gap-4">
 										<p class="text-slate-500">File Name</p>
 										<p class="text-slate-500">Size</p>
 										<p class="text-slate-500">Status</p>
