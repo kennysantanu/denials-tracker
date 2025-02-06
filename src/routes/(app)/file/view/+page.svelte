@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
-	import { unknown } from 'zod';
 
 	export let data: PageData;
 
@@ -9,6 +8,11 @@
 	let fileStatusOptions: string[] = ['Completed', 'In Progress', 'New'];
 
 	// Functions
+	const formatDate = (date: String): String => {
+		const dateString = date.toString();
+		const formattedDate = `${dateString.substring(5, 7)}/${dateString.substring(8, 10)}/${dateString.substring(0, 4)}`;
+		return formattedDate;
+	};
 
 	const formatFileSize = (size: number) => {
 		if (size < 1024) {
@@ -160,6 +164,55 @@
 			{/if}
 		</div>
 	</form>
+</div>
+
+<!-- Related Claims -->
+<div class="card ring-surface-300">
+	<div class="space-y-6 p-6">
+		<h3 class="h3 text-tertiary-500">Related Claims</h3>
+		{#if data.claimData[0].notes.length == 0}
+			<div>No related claims found.</div>
+		{:else}
+			<div class="grid grid-cols-6 gap-4">
+				<div class="text-slate-500">Patient</div>
+				<div class="text-slate-500">Date of Service</div>
+				<div class="text-slate-500">Labels</div>
+				<div class="col-span-3 text-slate-500">Last Note</div>
+			</div>
+			{#each data.claimData[0].notes as noteData}
+				<div class="grid grid-cols-6 gap-4">
+					<div>
+						<a href={`/record?patient_id=${noteData.denials.patients.id}`} target="_blank">
+							{noteData.denials.patients.last_name}, {noteData.denials.patients.first_name} ({formatDate(
+								noteData.denials.patients.date_of_birth
+							)})
+						</a>
+					</div>
+					<div class="font-bold">
+						{formatDate(noteData.denials.service_start_date)}
+						{#if noteData.denials.service_end_date}
+							- {formatDate(noteData.denials.service_end_date)}
+						{/if}
+					</div>
+					<div>
+						{#each noteData.denials.labels as label}
+							<div
+								class="variant-filled chip"
+								style="background-color: {label.bg_color}; color: {label.txt_color};"
+							>
+								{label.label_name}
+							</div>
+						{/each}
+					</div>
+					<div class="col-span-3">
+						<span>({formatDate(noteData.created_at)})</span>
+						<span class="font-bold">{noteData.created_by.username}:</span>
+						<span class="text-surface-800">{noteData.note}</span>
+					</div>
+				</div>
+			{/each}
+		{/if}
+	</div>
 </div>
 
 <!-- Show File -->

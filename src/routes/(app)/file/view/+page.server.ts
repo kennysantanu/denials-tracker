@@ -5,17 +5,34 @@ export const load: PageServerLoad = async ({url, locals: { supabase, safeGetSess
 
     const name = url.searchParams.get('name');
     
-    let { data: fileData, error } = await supabase
+    let { data: fileData, error: fileError } = await supabase
         .from('files')
         .select('*')
         .eq('name', name)
         .single();
     
-    if (error) {
+    if (fileError) {
         return { fileData: [] };
     }
 
-    return { fileData };
+    let { data:claimData, error:claimError } = await supabase
+        .from('files')
+        .select(`
+            *, 
+            notes(id, denial_id, created_at, modified_at, created_by:created_by(username), modified_by:modified_by(username), note, 
+                denials(patient_id, service_start_date, service_end_date,
+                    patients(id, last_name, first_name, date_of_birth),
+                    labels(label_name, bg_color, txt_color)
+                )
+            )
+        `)
+        .eq('name', name);
+
+    if (claimError) {
+        return { claimData: [] };
+    }
+
+    return { fileData, claimData };
 };
 
 export const actions = {
