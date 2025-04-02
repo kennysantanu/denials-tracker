@@ -39,9 +39,9 @@ export const load = async ({ parent, locals: { supabase, safeGetSession } }) => 
     const newNoteForm = await superValidate(zod(schemaNewNote));
     
     let { data: patients, error: errorPatients } = await supabase
-    .from('patients')
-    .select('*')
-    .order('last_name', { ascending: true })
+        .from('patients')
+        .select('*, patients_files(file_name)')
+        .order('last_name', { ascending: true })
 
     let { data: insurances, error: errorInsurances } = await supabase
         .from('insurances')
@@ -49,9 +49,9 @@ export const load = async ({ parent, locals: { supabase, safeGetSession } }) => 
         .order('name', { ascending: true })
 
     let { data: labels, error: errorLabels } = await supabase
-    .from('labels')
-    .select('*')
-    .order('order', { ascending: true })
+        .from('labels')
+        .select('*')
+        .order('order', { ascending: true })
     
     return { newPatientForm, newDenialForm, newNoteForm, patients: patients || [], insurances: insurances || [], labels: labels || []}
 }
@@ -336,5 +336,44 @@ export const actions = {
 
         return { fileList, folderPath };
 
+    },
+    uploadNewFile: async ({ request, locals: { supabase, safeGetSession } }) => {
+
+        const form = await request.formData();
+        const files = form.getAll('files') as File[];
+        const patientID = form.get('patient_id');
+        
+        for (const file of files) {
+            const { data, error } = await supabase
+                .storage
+                .from('files')
+                .upload(`patients/${patientID}/${file.name}`, file);
+
+            if (error) {
+                return { };
+            }
+            else {
+
+            const { } = await supabase
+                .from('patients_files')
+                .insert([
+                    {
+                        patient_id: patientID,
+                        file_name: `patients/${patientID}/${file.name}`,
+                    },
+                ]);
+
+                const { } = await supabase
+                .from('files')
+                .insert({ 
+                    name: `patients/${patientID}/${file.name}`, 
+                    size: file.size, 
+                    mimetype: file.type, 
+                    metadata: { status: 'New', note: '' } 
+                });
+            }
+        }        
+        
+        return { };
     },
 }

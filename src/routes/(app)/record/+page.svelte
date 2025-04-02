@@ -3,6 +3,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
+	import { FileDropzone } from '@skeletonlabs/skeleton';
 	import Pencil from '$lib/icons/Pencil-square.svelte';
 	import DenialsCard from '$lib/DenialsCard.svelte';
 
@@ -50,6 +51,8 @@
 	let showAddNewPatientForm: boolean = false;
 	let showAddNewDenialForm: boolean = false;
 	let editPatientNote: boolean = false;
+	let showAttachFileForm: boolean = false;
+	let uploadList: FileList;
 
 	// SuperForm forms
 	const {
@@ -89,6 +92,39 @@
 	});
 
 	// Functions
+	const formatFileSize = (size: number) => {
+		if (size < 1024) {
+			return `${size} B`;
+		} else if (size < 1024 * 1024) {
+			return `${(size / 1024).toFixed(2)} KB`;
+		} else if (size < 1024 * 1024 * 1024) {
+			return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+		} else {
+			return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+		}
+	};
+
+	const extractFileName = (path: string) => {
+		return path.split('/').pop();
+	};
+
+	const validateFiles = (fileList: FileList) => {
+		const invalidChars = /[<>:"\/\\|&?*]/;
+		for (const file of fileList) {
+			if (invalidChars.test(file.name)) {
+				alert(`Invalid character in file name: ${file.name}`);
+				return false;
+			}
+		}
+		return true;
+	};
+
+	const handleSubmit = (event: Event) => {
+		if (!validateFiles(uploadList)) {
+			event.preventDefault();
+		}
+	};
+
 	const getDenials = async (patient_id: number): Promise<void> => {
 		const response = await fetch(`/api/v1/denials?patientid=${patient_id}`);
 		denialsData = await response.json();
@@ -243,6 +279,71 @@
 				>
 					<Pencil />
 				</button>
+			</div>
+		{/if}
+		<!-- Patient File Attachment -->
+		<div class="space-x-2">
+			{#if editPatientNote}
+				{#if data.user?.role.permissions.attachment_add == true}
+					<button
+						type="button"
+						class="btn text-tertiary-500"
+						on:click={() => (showAttachFileForm = !showAttachFileForm)}>+ Attach File</button
+					>
+				{:else}
+					<button type="button" class="btn text-tertiary-500" disabled>+ Attach File</button>
+				{/if}
+			{/if}
+			{#if selectedPatientData.patients_files.length > 0}
+				{#each selectedPatientData.patients_files as file}
+					<a class="variant-filled chip" href="/file/view?name={file.file_name}" target="_blank"
+						>{extractFileName(file.file_name)}</a
+					>
+				{/each}
+			{/if}
+		</div>
+		{#if showAttachFileForm}
+			<div class="card space-y-6 p-6 ring-surface-300">
+				<h3 class="h3 text-tertiary-500">Upload New File</h3>
+				<form
+					method="POST"
+					action="?/uploadNewFile"
+					class="space-y-6"
+					enctype="multipart/form-data"
+				>
+					<input hidden name="patient_id" value={selectedPatientId} />
+					<FileDropzone name="files" bind:files={uploadList} multiple required accept=".pdf" />
+					{#if uploadList}
+						<ul class="list-inside list-decimal space-y-4">
+							{#each uploadList as file}
+								<li>
+									<span>{file.name}</span>
+									<span>({formatFileSize(file.size)})</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+					<div class="space-x-4">
+						{#if data.user?.role.permissions.file_upload == true}
+							<button
+								type="submit"
+								class="variant-filled-primary btn"
+								on:click={() => {
+									handleSubmit(event);
+								}}>Upload</button
+							>
+						{:else}
+							<button type="button" class="variant-filled-primary btn" disabled>Upload</button>
+						{/if}
+						<button
+							type="button"
+							class="variant-filled-secondary btn"
+							on:click={() => {
+								(showAttachFileForm = false), (uploadList = null);
+							}}>Close</button
+						>
+					</div>
+				</form>
 			</div>
 		{/if}
 	{/if}
