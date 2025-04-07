@@ -2,6 +2,7 @@
 	import Ellipsis from '$lib/icons/Ellipsis-vertical.svelte';
 	import { enhance } from '$app/forms';
 	import { popup } from '@skeletonlabs/skeleton';
+	import { scrollTo } from '$lib/utils';
 	import DenialsNote from '$lib/DenialsNote.svelte';
 	import FilesCalendar from '$lib/FilesCalendar.svelte';
 
@@ -123,7 +124,13 @@
 				<div class="card shadow-xl" data-popup="popupDenial-{denialData.id}">
 					{#if data.user?.role.permissions.denial_edit == true}
 						<div>
-							<button class="btn" on:click={() => (showEditDenialForm = true)}>Edit</button>
+							<button
+								class="btn"
+								on:click={() => {
+									showEditDenialForm = true;
+									scrollTo('updateDenial');
+								}}>Edit</button
+							>
 						</div>
 					{:else}
 						<div><button class="btn" disabled>Edit</button></div>
@@ -158,6 +165,7 @@
 		<form
 			method="POST"
 			action="?/updateDenial"
+			id="updateDenial"
 			use:enhance={() => {
 				return async ({ update }) => {
 					showEditDenialForm = false;
@@ -263,7 +271,10 @@
 			<button
 				type="button"
 				class="btn text-tertiary-500"
-				on:click={() => (showAddNewNoteForm = !showAddNewNoteForm)}>+ Add New Note</button
+				on:click={() => {
+					showAddNewNoteForm = !showAddNewNoteForm;
+					scrollTo('createNote');
+				}}>+ Add New Note</button
 			>
 		{:else}
 			<button type="button" class="btn text-tertiary-500" disabled>+ Add New Note</button>
@@ -274,7 +285,7 @@
 			<form
 				method="POST"
 				action="?/createNote"
-				id="newNoteForm"
+				id="createNote"
 				bind:this={formElement}
 				use:enhance={() => {
 					(showAddNewNoteForm = false),
@@ -289,7 +300,7 @@
 					<input type="hidden" name="attachmentList" value={attachmentList} />
 					<label class="label">
 						<span class="text-tertiary-500">Note</span>
-						<textarea class="textarea" rows="4" name="note" />
+						<textarea class="textarea" rows="4" name="note" autofocus />
 					</label>
 					<div>
 						{#if data.user?.role.permissions.attachment_add == true}

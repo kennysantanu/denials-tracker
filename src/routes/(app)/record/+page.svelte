@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import { FileDropzone } from '@skeletonlabs/skeleton';
+	import { scrollTo } from '$lib/utils';
 	import Pencil from '$lib/icons/Pencil-square.svelte';
 	import DenialsCard from '$lib/DenialsCard.svelte';
 
@@ -178,62 +179,14 @@
 			<button
 				type="button"
 				class="variant-filled-secondary btn"
-				on:click={() => (showAddNewPatientForm = !showAddNewPatientForm)}
+				on:click={() => {
+					showAddNewPatientForm = !showAddNewPatientForm;
+					scrollTo('addNewPatient');
+				}}
 				disabled={showAddNewPatientForm || !data.session}>Add New Patient</button
 			>
 		</div>
 	</label>
-
-	{#if showAddNewPatientForm}
-		<div class="card space-y-6 p-6">
-			<h3 class="h3 text-tertiary-500">Create New Patient</h3>
-			<form method="POST" action="?/addNewPatient" class="space-y-6" use:newPatientFormEnhance>
-				<label class="label">
-					<span class="text-tertiary-500">Last Name</span>
-					<input
-						class="input"
-						type="text"
-						name="last_name"
-						placeholder="Enter last name"
-						aria-invalid={$newPatientFormErrors.last_name ? 'true' : undefined}
-						bind:value={$newPatientForm.last_name}
-						{...$newPatientFormConstraints.last_name}
-					/>
-				</label>
-				<label class="label">
-					<span class="text-tertiary-500">First Name</span>
-					<input
-						class="input"
-						type="text"
-						name="first_name"
-						placeholder="Enter first name"
-						aria-invalid={$newPatientFormErrors.first_name ? 'true' : undefined}
-						bind:value={$newPatientForm.first_name}
-						{...$newPatientFormConstraints.first_name}
-					/>
-				</label>
-				<label class="label">
-					<span class="text-tertiary-500">Date of Birth</span>
-					<input
-						class="input"
-						name="date_of_birth"
-						type="date"
-						aria-invalid={$newPatientFormErrors.date_of_birth ? 'true' : undefined}
-						bind:value={$newPatientForm.date_of_birth}
-						{...$newPatientFormConstraints.date_of_birth}
-					/>
-				</label>
-				<div class="space-x-4">
-					<button type="submit" class="variant-filled-primary btn">Save</button>
-					<button
-						type="button"
-						class="variant-filled-secondary btn"
-						on:click={() => (showAddNewPatientForm = !showAddNewPatientForm)}>Cancel</button
-					>
-				</div>
-			</form>
-		</div>
-	{/if}
 
 	<!-- Patient's note -->
 	{#if selectedPatientId}
@@ -252,7 +205,13 @@
 				<input hidden name="patient_id" value={selectedPatientId} />
 				<label class="label">
 					<span class="text-tertiary-500">Note</span>
-					<textarea class="textarea grow" name="note" rows="4" value={selectedPatientData.note} />
+					<textarea
+						class="textarea grow"
+						name="note"
+						rows="4"
+						value={selectedPatientData.note}
+						autofocus
+					/>
 				</label>
 				<div class="space-x-4">
 					<button type="submit" class="variant-filled-primary btn">Save</button>
@@ -349,6 +308,64 @@
 	{/if}
 </div>
 
+{#if showAddNewPatientForm}
+	<form
+		method="POST"
+		action="?/addNewPatient"
+		id="addNewPatient"
+		class="space-y-6"
+		use:newPatientFormEnhance
+	>
+		<div class="card space-y-6 p-6 ring-surface-300">
+			<h3 class="h3 text-tertiary-500">Create New Patient</h3>
+			<label class="label">
+				<span class="text-tertiary-500">Last Name</span>
+				<input
+					class="input"
+					type="text"
+					name="last_name"
+					placeholder="Enter last name"
+					aria-invalid={$newPatientFormErrors.last_name ? 'true' : undefined}
+					bind:value={$newPatientForm.last_name}
+					{...$newPatientFormConstraints.last_name}
+					autofocus
+				/>
+			</label>
+			<label class="label">
+				<span class="text-tertiary-500">First Name</span>
+				<input
+					class="input"
+					type="text"
+					name="first_name"
+					placeholder="Enter first name"
+					aria-invalid={$newPatientFormErrors.first_name ? 'true' : undefined}
+					bind:value={$newPatientForm.first_name}
+					{...$newPatientFormConstraints.first_name}
+				/>
+			</label>
+			<label class="label">
+				<span class="text-tertiary-500">Date of Birth</span>
+				<input
+					class="input"
+					name="date_of_birth"
+					type="date"
+					aria-invalid={$newPatientFormErrors.date_of_birth ? 'true' : undefined}
+					bind:value={$newPatientForm.date_of_birth}
+					{...$newPatientFormConstraints.date_of_birth}
+				/>
+			</label>
+			<div class="space-x-4">
+				<button type="submit" class="variant-filled-primary btn">Save</button>
+				<button
+					type="button"
+					class="variant-filled-secondary btn"
+					on:click={() => (showAddNewPatientForm = !showAddNewPatientForm)}>Cancel</button
+				>
+			</div>
+		</div>
+	</form>
+{/if}
+
 <div class="p-1"></div>
 
 <!-- Denial List -->
@@ -364,7 +381,10 @@
 				<button
 					type="button"
 					class="btn text-tertiary-500"
-					on:click={() => (showAddNewDenialForm = !showAddNewDenialForm)}
+					on:click={() => {
+						showAddNewDenialForm = !showAddNewDenialForm;
+						scrollTo('createDenial');
+					}}
 					disabled={showAddNewDenialForm || !data.session}>+ Add New Record</button
 				>
 			{:else}
@@ -372,7 +392,7 @@
 			{/if}
 		</div>
 		{#if showAddNewDenialForm}
-			<form method="POST" action="?/createDenial" use:newDenialFormEnhance>
+			<form method="POST" action="?/createDenial" id="createDenial" use:newDenialFormEnhance>
 				<div class="card space-y-6 p-6">
 					<h3 class="h3 text-tertiary-500">Create New Denial</h3>
 					<div class="space-y-6">
@@ -385,6 +405,7 @@
 									type="date"
 									name="service_start_date"
 									aria-invalid={$newDenialFormErrors.service_start_date ? 'true' : undefined}
+									autofocus
 									bind:value={$newDenialForm.service_start_date}
 									{...$newDenialFormConstraints.service_start_date}
 								/>
