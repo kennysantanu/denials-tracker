@@ -56,5 +56,31 @@ export const actions = {
             redirect(303, `/file/view?name=${name}`);
         }
 
+    },
+    deleteFile: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const form = await request.formData();
+        const name = form.get('name');
+
+        let { data: publicFile, error: publicFileError } = await supabase
+            .from('files')
+            .delete()
+            .eq('name', name);
+
+        if (publicFileError) {
+            return { publicFileError };
+        }
+
+        const { data: storageFile, error: storageFileError } = await supabase
+            .storage
+            .from('files')
+            .remove([name]);
+
+        if (storageFileError) {
+            return { storageFileError };
+        }
+
+        {
+            redirect(303, `/file`);
+        }
     }
 };

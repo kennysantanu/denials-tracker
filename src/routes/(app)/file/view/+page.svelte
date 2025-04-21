@@ -108,15 +108,24 @@
 						<textarea rows="4" class="input" name="note" value={data.fileData.metadata.note} />
 					</div>
 				</div>
-				<div class="flex space-x-4">
-					<button type="submit" class="variant-filled-primary btn">Save</button>
-					<button
-						type="button"
-						class="variant-filled-secondary btn"
-						on:click={() => {
-							editFileInfo = false;
-						}}>Cancel</button
-					>
+				<div class="flex justify-between">
+					<div class="flex space-x-4">
+						<button type="submit" class="variant-filled-primary btn">Save</button>
+						<button
+							type="button"
+							class="variant-filled-secondary btn"
+							on:click={() => {
+								editFileInfo = false;
+							}}>Cancel</button
+						>
+					</div>
+					<div>
+						{#if data.user?.role.permissions.file_delete == true}
+							<button formaction="?/deleteFile" class="variant-filled-error btn">Delete</button>
+						{:else}
+							<button class="variant-filled-error btn" disabled>Delete</button>
+						{/if}
+					</div>
 				</div>
 			{:else}
 				<div class="grid grid-cols-5 gap-4">
