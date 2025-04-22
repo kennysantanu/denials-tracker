@@ -16,11 +16,13 @@
 						<li><a href="/setting/admin/users">- Users</a></li>
 						<li><a href="/setting/admin/roles">- Roles</a></li>
 						<li><a href="/setting/admin/labels">- Labels</a></li>
+						<li><a href="/setting/admin/preferences">- System Preferences</a></li>
 					</ul>
 				{/if}
 				<div class="h3 text-tertiary-500">Manage</div>
 				<ul class="space-y-4">
 					<li><a href="/setting/manage/account">- Account</a></li>
+					<li><a href="/setting/manage/preferences">- Preferences</a></li>
 					<li><a href="/setting/manage/patients">- Patients</a></li>
 					<li><a href="/setting/manage/insurances">- Insurances</a></li>
 				</ul>
