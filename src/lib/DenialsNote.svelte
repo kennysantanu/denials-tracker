@@ -124,7 +124,7 @@
 			<div class="flex flex-col gap-6">
 				<input hidden name="note_id" value={noteData.id} />
 				<input hidden name="attachmentList" value={attachmentList} />
-				<textarea rows="4" class="input" name="note" value={noteData.note} />
+				<textarea rows="4" class="input" name="note" value={noteData.note} autofocus />
 				<div>
 					{#if data.user?.role.permissions.attachment_add == true}
 						<button

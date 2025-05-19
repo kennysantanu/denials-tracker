@@ -14,6 +14,7 @@ const schemaNewDenial = z.object({
     service_end_date: z.date().optional(),
     billed_amount: z.number().nonnegative(),
     paid_amount: z.number().nonnegative(),
+    is_closed: z.boolean().optional(),
     insurance_id: z.array(z.number()).optional(),
     label_id: z.array(z.number()),
 });
@@ -144,6 +145,7 @@ export const actions = {
         let service_end_date = form.get('service_end_date');
         const billed_amount = form.get('billed_amount');
         const paid_amount = form.get('paid_amount');
+        const is_closed = form.get('is_closed') === 'on' ? true : false;
         let insurance_ids = form.getAll('insurances');
         let label_ids = [];
 
@@ -163,7 +165,8 @@ export const actions = {
             service_start_date: service_start_date,
             service_end_date: service_end_date,
             billed_amount: billed_amount,
-            paid_amount: paid_amount
+            paid_amount: paid_amount,
+            is_closed: is_closed,
          })
         .eq( 'id', denial_id )
 

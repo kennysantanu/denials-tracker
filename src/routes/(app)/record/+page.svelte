@@ -17,6 +17,7 @@
 		service_end_date: string;
 		billed_amount: number;
 		paid_amount: number;
+		is_closed: boolean;
 		notes: {
 			id: number;
 			denial_id: number;

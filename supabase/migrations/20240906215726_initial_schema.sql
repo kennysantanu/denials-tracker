@@ -5,7 +5,8 @@ create table "public"."denials" (
     "service_start_date" date not null,
     "service_end_date" date,
     "billed_amount" numeric,
-    "paid_amount" numeric
+    "paid_amount" numeric,
+    "is_closed" boolean not null default false
 );
 
 
