@@ -10,6 +10,7 @@
 	import type { GridApi, GridOptions, ICellRendererParams } from 'ag-grid-community';
 
 	let reportType: string;
+	let includeClosedClaims: boolean;
 	let agGrid: GridApi;
 	let myGridElement: Element;
 	let savedFilterModel = {};
@@ -120,7 +121,6 @@
 	};
 
 	const generateReport = (reportData) => {
-		agGrid = createGrid(myGridElement as HTMLElement, denialsGridOptions);
 		agGrid.setGridOption('rowData', reportData);
 		agGrid.addEventListener('filterChanged', () =>
 			updateSearchParams('filters', encodeURIComponent(JSON.stringify(agGrid.getFilterModel())))
@@ -152,6 +152,9 @@
 			reportType = 'denials';
 		}
 
+		// Get the include closed claims from the URL
+		includeClosedClaims = $page.url.searchParams.get('closed') === 'true';
+
 		// Get the saved filter model from the URL
 		savedFilterModel = JSON.parse(
 			decodeURIComponent($page.url.searchParams.get('filters') ?? '{}')
@@ -159,8 +162,11 @@
 
 		// Check if the report type is populated and if so, generate the report
 		if (reportType == 'denials') {
+			agGrid = createGrid(myGridElement as HTMLElement, denialsGridOptions);
 			const form = document.querySelector('#reportForm') as HTMLFormElement;
 			(form.elements.namedItem('report_type') as HTMLInputElement).value = reportType;
+			(form.elements.namedItem('include_closed_claims') as HTMLInputElement).checked =
+				includeClosedClaims;
 			form.requestSubmit();
 		}
 	});
@@ -175,7 +181,6 @@
 		use:enhance={() => {
 			return async ({ result, update }) => {
 				generateReport(result.data.dataReport);
-				update();
 			};
 		}}
 	>
@@ -189,6 +194,19 @@
 			>
 				<option value="denials">Denials</option>
 			</select>
+		</label>
+		<label class="label">
+			<input
+				type="checkbox"
+				name="include_closed_claims"
+				class="checkbox"
+				checked={includeClosedClaims}
+				on:change={() => {
+					includeClosedClaims = !includeClosedClaims;
+					updateSearchParams('closed', includeClosedClaims.toString());
+				}}
+			/>
+			<span class="text-tertiary-500">Include closed claims</span>
 		</label>
 		<div>
 			<button type="submit" class="variant-filled-primary btn"> Generate Report </button>
