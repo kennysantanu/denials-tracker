@@ -6,6 +6,8 @@
 	import { slide } from 'svelte/transition';
 	import DenialsNote from '$lib/DenialsNote.svelte';
 	import FilesCalendar from '$lib/FilesCalendar.svelte';
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalStore } from '@skeletonlabs/skeleton';
 
 	// Props
 	export let data;
@@ -24,6 +26,9 @@
 	let showEditDenialForm: boolean = false;
 	let showAttachFileForm: boolean = false;
 	$: collapse = denialData.is_closed;
+
+	// Modals
+	const modalStore: ModalStore = getModalStore();
 
 	// Functions
 	const formatDate = (date: String): String => {
@@ -100,7 +105,12 @@
 								{#each denialData.insurances as insurance}
 									<button
 										class="variant-ringed-surface chip hover:variant-filled-primary"
-										on:click={() => alert(insurance.note)}
+										on:click={() =>
+											modalStore.trigger({
+												type: 'component',
+												component: 'modalInsurance',
+												meta: { insurance: insurance }
+											})}
 									>
 										<span>{insurance.name}</span>
 									</button>
