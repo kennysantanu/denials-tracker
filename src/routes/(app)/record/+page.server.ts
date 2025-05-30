@@ -17,6 +17,7 @@ const schemaNewDenial = z.object({
     is_closed: z.boolean().optional(),
     insurance_id: z.array(z.number()).optional(),
     label_id: z.array(z.number()),
+    note: z.string()
 });
 
 const schemaNewNote = z.object({
@@ -94,6 +95,7 @@ export const actions = {
 
     },
     createDenial: async ({ request, locals: { supabase, safeGetSession } }) => {
+        const sessionData = await safeGetSession();
         const newDenialForm = await superValidate(request, zod(schemaNewDenial));        
 
         if (!newDenialForm.valid) {
@@ -108,7 +110,8 @@ export const actions = {
                     service_start_date: newDenialForm.data.service_start_date,
                     service_end_date: newDenialForm.data.service_end_date,
                     billed_amount: newDenialForm.data.billed_amount,
-                    paid_amount: newDenialForm.data.paid_amount
+                    paid_amount: newDenialForm.data.paid_amount,
+                    is_closed: newDenialForm.data.is_closed || false,
                 },
             ])
             .select('id')
@@ -134,6 +137,18 @@ export const actions = {
                 { denial_id: denials[0].id, label_id: label_id },
                 ])
         }
+
+        const { data: insertedNote, error } = await supabase
+            .from('notes')
+            .insert([
+                {
+                    denial_id: denials[0].id,
+                    created_by: sessionData.user.id,
+                    note: newDenialForm.data.note,
+                },
+            ])
+            .select('id')
+            .single();
         
         return { newDenialForm };
     },

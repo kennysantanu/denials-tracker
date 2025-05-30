@@ -479,6 +479,23 @@
 							</label>
 						</div>
 					</div>
+					<div>
+						<label class="label">
+							<input type="checkbox" name="is_closed" class="checkbox" />
+							<span class="text-tertiary-500">Close claim</span>
+						</label>
+					</div>
+					<label class="label">
+						<span class="text-tertiary-500">Note</span>
+						<textarea
+							class="textarea grow"
+							name="note"
+							rows="4"
+							aria-invalid={$newDenialFormErrors.note ? 'true' : undefined}
+							bind:value={$newDenialForm.note}
+							{...$newDenialFormConstraints.note}
+						/>
+					</label>
 					<div class="space-x-4">
 						<button type="submit" class="variant-filled-primary btn">Save</button>
 						<button
