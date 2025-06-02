@@ -3,8 +3,8 @@
 
 	export let data;
 
-	let { session, supabase } = data
-	$: ({ session, supabase } = data)
+	let { session, supabase } = data;
+	$: ({ session, supabase } = data);
 
 	const { form, errors, constraints, message } = superForm(data.form);
 </script>
@@ -40,6 +40,9 @@
 					bind:value={$form.password}
 				/>
 			</label>
+			{#if $errors.password}<span class="variant-filled-error text-center"
+					>Incorrect username or password</span
+				>{/if}
 			<div class="flex justify-end space-x-4">
 				<button type="submit" class="variant-filled-primary btn">Sign In</button>
 				<a href="/" class="variant-filled-secondary btn">Cancel</a>

@@ -1,8 +1,7 @@
 import { redirect } from '@sveltejs/kit';
-import { superValidate } from 'sveltekit-superforms';
+import { setError, superValidate, fail } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
-import { fail } from '@sveltejs/kit';
 
 const schema = z.object({
 	username: z.string(),
@@ -41,7 +40,7 @@ export const actions = {
 		})
 
 		if (error) {
-			return fail(400, { form });
+			return setError(form, 'password', 'Incorrect username or password.');
 		}
 		
 		// Redirect to the home page
