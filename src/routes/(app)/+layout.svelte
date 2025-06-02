@@ -1,21 +1,24 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { AppBar, TabGroup, TabAnchor, storePopup } from '@skeletonlabs/skeleton';
+	import { AppBar, TabGroup, TabAnchor, storePopup, getDrawerStore } from '@skeletonlabs/skeleton';
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
+	import MenuIcon from '$lib/icons/Menu-icon.svelte';
 
 	export let data;
+	const drawerStore = getDrawerStore();
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 </script>
 
 <AppBar gridColumns="grid-cols-3" slotDefault="place-self-center" slotTrail="place-content-end">
 	<svelte:fragment slot="lead">
-		<div class="space-x-2 lg:hidden">
-			<a href="/record">Record</a>
-			<a href="/report">Report</a>
-			<a href="/file">File</a>
-			<a href="/setting">Setting</a>
-		</div>
+		<button
+			class="btn lg:hidden"
+			on:click={() => drawerStore.open()}
+			aria-label="Open navigation menu"
+		>
+			<MenuIcon />
+		</button>
 		<h3 class="h3 hidden font-bold text-tertiary-500 lg:inline">Denials Tracker</h3>
 	</svelte:fragment>
 	<h3 class="h3 text-center font-bold text-tertiary-500 lg:hidden">Denials Tracker</h3>
