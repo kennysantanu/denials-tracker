@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { createEventDispatcher } from 'svelte';
 	import Ellipsis from '$lib/icons/Ellipsis-vertical.svelte';
 	import { enhance } from '$app/forms';
 	import { popup } from '@skeletonlabs/skeleton';
@@ -26,6 +27,7 @@
 	let showEditDenialForm: boolean = false;
 	let showAttachFileForm: boolean = false;
 	$: collapse = denialData.is_closed;
+	const dispatch = createEventDispatcher();
 
 	// Modals
 	const modalStore: ModalStore = getModalStore();
@@ -160,6 +162,17 @@
 						{:else}
 							<div><button class="btn" disabled>Edit</button></div>
 						{/if}
+						<div>
+							<button
+								class="btn"
+								on:click={() => {
+									dispatch('selectDenial', {
+										id: denialData.id,
+										dos: formatDate(denialData.service_start_date)
+									});
+								}}>Select</button
+							>
+						</div>
 						<div>
 							<form
 								method="POST"

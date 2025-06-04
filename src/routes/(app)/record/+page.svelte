@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import { FileDropzone } from '@skeletonlabs/skeleton';
 	import { scrollTo } from '$lib/utils';
 	import Pencil from '$lib/icons/Pencil-square.svelte';
+	import MenuIcon from '$lib/icons/Menu-icon.svelte';
+	import XIcon from '$lib/icons/X-icon.svelte';
 	import DenialsCard from '$lib/DenialsCard.svelte';
 
 	// Type definitions
@@ -55,6 +58,8 @@
 	let editPatientNote: boolean = false;
 	let showAttachFileForm: boolean = false;
 	let uploadList: FileList;
+	let recordSelectionList: { id: number; dos: string }[] = [];
+	let showSelectionActions: boolean = false;
 
 	// SuperForm forms
 	const {
@@ -141,6 +146,13 @@
 
 	const reloadPage = (): void => {
 		location.reload();
+	};
+
+	const handleSelectDenial = (event) => {
+		const { id, dos } = event.detail;
+		if (!recordSelectionList.some((sel) => sel.id === id)) {
+			recordSelectionList = [...recordSelectionList, { id, dos }];
+		}
 	};
 
 	onMount(() => {
@@ -369,6 +381,51 @@
 
 <div class="p-1"></div>
 
+{#if recordSelectionList.length > 0}
+	<div class="card sticky top-0 z-10 space-y-2 p-2 ring-surface-300">
+		<span class="text-tertiary-500">Selected ({recordSelectionList.length})</span>
+		<div class="flex space-x-2">
+			<div class="card grow space-x-2 p-2">
+				{#each recordSelectionList as selection}
+					<button
+						class="variant-soft-tertiary chip space-x-2 hover:variant-filled-error"
+						on:click={() => {
+							recordSelectionList = recordSelectionList.filter((sel) => sel.id !== selection.id);
+						}}
+					>
+						<div>{selection.dos}</div>
+						<div><XIcon /></div>
+					</button>
+				{/each}
+			</div>
+			<button
+				type="button"
+				class="btn"
+				on:click={() => {
+					showSelectionActions = !showSelectionActions;
+				}}
+			>
+				{#if showSelectionActions}
+					<XIcon />
+				{:else}
+					<MenuIcon />
+				{/if}
+			</button>
+		</div>
+		{#if showSelectionActions}
+			<div class="flex space-x-2" transition:slide>
+				<button
+					class="variant-filled-secondary btn"
+					on:click={() => {
+						recordSelectionList = [];
+						showSelectionActions = false;
+					}}>Clear</button
+				>
+			</div>
+		{/if}
+	</div>
+{/if}
+
 <!-- Denial List -->
 {#if selectedPatientId}
 	<div class="space-y-8">
@@ -511,7 +568,15 @@
 		<!-- Denial List Cards -->
 		{#if denialsData && denialsDataLength > 0}
 			{#each denialsData as denialData}
-				<DenialsCard {data} {form} {denialData} {getDenials} {selectedPatientId} {labelsData} />
+				<DenialsCard
+					{data}
+					{form}
+					{denialData}
+					{getDenials}
+					{selectedPatientId}
+					{labelsData}
+					on:selectDenial={handleSelectDenial}
+				/>
 			{/each}
 		{/if}
 	</div>
