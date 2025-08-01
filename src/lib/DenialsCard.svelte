@@ -173,6 +173,34 @@
 								}}>Select</button
 							>
 						</div>
+						{#if data.user?.role.permissions.ai_access == true}
+							<div>
+								<button
+									class="btn"
+									on:click={() => {
+										modalStore.trigger({
+											type: 'component',
+											component: 'modalClaimSummary',
+											meta: { denialId: denialData.id, supabase: supabase }
+										});
+									}}>AI Summary</button
+								>
+							</div>
+						{/if}
+						{#if data.user?.role.permissions.ai_access == true}
+							<div>
+								<button
+									class="btn"
+									on:click={() => {
+										modalStore.trigger({
+											type: 'component',
+											component: 'modalAIAppeal',
+											meta: { denialId: denialData.id, supabase: supabase }
+										});
+									}}>AI Appeal</button
+								>
+							</div>
+						{/if}
 						<div>
 							<form
 								method="POST"

@@ -10,6 +10,8 @@
 
 	// Import modal components
 	import ModalInsurance from '$lib/modals/ModalInsurance.svelte';
+	import ModalClaimSummary from '$lib/modals/ModalClaimSummary.svelte';
+	import ModalAIAppeal from '$lib/modals/ModalAIAppeal.svelte';
 
 	export let data;
 
@@ -20,7 +22,9 @@
 
 	// Register modal components
 	const modalRegistry: Record<string, ModalComponent> = {
-		modalInsurance: { ref: ModalInsurance }
+		modalInsurance: { ref: ModalInsurance },
+		modalClaimSummary: { ref: ModalClaimSummary },
+		modalAIAppeal: { ref: ModalAIAppeal }
 	};
 
 	// Initialize drawer store
