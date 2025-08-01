@@ -240,6 +240,15 @@
 							/>
 							<p>Read access</p>
 						</label>
+						<label class="flex items-center space-x-2">
+							<input
+								class="checkbox"
+								type="checkbox"
+								name="ai_access"
+								bind:checked={$newRoleForm.permissions.ai_access}
+							/>
+							<p>AI access</p>
+						</label>
 					</div>
 				</div>
 			</div>
@@ -441,6 +450,15 @@
 								<p>Read access</p>
 							</label>
 						</div>
+						<label class="flex items-center space-x-2">
+							<input
+								class="checkbox"
+								type="checkbox"
+								name="ai_access"
+								bind:checked={$editRoleForm.permissions.ai_access}
+							/>
+							<p>AI access</p>
+						</label>
 					</div>
 				</div>
 			</div>

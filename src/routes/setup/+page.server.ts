@@ -55,6 +55,7 @@ export const actions: Actions = {
                         file_edit: true,
                         file_delete: true,
                         admin_read: true,
+                        ai_access: true,
                     }
                 }
             ]);

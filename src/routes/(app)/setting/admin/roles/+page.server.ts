@@ -22,6 +22,7 @@ const rolesSchema = z.object({
         file_edit: z.boolean().optional(),
         file_delete: z.boolean().optional(),
         admin_read: z.boolean().optional(),
+        ai_access: z.boolean().optional(),
     })
 });
 
@@ -47,6 +48,7 @@ export const load = (async ({ locals: { supabase, safeGetSession } }) => {
                 file_edit: false,
                 file_delete: false,
                 admin_read: false,
+                ai_access: false,
             }
         ;
 
@@ -85,6 +87,7 @@ export const actions: Actions = {
                 file_edit: newRoleForm.data.permissions.file_edit,
                 file_delete: newRoleForm.data.permissions.file_delete,
                 admin_read: newRoleForm.data.permissions.admin_read,
+                ai_access: newRoleForm.data.permissions.ai_access,
             }
         ;
 
@@ -127,6 +130,7 @@ export const actions: Actions = {
                 file_edit: editRoleForm.data.permissions.file_edit,
                 file_delete: editRoleForm.data.permissions.file_delete,
                 admin_read: editRoleForm.data.permissions.admin_read,
+                ai_access: editRoleForm.data.permissions.ai_access,
             }
         ;
         
