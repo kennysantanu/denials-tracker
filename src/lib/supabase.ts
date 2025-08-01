@@ -7,23 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  _supavisor: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      [_ in never]: never
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -49,9 +32,105 @@ export type Database = {
       [_ in never]: never
     }
   }
+  pgbouncer: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      get_auth: {
+        Args: {
+          p_usename: string
+        }
+        Returns: {
+          username: string
+          password: string
+        }[]
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
-      denial_labels: {
+      denials: {
+        Row: {
+          billed_amount: number | null
+          created_at: string
+          id: number
+          is_closed: boolean
+          paid_amount: number | null
+          patient_id: number
+          service_end_date: string | null
+          service_start_date: string
+        }
+        Insert: {
+          billed_amount?: number | null
+          created_at?: string
+          id?: number
+          is_closed?: boolean
+          paid_amount?: number | null
+          patient_id: number
+          service_end_date?: string | null
+          service_start_date: string
+        }
+        Update: {
+          billed_amount?: number | null
+          created_at?: string
+          id?: number
+          is_closed?: boolean
+          paid_amount?: number | null
+          patient_id?: number
+          service_end_date?: string | null
+          service_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_denials_patient_id_fkey"
+            columns: ["patient_id"]
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      denials_insurances: {
+        Row: {
+          created_at: string
+          denial_id: number
+          insurance_id: number
+        }
+        Insert: {
+          created_at?: string
+          denial_id: number
+          insurance_id: number
+        }
+        Update: {
+          created_at?: string
+          denial_id?: number
+          insurance_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "denials_insurances_denial_id_fkey"
+            columns: ["denial_id"]
+            referencedRelation: "denials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "denials_insurances_insurance_id_fkey"
+            columns: ["insurance_id"]
+            referencedRelation: "insurances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      denials_labels: {
         Row: {
           created_at: string
           denial_id: number
@@ -69,135 +148,167 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "public_denial_labels_denial_id_fkey"
+            foreignKeyName: "public_denials_labels_denial_id_fkey"
             columns: ["denial_id"]
             referencedRelation: "denials"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "public_denial_labels_label_id_fkey"
+            foreignKeyName: "public_denials_labels_label_id_fkey"
             columns: ["label_id"]
             referencedRelation: "labels"
             referencedColumns: ["id"]
           },
         ]
       }
-      denial_notes: {
+      files: {
         Row: {
           created_at: string
-          denial_id: number
-          note_id: number
+          metadata: Json | null
+          mimetype: string | null
+          name: string
+          size: number | null
         }
         Insert: {
           created_at?: string
-          denial_id: number
-          note_id: number
+          metadata?: Json | null
+          mimetype?: string | null
+          name: string
+          size?: number | null
         }
         Update: {
           created_at?: string
-          denial_id?: number
-          note_id?: number
+          metadata?: Json | null
+          mimetype?: string | null
+          name?: string
+          size?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "public_denial_notes_denial_id_fkey"
-            columns: ["denial_id"]
-            referencedRelation: "denials"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "public_denial_notes_note_id_fkey"
-            columns: ["note_id"]
-            referencedRelation: "notes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      denials: {
+      insurances: {
         Row: {
-          billed_amount: number | null
           created_at: string
           id: number
-          paid_amount: number | null
-          patient_id: number
-          service_end_date: string | null
-          service_start_date: string
+          name: string
+          note: string | null
         }
         Insert: {
-          billed_amount?: number | null
           created_at?: string
           id?: number
-          paid_amount?: number | null
-          patient_id: number
-          service_end_date?: string | null
-          service_start_date: string
+          name: string
+          note?: string | null
         }
         Update: {
-          billed_amount?: number | null
           created_at?: string
           id?: number
-          paid_amount?: number | null
-          patient_id?: number
-          service_end_date?: string | null
-          service_start_date?: string
+          name?: string
+          note?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "public_denials_patient_id_fkey"
-            columns: ["patient_id"]
-            referencedRelation: "patients"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       labels: {
         Row: {
-          color_hex: string
+          bg_color: string
           created_at: string
           id: number
           label_name: string
+          order: number | null
+          txt_color: string
         }
         Insert: {
-          color_hex: string
+          bg_color: string
           created_at?: string
           id?: number
           label_name: string
+          order?: number | null
+          txt_color: string
         }
         Update: {
-          color_hex?: string
+          bg_color?: string
           created_at?: string
           id?: number
           label_name?: string
+          order?: number | null
+          txt_color?: string
         }
         Relationships: []
       }
       notes: {
         Row: {
           created_at: string
+          created_by: string | null
+          denial_id: number
           id: number
           modified_at: string | null
+          modified_by: string | null
           note: string
-          user_id: string
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
+          denial_id: number
           id?: number
           modified_at?: string | null
+          modified_by?: string | null
           note: string
-          user_id: string
         }
         Update: {
           created_at?: string
+          created_by?: string | null
+          denial_id?: number
           id?: number
           modified_at?: string | null
+          modified_by?: string | null
           note?: string
-          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "public_notes_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "public_notes_created_by_fkey"
+            columns: ["created_by"]
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_notes_denial_id_fkey"
+            columns: ["denial_id"]
+            referencedRelation: "denials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_notes_modified_by_fkey"
+            columns: ["modified_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notes_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          note_id: number
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          note_id: number
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          note_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_files_file_name_fkey"
+            columns: ["file_name"]
+            referencedRelation: "files"
+            referencedColumns: ["name"]
+          },
+          {
+            foreignKeyName: "notes_files_note_id_fkey"
+            columns: ["note_id"]
+            referencedRelation: "notes"
             referencedColumns: ["id"]
           },
         ]
@@ -229,76 +340,140 @@ export type Database = {
         }
         Relationships: []
       }
-      roles: {
+      patients_files: {
         Row: {
           created_at: string
-          id: number
-          role_name: string
+          file_name: string
+          patient_id: number
         }
         Insert: {
           created_at?: string
-          id?: number
-          role_name: string
+          file_name: string
+          patient_id: number
         }
         Update: {
           created_at?: string
-          id?: number
-          role_name?: string
-        }
-        Relationships: []
-      }
-      user_roles: {
-        Row: {
-          created_at: string
-          role_id: number
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          role_id: number
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          role_id?: number
-          user_id?: string
+          file_name?: string
+          patient_id?: number
         }
         Relationships: [
           {
-            foreignKeyName: "public_user_roles_role_id_fkey"
-            columns: ["role_id"]
-            referencedRelation: "roles"
+            foreignKeyName: "patients_files_patient_id_fkey"
+            columns: ["patient_id"]
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      preference_users: {
+        Row: {
+          created_at: string
+          preference_id: number
+          user_id: string
+          user_value: string | null
+        }
+        Insert: {
+          created_at?: string
+          preference_id: number
+          user_id: string
+          user_value?: string | null
+        }
+        Update: {
+          created_at?: string
+          preference_id?: number
+          user_id?: string
+          user_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preference_users_preference_id_fkey"
+            columns: ["preference_id"]
+            referencedRelation: "preferences"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "public_user_roles_user_id_fkey"
+            foreignKeyName: "preference_users_user_id_fkey"
             columns: ["user_id"]
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
       }
+      preferences: {
+        Row: {
+          created_at: string
+          data_type: string
+          id: number
+          name: string
+          value: string | null
+        }
+        Insert: {
+          created_at?: string
+          data_type: string
+          id?: number
+          name: string
+          value?: string | null
+        }
+        Update: {
+          created_at?: string
+          data_type?: string
+          id?: number
+          name?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
+      roles: {
+        Row: {
+          created_at: string
+          id: number
+          permissions: Json | null
+          role_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          permissions?: Json | null
+          role_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          permissions?: Json | null
+          role_name?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string
           id: string
-          username: string
+          role: number | null
+          username: string | null
         }
         Insert: {
           created_at?: string
           id?: string
-          username: string
+          role?: number | null
+          username?: string | null
         }
         Update: {
           created_at?: string
           id?: string
-          username?: string
+          role?: number | null
+          username?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "public_users_id_fkey"
             columns: ["id"]
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_users_role_fkey"
+            columns: ["role"]
+            referencedRelation: "roles"
             referencedColumns: ["id"]
           },
         ]
@@ -391,6 +566,7 @@ export type Database = {
           owner_id: string | null
           path_tokens: string[] | null
           updated_at: string | null
+          user_metadata: Json | null
           version: string | null
         }
         Insert: {
@@ -404,6 +580,7 @@ export type Database = {
           owner_id?: string | null
           path_tokens?: string[] | null
           updated_at?: string | null
+          user_metadata?: Json | null
           version?: string | null
         }
         Update: {
@@ -417,6 +594,7 @@ export type Database = {
           owner_id?: string | null
           path_tokens?: string[] | null
           updated_at?: string | null
+          user_metadata?: Json | null
           version?: string | null
         }
         Relationships: [
@@ -437,6 +615,7 @@ export type Database = {
           key: string
           owner_id: string | null
           upload_signature: string
+          user_metadata: Json | null
           version: string
         }
         Insert: {
@@ -447,6 +626,7 @@ export type Database = {
           key: string
           owner_id?: string | null
           upload_signature: string
+          user_metadata?: Json | null
           version: string
         }
         Update: {
@@ -457,6 +637,7 @@ export type Database = {
           key?: string
           owner_id?: string | null
           upload_signature?: string
+          user_metadata?: Json | null
           version?: string
         }
         Relationships: [
@@ -589,6 +770,10 @@ export type Database = {
           metadata: Json
           updated_at: string
         }[]
+      }
+      operation: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       search: {
         Args: {
