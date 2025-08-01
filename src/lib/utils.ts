@@ -22,6 +22,6 @@ export const scrollTo = async (id: string) => {
  */
 export const formatDate = (date: string): string => {
     const dateString = date.toString();
-    const formattedDate = `${dateString.substring(5, 7)}/${dateString.substring(8, 10)}/${dateString.substring(2, 4)}`;
+    const formattedDate = `${dateString.substring(5, 7)}/${dateString.substring(8, 10)}/${dateString.substring(0, 4)}`;
     return formattedDate;
 };
