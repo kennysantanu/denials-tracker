@@ -43,10 +43,6 @@
 	});
 </script>
 
-<svelte:head>
-	<title>Denials Tracker</title>
-</svelte:head>
-
 <Modal components={modalRegistry} />
 
 <Drawer regionDrawer="max-w-md">

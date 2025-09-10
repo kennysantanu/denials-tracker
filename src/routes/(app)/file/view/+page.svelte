@@ -57,6 +57,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>{data.fileData.name}</title>
+</svelte:head>
+
 <!-- File Info -->
 <div class="card ring-surface-300">
 	<form method="POST" action="?/updateFileInfo">

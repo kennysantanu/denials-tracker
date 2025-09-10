@@ -48,6 +48,10 @@
 	};
 </script>
 
+<svelte:head>
+	<title>File - Denials Tracker</title>
+</svelte:head>
+
 <div class="grid grid-cols-2 gap-8">
 	<!-- Select Date -->
 	<div class="card space-y-6 p-6 ring-surface-300">

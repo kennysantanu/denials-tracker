@@ -4,6 +4,10 @@
 	export let data;
 </script>
 
+<svelte:head>
+	<title>Setting - Denials Tracker</title>
+</svelte:head>
+
 <!-- Setting Card -->
 <div class="card w-full space-y-12 px-8 py-8">
 	<div class="flex flex-row space-x-16">

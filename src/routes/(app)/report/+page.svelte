@@ -172,6 +172,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Report - Denials Tracker</title>
+</svelte:head>
+
 <div class="card w-full space-y-8 p-8 ring-surface-300">
 	<form
 		method="POST"
