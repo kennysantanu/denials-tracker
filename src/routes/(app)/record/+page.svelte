@@ -171,6 +171,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Record - Denials Tracker</title>
+</svelte:head>
+
 <!-- Patient Card -->
 <div class="card w-full space-y-8 p-8 ring-surface-300">
 	<label class="label">
