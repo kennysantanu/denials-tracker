@@ -1,6 +1,8 @@
 import { superValidate, fail } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
+import { openAIClient } from '$lib/openAIClient';
+import { formatDate } from '$lib/utils';
 
 const schemaNewPatient = z.object({
     last_name: z.string(),
@@ -25,10 +27,6 @@ const schemaNewNote = z.object({
     attachmentList: z.array(z.string()),
     note: z.string(),
 });
-
-const formatDate = (dateString: string): string => {
-    return dateString.replace(/-/g, '/');
-}
 
 export const load = async ({ parent, locals: { supabase, safeGetSession } }) => {	
     await parent();
@@ -393,5 +391,65 @@ export const actions = {
         }        
         
         return { };
+    },
+    generateDenialSummary: async ({ request , locals: { supabase, safeGetSession } }) => {
+        const form = await request.formData();
+        const denial_id = form.get('denial_id');
+        let responseText = '';
+
+        let { data: denials, error: denialsError } = await supabase
+            .from('denials')
+            .select(`id, created_at, service_start_date, service_end_date, billed_amount, paid_amount, is_closed,
+                notes(id, denial_id, created_at, modified_at, created_by:created_by(username), modified_by:modified_by(username), note), 
+                patients(id, created_at, last_name, first_name, date_of_birth, note),
+                insurances(*)`)     
+            .eq('id', denial_id)
+            .order('created_at', { referencedTable: 'notes', ascending: true })
+            .single();
+
+        if (denialsError) {
+            return { responseText: `Error fetching denial data: ${denialsError.message}` };
+        }
+
+        let prompt = `
+            You are an expert in summarizing. Your task is to summarize the denials events below.
+
+            ### Summary Format:
+            [Short Summary]
+            [Chronological List of Events]
+
+            ### Detailed Instructions:
+            1. Write a clear Short Summary.
+            2. Include the latest status of the denial at the end of the short summary.
+            3. Use bullet points for Chronological List of Events.
+            4. Use MM/DD/YYYY format for dates.
+            5. Do not use tables.
+            6. Do not write Short Summary heading.
+
+            ### Claim Information:
+            - Claim Date of Service: ${formatDate(denials.service_start_date)}${denials.service_end_date ? ' to ' + formatDate(denials.service_end_date) : ''}
+            - Insurances Involved: ${denials.insurances.map(ins => ins.name).join(', ')}
+            - Additional Patient Info: ${denials.patients.note || 'N/A'}
+
+            ### Denials Events:
+            `;
+
+        for (const note of denials.notes) {
+            prompt += `(${formatDate(note.created_at)}): ${note.note}\n`;
+        }
+
+        try {
+			let response = await openAIClient.chat.completions.create({
+				model: 'gpt-5-nano',
+				messages: [{ role: 'user', content: prompt }]
+			});
+            
+            responseText = response.choices[0].message.content || 'No response generated.';
+		} catch (error) {
+			console.error('Error fetching response from OpenAI:', error);
+			return `Error: ${error.message}`;
+		}
+
+        return { responseText };
     },
 }

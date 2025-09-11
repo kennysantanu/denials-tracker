@@ -8,6 +8,8 @@
 	import DenialsNote from '$lib/DenialsNote.svelte';
 	import FilesCalendar from '$lib/FilesCalendar.svelte';
 	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { marked } from 'marked';
+	import { formatDate } from '$lib/utils';
 	import type { ModalStore } from '@skeletonlabs/skeleton';
 
 	// Props
@@ -19,26 +21,22 @@
 	export let labelsData;
 
 	// Variables
+	const dispatch = createEventDispatcher();
 	const supabase = data.supabase;
-	let formElement: HTMLFormElement;
 	let attachmentList: string[] = [];
+	$: collapse = denialData.is_closed;
+	let denialSummary: string = '';
+	let formElement: HTMLFormElement;
 	$: fileList = form?.fileList ?? [];
 	let showAddNewNoteForm: boolean = false;
 	let showEditDenialForm: boolean = false;
 	let showAttachFileForm: boolean = false;
-	$: collapse = denialData.is_closed;
-	const dispatch = createEventDispatcher();
+	let showDenialSummary: boolean = false;
 
 	// Modals
 	const modalStore: ModalStore = getModalStore();
 
 	// Functions
-	const formatDate = (date: String): String => {
-		const dateString = date.toString();
-		const formattedDate = `${dateString.substring(5, 7)}/${dateString.substring(8, 10)}/${dateString.substring(0, 4)}`;
-		return formattedDate;
-	};
-
 	const formatFileSize = (size: number) => {
 		if (size < 1024) {
 			return `${size} B`;
@@ -175,16 +173,22 @@
 						</div>
 						{#if data.user?.role.permissions.ai_access == true}
 							<div>
-								<button
-									class="btn"
-									on:click={() => {
-										modalStore.trigger({
-											type: 'component',
-											component: 'modalClaimSummary',
-											meta: { denialId: denialData.id, supabase: supabase }
-										});
-									}}>AI Summary</button
+								<form
+									method="POST"
+									action="?/generateDenialSummary"
+									use:enhance={() => {
+										denialSummary = 'Generating summary...';
+										showDenialSummary = true;
+
+										return async ({ result, update }) => {
+											denialSummary = result.data.responseText || 'No summary generated.';
+											update();
+										};
+									}}
 								>
+									<input type="hidden" name="denial_id" value={denialData.id} />
+									<button type="submit" class="btn"> AI Summary </button>
+								</form>
 							</div>
 						{/if}
 						{#if data.user?.role.permissions.ai_access == true}
@@ -341,6 +345,16 @@
 		{/if}
 
 		<hr class="my-4" />
+
+		<!-- Denial Summary -->
+		{#if showDenialSummary}
+			<div class="card space-y-6 bg-green-100 p-6" transition:slide>
+				<h3 class="h3 text-tertiary-500">AI Summary</h3>
+				<div class="space-y-6">
+					<div class="list-disc">{@html marked(denialSummary)}</div>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Denial Notes -->
 		<div class="space-y-4">

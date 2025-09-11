@@ -53,6 +53,7 @@
 		"@supabase/ssr": "^0.3.0",
 		"@supabase/supabase-js": "^2.43.4",
 		"ag-grid-community": "^32.0.1",
+		"marked": "^16.2.1",
 		"openai": "^5.10.2"
 	}
 }
