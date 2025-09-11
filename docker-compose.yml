@@ -6,6 +6,8 @@ services:
         PUBLIC_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
         PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
         PRIVATE_SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+        PRIVATE_OPENAI_API_KEY: ${OPENAI_API_KEY}
+        PRIVATE_OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL}
     pull_policy: build
     restart: unless-stopped
     environment:
