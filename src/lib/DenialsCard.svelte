@@ -171,7 +171,7 @@
 								}}>Select</button
 							>
 						</div>
-						{#if data.user?.role.permissions.ai_access == true}
+						{#if data.user?.role.permissions.generate_summary == true}
 							<div>
 								<form
 									method="POST"
@@ -191,7 +191,7 @@
 								</form>
 							</div>
 						{/if}
-						{#if data.user?.role.permissions.ai_access == true}
+						{#if data.user?.role.permissions.generate_appeal == true}
 							<div>
 								<button
 									class="btn"

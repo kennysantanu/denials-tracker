@@ -17,12 +17,13 @@ const rolesSchema = z.object({
         note_delete: z.boolean().optional(),
         attachment_add: z.boolean().optional(),
         attachment_remove: z.boolean().optional(),
+        generate_summary: z.boolean().optional(),
+        generate_appeal: z.boolean().optional(),
         file_read: z.boolean().optional(),
         file_upload: z.boolean().optional(),
         file_edit: z.boolean().optional(),
         file_delete: z.boolean().optional(),
         admin_read: z.boolean().optional(),
-        ai_access: z.boolean().optional(),
     })
 });
 
@@ -43,12 +44,13 @@ export const load = (async ({ locals: { supabase, safeGetSession } }) => {
                 note_delete: false,
                 attachment_add: false,
                 attachment_remove: false,
+                generate_summary: false,
+                generate_appeal: false,
                 file_read: true,
                 file_upload: false,
                 file_edit: false,
                 file_delete: false,
-                admin_read: false,
-                ai_access: false,
+                admin_read: false
             }
         ;
 
@@ -82,12 +84,13 @@ export const actions: Actions = {
                 note_delete: newRoleForm.data.permissions.note_delete,
                 attachment_add: newRoleForm.data.permissions.attachment_add,
                 attachment_remove: newRoleForm.data.permissions.attachment_remove,
+                generate_summary: newRoleForm.data.permissions.generate_summary,
+                generate_appeal: newRoleForm.data.permissions.generate_appeal,
                 file_read: newRoleForm.data.permissions.file_read,
                 file_upload: newRoleForm.data.permissions.file_upload,
                 file_edit: newRoleForm.data.permissions.file_edit,
                 file_delete: newRoleForm.data.permissions.file_delete,
                 admin_read: newRoleForm.data.permissions.admin_read,
-                ai_access: newRoleForm.data.permissions.ai_access,
             }
         ;
 
@@ -125,12 +128,13 @@ export const actions: Actions = {
                 note_delete: editRoleForm.data.permissions.note_delete,
                 attachment_add: editRoleForm.data.permissions.attachment_add,
                 attachment_remove: editRoleForm.data.permissions.attachment_remove,
+                generate_summary: editRoleForm.data.permissions.generate_summary,
+                generate_appeal: editRoleForm.data.permissions.generate_appeal,
                 file_read: editRoleForm.data.permissions.file_read,
                 file_upload: editRoleForm.data.permissions.file_upload,
                 file_edit: editRoleForm.data.permissions.file_edit,
                 file_delete: editRoleForm.data.permissions.file_delete,
                 admin_read: editRoleForm.data.permissions.admin_read,
-                ai_access: editRoleForm.data.permissions.ai_access,
             }
         ;
         

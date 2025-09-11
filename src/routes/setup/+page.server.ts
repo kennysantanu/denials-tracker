@@ -50,12 +50,13 @@ export const actions: Actions = {
                         note_delete: true,
                         attachment_add: true,
                         attachment_remove: true,
+                        generate_summary: true,
+                        generate_appeal: true,
                         file_read: true,
                         file_upload: true,
                         file_edit: true,
                         file_delete: true,
-                        admin_read: true,
-                        ai_access: true,
+                        admin_read: true
                     }
                 }
             ]);

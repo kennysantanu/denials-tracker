@@ -180,6 +180,26 @@
 							<p>Remove attachment</p>
 						</label>
 					</div>
+					<div>
+						<label class="flex items-center space-x-2">
+							<input
+								class="checkbox"
+								type="checkbox"
+								name="generate_summary"
+								bind:checked={$newRoleForm.permissions.generate_summary}
+							/>
+							<p>Generate AI Summary</p>
+						</label>
+						<label class="flex items-center space-x-2">
+							<input
+								class="checkbox"
+								type="checkbox"
+								name="generate_appeal"
+								bind:checked={$newRoleForm.permissions.generate_appeal}
+							/>
+							<p>Generate AI Appeal</p>
+						</label>
+					</div>
 				</div>
 			</div>
 			<div>
@@ -239,15 +259,6 @@
 								bind:checked={$newRoleForm.permissions.admin_read}
 							/>
 							<p>Read access</p>
-						</label>
-						<label class="flex items-center space-x-2">
-							<input
-								class="checkbox"
-								type="checkbox"
-								name="ai_access"
-								bind:checked={$newRoleForm.permissions.ai_access}
-							/>
-							<p>AI access</p>
 						</label>
 					</div>
 				</div>
@@ -389,6 +400,26 @@
 								<p>Remove attachment</p>
 							</label>
 						</div>
+						<div>
+							<label class="flex items-center space-x-2">
+								<input
+									class="checkbox"
+									type="checkbox"
+									name="generate_summary"
+									bind:checked={$editRoleForm.permissions.generate_summary}
+								/>
+								<p>Generate AI Summary</p>
+							</label>
+							<label class="flex items-center space-x-2">
+								<input
+									class="checkbox"
+									type="checkbox"
+									name="generate_appeal"
+									bind:checked={$editRoleForm.permissions.generate_appeal}
+								/>
+								<p>Generate AI Appeal</p>
+							</label>
+						</div>
 					</div>
 				</div>
 				<div>
@@ -450,15 +481,6 @@
 								<p>Read access</p>
 							</label>
 						</div>
-						<label class="flex items-center space-x-2">
-							<input
-								class="checkbox"
-								type="checkbox"
-								name="ai_access"
-								bind:checked={$editRoleForm.permissions.ai_access}
-							/>
-							<p>AI access</p>
-						</label>
 					</div>
 				</div>
 			</div>
