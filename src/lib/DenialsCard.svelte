@@ -32,6 +32,8 @@
 	let showEditDenialForm: boolean = false;
 	let showAttachFileForm: boolean = false;
 	let showDenialSummary: boolean = false;
+	// Temporary fix for persistent denial summary between patient's denial cards
+	$: showDenialSummary = denialData ? false : false;
 
 	// Modals
 	const modalStore: ModalStore = getModalStore();
