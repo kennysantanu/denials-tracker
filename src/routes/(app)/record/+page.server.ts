@@ -1,7 +1,7 @@
 import { superValidate, fail } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
-import { openAIClient } from '$lib/openAIClient';
+import { openAIClient, openAIModel } from '$lib/openAIClient';
 import { formatDate } from '$lib/utils';
 
 const schemaNewPatient = z.object({
@@ -440,7 +440,7 @@ export const actions = {
 
         try {
 			let response = await openAIClient.chat.completions.create({
-				model: 'gpt-5-nano',
+				model: openAIModel,
 				messages: [{ role: 'user', content: prompt }]
 			});
             
