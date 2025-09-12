@@ -335,8 +335,8 @@ export const actions = {
         if (!date) {
             return { fileList: [] };
         }
-
-        const folderPath = formatDate(date);
+        
+        const folderPath = date.toString().replace(/-/g, '/');
 
         const { data, error } = await supabase
             .from('files')
