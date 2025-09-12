@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance } from '$app/forms';
@@ -183,7 +184,10 @@
 			<select
 				class="select shadow-inner"
 				bind:value={selectedPatientId}
-				on:change={async () => await getDenials(selectedPatientId)}
+				on:change={async () => {
+					await getDenials(selectedPatientId);
+					goto(`/record?patient_id=${selectedPatientId}`);
+				}}
 			>
 				<option value="" disabled selected>Select a patient</option>
 				{#each patientList as patient}
