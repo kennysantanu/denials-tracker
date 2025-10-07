@@ -32,7 +32,7 @@ export const load = (async ({ locals: { supabase, safeGetSession } }) => {
     
     let { data: labels, error } = await supabase
     .from('labels')
-    .select('*')
+    .select('id, created_at, order, label_name, bg_color, txt_color')
     .order('order', { ascending: true });
 
     return { newLabelForm, editLabelForm, deleteLabelForm, labels: labels || []};
@@ -83,14 +83,60 @@ export const actions: Actions = {
         if (!editLabelForm.valid) {
             return fail(400, { editLabelForm });
         }
+
+        // Get current label
+        let { data: currentLabel, error: errorCurrentLabel } = await supabase
+            .from('labels')
+            .select('id, order')
+            .eq('id', editLabelForm.data.id)
+            .single();
+
+        if (errorCurrentLabel || !currentLabel) {
+            return fail(400, { editLabelForm });
+        }
         
-        const { } = await supabase
+        // If the current order is not the same as the new order, we need to swap
+        if (currentLabel.order !== editLabelForm.data.order) {
+
+            // Get the label at the target position
+            let { data: dataLabels, error: errorLabels } = await supabase
+                .from('labels')
+                .select('id, order')
+
+            if (errorLabels) {
+                return fail(400, { editLabelForm });
+            }
+
+            const targetLabel = dataLabels?.find(label => label.order === editLabelForm.data.order);
+
+            // Swap the orders
+            if (dataLabels) {
+                const { error: swapError } = await supabase
+                    .from('labels')
+                    .update({ order: currentLabel.order })
+                    .eq('id', targetLabel?.id);
+
+                if (swapError) {
+                    return fail(500, { editLabelForm });
+                }
+            }            
+        }        
+        
+        const { error: updateError } = await supabase
             .from('labels')
             .update({
+                order: editLabelForm.data.order,
                 label_name: editLabelForm.data.label_name.trim(), 
                 bg_color: editLabelForm.data.bg_color, 
-                txt_color: editLabelForm.data.txt_color })
-            .eq('id', editLabelForm.data.id)
+                txt_color: editLabelForm.data.txt_color 
+            })
+            .eq('id', editLabelForm.data.id);
+
+        if (updateError) {
+            return fail(500, { editLabelForm });
+        }
+
+        return { editLabelForm };
     },
     deleteLabel: async ({ request, locals: { supabase, safeGetSession } }) => {
         const deleteLabelForm = await superValidate(request, zod(labelsSchema));

@@ -93,6 +93,18 @@
 			name="id"
 			bind:value={$editLabelForm.id}
 			{...$editLabelFormConstraints.id}
+			on:change={() => {
+				const selectedLabel = data.labels.find((label) => label.id == $editLabelForm.id);
+				if (selectedLabel) {
+					editLabelForm.set({
+						id: selectedLabel.id,
+						label_name: selectedLabel.label_name,
+						bg_color: selectedLabel.bg_color,
+						txt_color: selectedLabel.txt_color,
+						order: selectedLabel.order
+					});
+				}
+			}}
 		>
 			{#each data.labels as label}
 				<option value={label.id}>{label.label_name}</option>
@@ -125,6 +137,15 @@
 			name="txt_color"
 			bind:value={$editLabelForm.txt_color}
 			{...$editLabelFormConstraints.txt_color}
+		/>
+	</label>
+	<label class="label">
+		<span class="text-tertiary-500">Order</span>
+		<input
+			type="number"
+			name="order"
+			bind:value={$editLabelForm.order}
+			{...$editLabelFormConstraints.order}
 		/>
 	</label>
 	<div class="space-x-4">
