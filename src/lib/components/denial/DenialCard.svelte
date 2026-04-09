@@ -6,6 +6,7 @@
 	import { formatDate } from '$lib/utils';
 	import DenialEditForm from './DenialEditForm.svelte';
 	import DenialNoteList from './DenialNoteList.svelte';
+	import { openChatDrawer, updateChatContext } from '$lib/stores/chatContext.svelte';
 
 	type DenialRow = Database['public']['Tables']['denials']['Row'];
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
@@ -18,9 +19,10 @@
 		patientId: number;
 		insurances: InsuranceRow[];
 		labels: LabelRow[];
+		aiEnabled?: boolean;
 	}
 
-	let { denial, permissions, patientId, insurances, labels }: Props = $props();
+	let { denial, permissions, patientId, insurances, labels, aiEnabled = false }: Props = $props();
 
 	let editing = $state(false);
 
@@ -30,6 +32,11 @@
 	let paidDisplay = $derived(
 		denial.paid_amount != null ? `$${denial.paid_amount.toFixed(2)}` : '—'
 	);
+
+	function handleSummarize() {
+		updateChatContext({ denialId: denial.id, patientId });
+		openChatDrawer('Summarize this denial and its notes.');
+	}
 </script>
 
 <div class="rounded-lg border border-surface-300 bg-surface-50 p-4 shadow-sm">
@@ -100,6 +107,15 @@
 
 			<!-- Action buttons -->
 			<div class="flex shrink-0 gap-2">
+				{#if aiEnabled && permissions['generate_summary']}
+					<button
+						type="button"
+						class="btn btn-sm preset-outlined-primary-500"
+						onclick={handleSummarize}
+					>
+						🤖 Summarize
+					</button>
+				{/if}
 				{#if permissions['update_denial']}
 					<button
 						type="button"

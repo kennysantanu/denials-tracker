@@ -4,8 +4,14 @@
 	import { invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import IdleTimeoutWarning from '$lib/components/IdleTimeoutWarning.svelte';
+	import AIChatDrawer from '$lib/components/ai/AIChatDrawer.svelte';
 	import { Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
+	import {
+		isChatDrawerOpen,
+		toggleChatDrawer,
+		setChatContext
+	} from '$lib/stores/chatContext.svelte';
 
 	let { data, children } = $props();
 
@@ -24,6 +30,17 @@
 	function isActive(href: string): boolean {
 		return currentPath === href || currentPath.startsWith(href + '/');
 	}
+
+	// AI chat button visibility: only on context-providing routes
+	const aiContextRoutes = ['/dashboard', '/record/', '/report'];
+	let showAiButton = $derived(
+		data.aiEnabled && aiContextRoutes.some((r) => currentPath === r || currentPath.startsWith(r))
+	);
+
+	// Update chat context when route changes
+	$effect(() => {
+		setChatContext({ route: currentPath });
+	});
 
 	onMount(() => {
 		const {
@@ -113,6 +130,16 @@
 
 			<!-- User menu -->
 			<div class="flex items-center gap-4">
+				{#if showAiButton}
+					<button
+						type="button"
+						onclick={toggleChatDrawer}
+						class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {isChatDrawerOpen() ? 'bg-primary-100 text-primary-700' : 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
+						title="AI Assistant"
+					>
+						🤖 AI Chat
+					</button>
+				{/if}
 				<span class="hidden text-sm text-surface-600 sm:inline">
 					{data.user?.email ?? ''}
 				</span>
@@ -135,6 +162,10 @@
 </div>
 
 <IdleTimeoutWarning />
+
+{#if data.aiEnabled}
+	<AIChatDrawer />
+{/if}
 
 <Toast.Group {toaster}>
 	{#snippet children(toast)}

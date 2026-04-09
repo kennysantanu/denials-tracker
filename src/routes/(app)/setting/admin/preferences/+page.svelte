@@ -4,6 +4,9 @@
 
 	let { data } = $props();
 
+	let aiBaseUrl = $state(data.aiBaseUrl ?? '');
+	let aiModelName = $state(data.aiModelName ?? '');
+
 	function handleResult() {
 		return ({ result }: any) => {
 			if (result.type === 'success') {
@@ -22,8 +25,79 @@
 <div class="space-y-6">
 	<h2 class="text-xl font-semibold text-surface-900">System Preferences</h2>
 
+	<!-- AI Configuration Section -->
+	<div class="rounded-lg border border-surface-200 bg-white p-6">
+		<h3 class="mb-4 text-lg font-semibold text-surface-900">AI Configuration</h3>
+		<div class="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
+			<p class="text-sm text-blue-800">
+				AI features connect to a <strong>local AI server only</strong> (e.g. LM Studio, Ollama).
+				No data is sent to external cloud services. Configure the base URL and model name of your
+				local AI server below.
+			</p>
+		</div>
+
+		<form
+			method="POST"
+			action="?/saveAIConfig"
+			use:enhance={() => {
+				return async ({ result, update }) => {
+					handleResult()({ result });
+					await update();
+				};
+			}}
+			class="space-y-4"
+		>
+			<div>
+				<label for="ai_base_url" class="mb-1 block text-sm font-medium text-surface-700">
+					AI Base URL
+				</label>
+				<input
+					id="ai_base_url"
+					name="ai_base_url"
+					type="url"
+					bind:value={aiBaseUrl}
+					placeholder="http://localhost:1234/v1"
+					class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
+				/>
+				<p class="mt-1 text-xs text-surface-500">
+					OpenAI-compatible API endpoint (e.g. http://localhost:1234/v1 for LM Studio)
+				</p>
+			</div>
+			<div>
+				<label for="ai_model_name" class="mb-1 block text-sm font-medium text-surface-700">
+					AI Model Name
+				</label>
+				<input
+					id="ai_model_name"
+					name="ai_model_name"
+					type="text"
+					bind:value={aiModelName}
+					placeholder="local-model"
+					class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
+				/>
+				<p class="mt-1 text-xs text-surface-500">
+					Model identifier as configured in your local AI server
+				</p>
+			</div>
+			<div class="flex items-center gap-3">
+				<button
+					type="submit"
+					class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+				>
+					Save AI Settings
+				</button>
+				{#if aiBaseUrl && aiModelName}
+					<span class="text-xs text-success-600">● AI Enabled</span>
+				{:else}
+					<span class="text-xs text-surface-400">○ AI Disabled (both fields required)</span>
+				{/if}
+			</div>
+		</form>
+	</div>
+
+	<!-- Other Preferences -->
 	{#if data.preferences.length === 0}
-		<p class="text-sm text-surface-500">No system preferences found.</p>
+		<p class="text-sm text-surface-500">No other system preferences found.</p>
 	{:else}
 		<div class="space-y-4">
 			{#each data.preferences as pref (pref.id)}

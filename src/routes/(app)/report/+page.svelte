@@ -5,6 +5,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { formatDate } from '$lib/utils';
+	import { setChatContext } from '$lib/stores/chatContext.svelte';
 
 	let { data } = $props();
 
@@ -28,6 +29,21 @@
 		data.reportData.reduce((sum: number, r: any) => sum + (r.paid_amount ?? 0), 0)
 	);
 	const recoveryRate = $derived(totalBilled > 0 ? (totalPaid / totalBilled) * 100 : 0);
+
+	// Set AI chat context for report
+	$effect(() => {
+		setChatContext({
+			route: '/report',
+			pageData: {
+				startDate,
+				endDate,
+				includeClosed,
+				totalBilled,
+				totalPaid,
+				recordCount: data.reportData.length
+			}
+		});
+	});
 </script>
 
 <div class="space-y-6">

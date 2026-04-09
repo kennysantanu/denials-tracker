@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatDate } from '$lib/utils';
+	import { setChatContext } from '$lib/stores/chatContext.svelte';
 
 	let { data } = $props();
 
@@ -7,6 +8,19 @@
 		if (value == null) return '—';
 		return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
+
+	// Set AI chat context for dashboard
+	$effect(() => {
+		setChatContext({
+			route: '/dashboard',
+			pageData: {
+				totalOpen: data.stats.totalOpen,
+				totalBilled: data.stats.totalBilled,
+				totalPaid: data.stats.totalPaid,
+				recoveryRate: data.stats.recoveryRate
+			}
+		});
+	});
 </script>
 
 <svelte:head>

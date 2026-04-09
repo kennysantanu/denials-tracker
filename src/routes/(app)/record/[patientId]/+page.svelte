@@ -8,6 +8,7 @@
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { formatDate } from '$lib/utils';
 	import DenialCard from '$lib/components/denial/DenialCard.svelte';
+	import { setChatContext } from '$lib/stores/chatContext.svelte';
 
 	let { data } = $props();
 
@@ -16,6 +17,19 @@
 
 	let showClosed = $state(false);
 	let showNewDenialForm = $state(false);
+
+	// Set AI chat context for this patient
+	$effect(() => {
+		setChatContext({
+			route: `/record/${data.patient.id}`,
+			patientId: data.patient.id,
+			pageData: {
+				patientName: `${data.patient.first_name} ${data.patient.last_name}`,
+				openDenialCount: openDenials.length,
+				closedDenialCount: closedDenials.length
+			}
+		});
+	});
 </script>
 
 <div class="mx-auto max-w-5xl p-6">
@@ -195,6 +209,7 @@
 						insurances={data.allInsurances}
 						labels={data.allLabels}
 						permissions={data.permissions}
+						aiEnabled={data.aiEnabled}
 					/>
 				{/each}
 			</div>
@@ -223,6 +238,7 @@
 						insurances={data.allInsurances}
 						labels={data.allLabels}
 						permissions={data.permissions}
+						aiEnabled={data.aiEnabled}
 					/>
 				{/each}
 			</div>
