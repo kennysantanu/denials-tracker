@@ -3,7 +3,8 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { logAudit } from '$lib/server/audit';
-import { getPatients, createPatient, updatePatient, deletePatient } from '$lib/server/db/patients';
+import { getPatients, createPatient, updatePatient } from '$lib/server/db/patients';
+import { archivePatient } from '$lib/server/retention';
 import type { PageServerLoad, Actions } from './$types';
 
 const createPatientSchema = z.object({
@@ -32,6 +33,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	}
 
 	const { data: patients, error } = await getPatients(locals.supabase);
+
+	logAudit(locals.supabase, user!.id, 'view', 'patients', null, undefined, undefined);
 
 	const createForm = await superValidate(zod(createPatientSchema));
 	const updateForm = await superValidate(zod(updatePatientSchema));
@@ -79,10 +82,10 @@ export const actions: Actions = {
 		const id = Number(formData.get('id'));
 		if (!id) return fail(400, { error: 'Invalid patient ID' });
 
-		const { error } = await deletePatient(locals.supabase, id);
+		const { error } = await archivePatient(locals.supabase, id);
 		if (error) return fail(500, { error: error.message });
 
-		logAudit(locals.supabase, user.id, 'delete', 'patient', String(id), undefined, request);
+		logAudit(locals.supabase, user.id, 'archive', 'patient', String(id), undefined, request);
 
 		return { success: true };
 	}

@@ -17,6 +17,7 @@
 	});
 
 	let user = $derived((page.data as any).user);
+	let expired = $derived((data as any).expired);
 </script>
 
 <svelte:head>
@@ -25,6 +26,14 @@
 
 <div class="space-y-6">
 	<h2 class="text-xl font-semibold text-surface-900">Account Settings</h2>
+
+	{#if expired}
+		<div class="rounded-md border border-red-300 bg-red-50 p-4">
+			<p class="text-sm font-medium text-red-800">
+				Your password has expired. Please change your password to continue using the application.
+			</p>
+		</div>
+	{/if}
 
 	<!-- Email (read-only) -->
 	<div>

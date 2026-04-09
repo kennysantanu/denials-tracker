@@ -52,6 +52,19 @@ const securityHeadersHandle: Handle = async ({ event, resolve }) => {
 
 	const supabaseUrl = PUBLIC_SUPABASE_URL || '';
 
+	// HIPAA T-6.4.1: Prevent caching of PHI routes
+	const path = event.url.pathname;
+	if (
+		path.startsWith('/dashboard') ||
+		path.startsWith('/record') ||
+		path.startsWith('/file') ||
+		path.startsWith('/report') ||
+		path.startsWith('/setting') ||
+		path.startsWith('/api/')
+	) {
+		response.headers.set('Cache-Control', 'no-store');
+	}
+
 	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('X-Frame-Options', 'DENY');

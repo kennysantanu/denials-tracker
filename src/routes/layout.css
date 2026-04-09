@@ -5,3 +5,17 @@
 @import './theme.css';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+
+/* HIPAA T-6.4.3: Prevent PHI from appearing in print output inadvertently */
+@media print {
+	/* Hide navigation, sidebar, chat drawer, and interactive elements */
+	nav,
+	aside,
+	[data-drawer],
+	[data-appbar],
+	.ai-chat-drawer,
+	button,
+	.no-print {
+		display: none !important;
+	}
+}

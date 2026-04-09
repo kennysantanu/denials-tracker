@@ -16,6 +16,7 @@ export interface Database {
 					date_of_birth: string;
 					note: string;
 					updated_at: string | null;
+					is_active: boolean;
 				};
 				Insert: {
 					id?: number;
@@ -25,6 +26,7 @@ export interface Database {
 					date_of_birth: string;
 					note?: string;
 					updated_at?: string | null;
+					is_active?: boolean;
 				};
 				Update: {
 					id?: number;
@@ -34,6 +36,7 @@ export interface Database {
 					date_of_birth?: string;
 					note?: string;
 					updated_at?: string | null;
+					is_active?: boolean;
 				};
 				Relationships: [];
 			};
@@ -305,18 +308,21 @@ export interface Database {
 					created_at: string;
 					username: string | null;
 					role: number | null;
+					password_changed_at: string | null;
 				};
 				Insert: {
 					id?: string;
 					created_at?: string;
 					username?: string | null;
 					role?: number | null;
+					password_changed_at?: string | null;
 				};
 				Update: {
 					id?: string;
 					created_at?: string;
 					username?: string | null;
 					role?: number | null;
+					password_changed_at?: string | null;
 				};
 				Relationships: [
 					{

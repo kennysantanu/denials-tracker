@@ -16,7 +16,8 @@
 		{ href: '/setting/admin/users', label: 'Users' },
 		{ href: '/setting/admin/roles', label: 'Roles' },
 		{ href: '/setting/admin/labels', label: 'Labels' },
-		{ href: '/setting/admin/preferences', label: 'Preferences' }
+		{ href: '/setting/admin/preferences', label: 'Preferences' },
+		{ href: '/setting/admin/audit', label: 'Audit Log' }
 	];
 
 	function isActive(href: string): boolean {

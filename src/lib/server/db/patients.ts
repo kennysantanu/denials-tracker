@@ -6,9 +6,14 @@ type PatientsInsert = Database['public']['Tables']['patients']['Insert'];
 type PatientsUpdate = Database['public']['Tables']['patients']['Update'];
 
 export async function getPatients(
-	supabase: SupabaseClient<Database>
+	supabase: SupabaseClient<Database>,
+	includeInactive: boolean = false
 ): Promise<{ data: PatientsRow[] | null; error: PostgrestError | null }> {
-	return supabase.from('patients').select('*').order('last_name').order('first_name');
+	let query = supabase.from('patients').select('*');
+	if (!includeInactive) {
+		query = query.eq('is_active', true);
+	}
+	return query.order('last_name').order('first_name');
 }
 
 export async function getPatientById(

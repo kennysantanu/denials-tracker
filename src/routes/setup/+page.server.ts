@@ -2,16 +2,12 @@ import { fail, redirect } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
+import { passwordSchema } from '$lib/schemas/auth';
 import type { Actions, PageServerLoad } from './$types';
 
 const setupSchema = z.object({
 	email: z.string().email('Please enter a valid email address'),
-	password: z
-		.string()
-		.min(8, 'Password must be at least 8 characters')
-		.regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-		.regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-		.regex(/[0-9]/, 'Password must contain at least one number'),
+	password: passwordSchema,
 	confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
 	message: 'Passwords do not match',
