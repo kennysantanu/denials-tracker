@@ -430,6 +430,104 @@ export interface Database {
 				};
 				Relationships: [];
 			};
+			ai_interactions: {
+				Row: {
+					id: number;
+					created_at: string;
+					user_id: string | null;
+					denial_id: number | null;
+					interaction_type: string;
+					tool_name: string | null;
+					prompt_summary: string | null;
+					response_summary: string | null;
+					model_used: string | null;
+					tokens_used: number | null;
+					duration_ms: number | null;
+				};
+				Insert: {
+					id?: number;
+					created_at?: string;
+					user_id?: string | null;
+					denial_id?: number | null;
+					interaction_type: string;
+					tool_name?: string | null;
+					prompt_summary?: string | null;
+					response_summary?: string | null;
+					model_used?: string | null;
+					tokens_used?: number | null;
+					duration_ms?: number | null;
+				};
+				Update: {
+					id?: number;
+					created_at?: string;
+					user_id?: string | null;
+					denial_id?: number | null;
+					interaction_type?: string;
+					tool_name?: string | null;
+					prompt_summary?: string | null;
+					response_summary?: string | null;
+					model_used?: string | null;
+					tokens_used?: number | null;
+					duration_ms?: number | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'ai_interactions_user_id_fkey';
+						columns: ['user_id'];
+						isOneToOne: false;
+						referencedRelation: 'users';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'ai_interactions_denial_id_fkey';
+						columns: ['denial_id'];
+						isOneToOne: false;
+						referencedRelation: 'denials';
+						referencedColumns: ['id'];
+					}
+				];
+			};
+			conversations: {
+				Row: {
+					id: number;
+					created_at: string;
+					user_id: string;
+					session_id: string;
+					role: string;
+					content: string;
+					tool_name: string | null;
+					context_snapshot: Json | null;
+				};
+				Insert: {
+					id?: number;
+					created_at?: string;
+					user_id: string;
+					session_id: string;
+					role: string;
+					content: string;
+					tool_name?: string | null;
+					context_snapshot?: Json | null;
+				};
+				Update: {
+					id?: number;
+					created_at?: string;
+					user_id?: string;
+					session_id?: string;
+					role?: string;
+					content?: string;
+					tool_name?: string | null;
+					context_snapshot?: Json | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'conversations_user_id_fkey';
+						columns: ['user_id'];
+						isOneToOne: false;
+						referencedRelation: 'users';
+						referencedColumns: ['id'];
+					}
+				];
+			};
 		};
 		Views: {
 			[_ in never]: never;

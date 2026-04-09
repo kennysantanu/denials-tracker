@@ -11,17 +11,19 @@ export const actions: Actions = {
 		logAudit(supabase, user?.id ?? null, 'logout', 'session', null, undefined, request);
 
 		// Delete chat conversations for this user's session (Phase 4.4.1)
-		// Note: conversations table is created in Phase 5. This is a best-effort cleanup.
 		if (user) {
 			const { data: session } = await supabase.auth.getSession();
 			const sessionId = session?.session?.access_token;
 			if (sessionId) {
-				await (supabase as any)
-					.from('conversations')
-					.delete()
-					.eq('user_id', user.id)
-					.eq('session_id', sessionId)
-					.catch(() => {});
+				try {
+					await supabase
+						.from('conversations')
+						.delete()
+						.eq('user_id', user.id)
+						.eq('session_id', sessionId);
+				} catch {
+					// Best-effort cleanup — ignore failures
+				}
 			}
 		}
 
