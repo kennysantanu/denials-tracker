@@ -4,6 +4,8 @@
 	import { invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import IdleTimeoutWarning from '$lib/components/IdleTimeoutWarning.svelte';
+	import { Toast } from '@skeletonlabs/skeleton-svelte';
+	import { toaster } from '$lib/toast';
 
 	let { data, children } = $props();
 
@@ -133,3 +135,13 @@
 </div>
 
 <IdleTimeoutWarning />
+
+<Toast.Group {toaster}>
+	{#snippet children(toast)}
+		<Toast {toast}>
+			<Toast.Title />
+			<Toast.Description />
+			<Toast.CloseTrigger>✕</Toast.CloseTrigger>
+		</Toast>
+	{/snippet}
+</Toast.Group>
