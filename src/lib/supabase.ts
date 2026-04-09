@@ -222,7 +222,22 @@ export interface Database {
 					insurance_id?: number;
 					created_at?: string;
 				};
-				Relationships: [];
+				Relationships: [
+					{
+						foreignKeyName: 'denials_insurances_denial_id_fkey';
+						columns: ['denial_id'];
+						isOneToOne: false;
+						referencedRelation: 'denials';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'denials_insurances_insurance_id_fkey';
+						columns: ['insurance_id'];
+						isOneToOne: false;
+						referencedRelation: 'insurances';
+						referencedColumns: ['id'];
+					}
+				];
 			};
 			labels: {
 				Row: {
@@ -267,7 +282,22 @@ export interface Database {
 					label_id?: number;
 					created_at?: string;
 				};
-				Relationships: [];
+				Relationships: [
+					{
+						foreignKeyName: 'denials_labels_denial_id_fkey';
+						columns: ['denial_id'];
+						isOneToOne: false;
+						referencedRelation: 'denials';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'denials_labels_label_id_fkey';
+						columns: ['label_id'];
+						isOneToOne: false;
+						referencedRelation: 'labels';
+						referencedColumns: ['id'];
+					}
+				];
 			};
 			users: {
 				Row: {
