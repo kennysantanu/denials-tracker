@@ -1,0 +1,10 @@
+node_modules
+.env
+.env.*
+!.env.example
+.svelte-kit
+build
+playwright-report
+test-results
+src/**/*.spec.ts
+src/**/*.test.ts
