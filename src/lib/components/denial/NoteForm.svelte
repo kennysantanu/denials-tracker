@@ -24,7 +24,7 @@
 				await invalidateAll();
 				oncancel();
 			} else if (result.type === 'failure') {
-				toastError((result.data as Record<string, string>)?.error || 'Failed to add note');
+				toastError('Error', (result.data as Record<string, string>)?.error || 'Failed to add note');
 				await update({ reset: false });
 			} else if (result.type === 'redirect') {
 				goto(result.location);
@@ -34,8 +34,7 @@
 		};
 	}}
 >
-	<input type="hidden" name="denialId" value={denialId} />
-	<input type="hidden" name="patientId" value={patientId} />
+	<input type="hidden" name="denial_id" value={denialId} />
 
 	<label class="label">
 		<span class="label-text text-sm font-medium">Note</span>
@@ -48,8 +47,8 @@
 	</label>
 
 	<div class="flex gap-2">
-		<button type="submit" class="btn btn-sm preset-filled-primary-500">Submit</button>
-		<button type="button" class="btn btn-sm preset-outlined-surface-500" onclick={oncancel}>
+		<button type="submit" class="btn preset-filled-primary-500 btn-sm">Submit</button>
+		<button type="button" class="btn preset-outlined-surface-500 btn-sm" onclick={oncancel}>
 			Cancel
 		</button>
 	</div>

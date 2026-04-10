@@ -11,7 +11,9 @@
 	type DenialRow = Database['public']['Tables']['denials']['Row'];
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
 	type LabelRow = Database['public']['Tables']['labels']['Row'];
-	type NoteRow = Database['public']['Tables']['notes']['Row'];
+	type NoteRow = Database['public']['Tables']['notes']['Row'] & {
+		created_by_user?: { username: string | null } | null;
+	};
 
 	interface Props {
 		denial: DenialRow & { insurances?: InsuranceRow[]; labels?: LabelRow[]; notes?: NoteRow[] };
@@ -41,13 +43,7 @@
 
 <div class="rounded-lg border border-surface-300 bg-surface-50 p-4 shadow-sm">
 	{#if editing}
-		<DenialEditForm
-			{denial}
-			{insurances}
-			{labels}
-			{patientId}
-			oncancel={() => (editing = false)}
-		/>
+		<DenialEditForm {denial} {insurances} {labels} {patientId} oncancel={() => (editing = false)} />
 	{:else}
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 			<div class="min-w-0 flex-1 space-y-2">
@@ -75,11 +71,15 @@
 				<!-- Status badge -->
 				<div class="flex flex-wrap items-center gap-2">
 					{#if denial.is_closed}
-						<span class="rounded-full bg-surface-300 px-2 py-0.5 text-xs font-medium text-surface-700">
+						<span
+							class="rounded-full bg-surface-300 px-2 py-0.5 text-xs font-medium text-surface-700"
+						>
 							Closed
 						</span>
 					{:else}
-						<span class="rounded-full bg-success-200 px-2 py-0.5 text-xs font-medium text-success-800">
+						<span
+							class="rounded-full bg-success-200 px-2 py-0.5 text-xs font-medium text-success-800"
+						>
 							Open
 						</span>
 					{/if}
@@ -110,7 +110,7 @@
 				{#if aiEnabled && permissions['generate_summary']}
 					<button
 						type="button"
-						class="btn btn-sm preset-outlined-primary-500"
+						class="btn preset-outlined-primary-500 btn-sm"
 						onclick={handleSummarize}
 					>
 						🤖 Summarize
@@ -119,7 +119,7 @@
 				{#if permissions['update_denial']}
 					<button
 						type="button"
-						class="btn btn-sm preset-outlined-surface-500"
+						class="btn preset-outlined-surface-500 btn-sm"
 						onclick={() => (editing = true)}
 					>
 						Edit
@@ -135,9 +135,7 @@
 									toastSuccess('Denial deleted');
 									await invalidateAll();
 								} else if (result.type === 'failure') {
-									toastError(
-										(result.data as Record<string, string>)?.error || 'Delete failed'
-									);
+									toastError((result.data as Record<string, string>)?.error || 'Delete failed');
 								} else if (result.type === 'error') {
 									toastError('Something went wrong');
 								}
@@ -146,9 +144,7 @@
 					>
 						<input type="hidden" name="denialId" value={denial.id} />
 						<input type="hidden" name="patientId" value={patientId} />
-						<button type="submit" class="btn btn-sm preset-outlined-error-500">
-							Delete
-						</button>
+						<button type="submit" class="btn preset-outlined-error-500 btn-sm"> Delete </button>
 					</form>
 				{/if}
 			</div>
@@ -157,11 +153,6 @@
 
 	<!-- Notes section -->
 	<div class="mt-4 border-t border-surface-200 pt-3">
-		<DenialNoteList
-			notes={denial.notes ?? []}
-			denialId={denial.id}
-			{permissions}
-			{patientId}
-		/>
+		<DenialNoteList notes={denial.notes ?? []} denialId={denial.id} {permissions} {patientId} />
 	</div>
 </div>

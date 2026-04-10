@@ -2,7 +2,12 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import type { Database } from '$lib/supabase';
 import { getPatientById } from '$lib/server/db/patients';
-import { getDenialsByPatient, createDenial, updateDenial, deleteDenial } from '$lib/server/db/denials';
+import {
+	getDenialsByPatient,
+	createDenial,
+	updateDenial,
+	deleteDenial
+} from '$lib/server/db/denials';
 import { createNote, deleteNote } from '$lib/server/db/notes';
 import { getInsurances } from '$lib/server/db/insurances';
 import { getLabels } from '$lib/server/db/labels';
@@ -51,13 +56,10 @@ export const load: PageServerLoad = async ({ locals, params, parent, request }) 
 				.from('denials_insurances')
 				.select('denial_id, insurance_id')
 				.in('denial_id', denialIds),
-			supabase
-				.from('denials_labels')
-				.select('denial_id, label_id')
-				.in('denial_id', denialIds),
+			supabase.from('denials_labels').select('denial_id, label_id').in('denial_id', denialIds),
 			supabase
 				.from('notes')
-				.select('*')
+				.select('*, created_by_user:users!public_notes_created_by_fkey(username)')
 				.in('denial_id', denialIds)
 				.order('created_at', { ascending: false })
 		]);
@@ -80,9 +82,7 @@ export const load: PageServerLoad = async ({ locals, params, parent, request }) 
 		const insIds = denialInsurances
 			.filter((di) => di.denial_id === denial.id)
 			.map((di) => di.insurance_id);
-		const lblIds = denialLabels
-			.filter((dl) => dl.denial_id === denial.id)
-			.map((dl) => dl.label_id);
+		const lblIds = denialLabels.filter((dl) => dl.denial_id === denial.id).map((dl) => dl.label_id);
 
 		return {
 			...denial,
@@ -128,8 +128,14 @@ export const actions: Actions = {
 			: null;
 		const followUpDate = (formData.get('follow_up_date') as string) || null;
 
-		const insuranceIds = formData.getAll('insurance_ids').map(Number).filter((n) => !isNaN(n));
-		const labelIds = formData.getAll('label_ids').map(Number).filter((n) => !isNaN(n));
+		const insuranceIds = formData
+			.getAll('insurance_ids')
+			.map(Number)
+			.filter((n) => !isNaN(n));
+		const labelIds = formData
+			.getAll('label_ids')
+			.map(Number)
+			.filter((n) => !isNaN(n));
 
 		const { data: denial, error: createError } = await createDenial(
 			locals.supabase,
@@ -177,8 +183,14 @@ export const actions: Actions = {
 		const followUpDate = (formData.get('follow_up_date') as string) || null;
 		const isClosed = formData.get('is_closed') === 'true';
 
-		const insuranceIds = formData.getAll('insurance_ids').map(Number).filter((n) => !isNaN(n));
-		const labelIds = formData.getAll('label_ids').map(Number).filter((n) => !isNaN(n));
+		const insuranceIds = formData
+			.getAll('insurance_ids')
+			.map(Number)
+			.filter((n) => !isNaN(n));
+		const labelIds = formData
+			.getAll('label_ids')
+			.map(Number)
+			.filter((n) => !isNaN(n));
 
 		const { error: updateError } = await updateDenial(
 			locals.supabase,

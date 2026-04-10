@@ -64,7 +64,11 @@
 				{#each navItems as item (item.href)}
 					<a
 						href={item.href}
-						class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(item.href) ? 'bg-primary-50 text-primary-700' : 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
+						class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(
+							item.href
+						)
+							? 'bg-primary-50 text-primary-700'
+							: 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
 					>
 						<span>{item.icon}</span>
 						{item.label}
@@ -84,7 +88,7 @@
 				aria-label="Close navigation"
 			></button>
 			<!-- Drawer -->
-			<aside class="fixed left-0 top-0 z-50 flex h-full w-64 flex-col bg-white shadow-xl">
+			<aside class="fixed top-0 left-0 z-50 flex h-full w-64 flex-col bg-white shadow-xl">
 				<div class="flex h-16 items-center justify-between border-b border-surface-200 px-6">
 					<h1 class="text-lg font-bold text-primary-600">Denials Tracker</h1>
 					<button
@@ -100,7 +104,11 @@
 						<a
 							href={item.href}
 							onclick={() => (drawerOpen = false)}
-							class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(item.href) ? 'bg-primary-50 text-primary-700' : 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
+							class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(
+								item.href
+							)
+								? 'bg-primary-50 text-primary-700'
+								: 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
 						>
 							<span>{item.icon}</span>
 							{item.label}
@@ -114,7 +122,9 @@
 	<!-- Main content area -->
 	<div class="flex flex-1 flex-col overflow-hidden">
 		<!-- AppBar -->
-		<header class="flex h-16 flex-shrink-0 items-center justify-between border-b border-surface-200 bg-white px-4 lg:px-8">
+		<header
+			class="flex h-16 flex-shrink-0 items-center justify-between border-b border-surface-200 bg-white px-4 lg:px-8"
+		>
 			<div class="flex items-center gap-3">
 				<!-- Mobile menu button -->
 				<button
@@ -123,7 +133,12 @@
 					aria-label="Open navigation"
 				>
 					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M4 6h16M4 12h16M4 18h16"
+						/>
 					</svg>
 				</button>
 			</div>
@@ -134,7 +149,9 @@
 					<button
 						type="button"
 						onclick={toggleChatDrawer}
-						class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {isChatDrawerOpen() ? 'bg-primary-100 text-primary-700' : 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
+						class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {isChatDrawerOpen()
+							? 'bg-primary-100 text-primary-700'
+							: 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
 						title="AI Assistant"
 					>
 						🤖 AI Chat
@@ -170,8 +187,10 @@
 <Toast.Group {toaster}>
 	{#snippet children(toast)}
 		<Toast {toast}>
-			<Toast.Title />
-			<Toast.Description />
+			<Toast.Title>{toast.title}</Toast.Title>
+			{#if toast.description}
+				<Toast.Description>{toast.description}</Toast.Description>
+			{/if}
 			<Toast.CloseTrigger>✕</Toast.CloseTrigger>
 		</Toast>
 	{/snippet}

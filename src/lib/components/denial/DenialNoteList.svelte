@@ -3,7 +3,9 @@
 	import DenialNote from './DenialNote.svelte';
 	import NoteForm from './NoteForm.svelte';
 
-	type NoteRow = Database['public']['Tables']['notes']['Row'];
+	type NoteRow = Database['public']['Tables']['notes']['Row'] & {
+		created_by_user?: { username: string | null } | null;
+	};
 
 	interface Props {
 		notes: NoteRow[];
@@ -23,7 +25,7 @@
 		{#if permissions['create_denial'] && !showForm}
 			<button
 				type="button"
-				class="btn btn-sm preset-outlined-primary-500"
+				class="btn preset-outlined-primary-500 btn-sm"
 				onclick={() => (showForm = true)}
 			>
 				Add Note
