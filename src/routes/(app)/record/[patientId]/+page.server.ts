@@ -8,7 +8,7 @@ import {
 	updateDenial,
 	deleteDenial
 } from '$lib/server/db/denials';
-import { createNote, deleteNote } from '$lib/server/db/notes';
+import { createNote, deleteNote, updateNote } from '$lib/server/db/notes';
 import { getInsurances } from '$lib/server/db/insurances';
 import { getLabels } from '$lib/server/db/labels';
 import { uploadFile } from '$lib/server/db/files';
@@ -342,6 +342,31 @@ export const actions: Actions = {
 		}
 
 		logAudit(locals.supabase, user.id, 'delete', 'note', String(noteId), undefined, request);
+
+		return { success: true };
+	},
+
+	updateNote: async ({ locals, request }) => {
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		const formData = await request.formData();
+		const noteId = parseInt(formData.get('id') as string, 10);
+		const noteText = (formData.get('note') as string)?.trim();
+
+		if (isNaN(noteId)) return fail(400, { error: 'Invalid note ID' });
+		if (!noteText) return fail(400, { error: 'Note text is required' });
+
+		const { error: updateError } = await updateNote(locals.supabase, noteId, {
+			note: noteText,
+			modified_by: user.id
+		});
+
+		if (updateError) {
+			return fail(400, { error: updateError.message });
+		}
+
+		logAudit(locals.supabase, user.id, 'update', 'note', String(noteId), undefined, request);
 
 		return { success: true };
 	}

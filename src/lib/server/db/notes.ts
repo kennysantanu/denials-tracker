@@ -19,3 +19,20 @@ export async function createNote(supabase: SupabaseClient<Database>, data: Notes
 export async function deleteNote(supabase: SupabaseClient<Database>, id: number) {
 	return supabase.from('notes').delete().eq('id', id);
 }
+
+export async function updateNote(
+	supabase: SupabaseClient<Database>,
+	id: number,
+	data: { note: string; modified_by: string }
+) {
+	return supabase
+		.from('notes')
+		.update({
+			note: data.note,
+			modified_by: data.modified_by,
+			modified_at: new Date().toISOString()
+		})
+		.eq('id', id)
+		.select()
+		.single();
+}
