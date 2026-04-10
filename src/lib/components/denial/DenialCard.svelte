@@ -49,8 +49,8 @@
 			oncancel={() => (editing = false)}
 		/>
 	{:else}
-		<div class="flex items-start justify-between gap-4">
-			<div class="flex-1 space-y-2">
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+			<div class="min-w-0 flex-1 space-y-2">
 				<!-- Service dates -->
 				<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
 					<span class="font-medium text-surface-700">
@@ -106,7 +106,7 @@
 			</div>
 
 			<!-- Action buttons -->
-			<div class="flex shrink-0 gap-2">
+			<div class="flex flex-wrap gap-2 sm:shrink-0">
 				{#if aiEnabled && permissions['generate_summary']}
 					<button
 						type="button"

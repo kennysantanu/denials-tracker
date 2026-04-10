@@ -146,7 +146,7 @@
 
 	<!-- Table -->
 	<div class="overflow-x-auto rounded-lg border border-surface-200">
-		<table class="min-w-full divide-y divide-surface-200 text-sm">
+		<table class="min-w-[900px] divide-y divide-surface-200 text-sm">
 			<thead class="bg-surface-50">
 				<tr>
 					<th class="whitespace-nowrap px-4 py-3 text-left font-medium text-surface-600">Timestamp</th>

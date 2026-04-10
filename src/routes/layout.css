@@ -14,8 +14,77 @@
 	[data-drawer],
 	[data-appbar],
 	.ai-chat-drawer,
-	button,
 	.no-print {
 		display: none !important;
+	}
+
+	/* Hide the desktop sidebar and mobile nav */
+	aside.hidden,
+	aside.fixed,
+	header,
+	#idle-signout-form {
+		display: none !important;
+	}
+
+	/* Remove fixed positioning to allow normal document flow */
+	body,
+	html {
+		height: auto !important;
+		overflow: visible !important;
+	}
+
+	/* Reset flex layout for main content to flow naturally */
+	.flex.h-screen {
+		display: block !important;
+		height: auto !important;
+		overflow: visible !important;
+	}
+
+	/* Allow main content to use full width */
+	main {
+		width: 100% !important;
+		max-width: 100% !important;
+		padding: 0 !important;
+		overflow: visible !important;
+	}
+
+	/* Ensure the main content wrapper is also block */
+	.flex-1.overflow-y-auto {
+		overflow: visible !important;
+	}
+
+	/* Tables should be visible with borders */
+	table {
+		border-collapse: collapse;
+		width: 100%;
+	}
+
+	th,
+	td {
+		border: 1px solid #ccc;
+		padding: 4px 8px;
+	}
+
+	/* Avoid page breaks inside cards and table rows */
+	tr,
+	.rounded-lg {
+		page-break-inside: avoid;
+	}
+
+	/* Ensure links show their URL (skip internal nav) */
+	a[href^='http']::after {
+		content: ' (' attr(href) ')';
+		font-size: 0.8em;
+		color: #666;
+	}
+
+	/* Remove backgrounds and shadows for cleaner printing */
+	* {
+		box-shadow: none !important;
+	}
+
+	/* Page margins */
+	@page {
+		margin: 1cm;
 	}
 }

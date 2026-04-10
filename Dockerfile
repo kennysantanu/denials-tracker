@@ -6,6 +6,17 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+RUN npx svelte-kit sync
+
+# Required build args for $env/static/* imports (baked into the bundle)
+# Pass via: docker build --build-arg PUBLIC_SUPABASE_URL=... --build-arg PUBLIC_SUPABASE_ANON_KEY=... --build-arg SUPABASE_SERVICE_ROLE_KEY=...
+ARG PUBLIC_SUPABASE_URL=http://placeholder
+ARG PUBLIC_SUPABASE_ANON_KEY=placeholder
+ARG SUPABASE_SERVICE_ROLE_KEY=placeholder
+ENV PUBLIC_SUPABASE_URL=$PUBLIC_SUPABASE_URL
+ENV PUBLIC_SUPABASE_ANON_KEY=$PUBLIC_SUPABASE_ANON_KEY
+ENV SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
+
 RUN npm run build
 RUN npm prune --production
 

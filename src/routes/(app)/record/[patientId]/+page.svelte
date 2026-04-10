@@ -35,7 +35,7 @@
 <div class="mx-auto max-w-5xl p-6">
 	<!-- Patient Header -->
 	<div class="mb-8 rounded-lg border border-surface-200 bg-surface-50 p-6">
-		<div class="flex items-start justify-between">
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 			<div>
 				<h1 class="text-2xl font-bold">
 					{data.patient.last_name}, {data.patient.first_name}
@@ -49,7 +49,7 @@
 			</div>
 			<button
 				type="button"
-				class="text-sm text-primary-600 hover:underline"
+				class="self-start text-sm text-primary-600 hover:underline"
 				onclick={() => goto('/record')}
 			>
 				← Back to Records
