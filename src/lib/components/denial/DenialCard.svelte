@@ -142,7 +142,7 @@
 							};
 						}}
 					>
-						<input type="hidden" name="denialId" value={denial.id} />
+						<input type="hidden" name="id" value={denial.id} />
 						<input type="hidden" name="patientId" value={patientId} />
 						<button type="submit" class="btn preset-outlined-error-500 btn-sm"> Delete </button>
 					</form>

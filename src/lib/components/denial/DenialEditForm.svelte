@@ -51,7 +51,7 @@
 		};
 	}}
 >
-	<input type="hidden" name="denialId" value={denial.id} />
+	<input type="hidden" name="id" value={denial.id} />
 	<input type="hidden" name="patientId" value={patientId} />
 
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -177,8 +177,8 @@
 
 	<!-- Actions -->
 	<div class="flex gap-2 pt-2">
-		<button type="submit" class="btn btn-sm preset-filled-primary-500">Save</button>
-		<button type="button" class="btn btn-sm preset-outlined-surface-500" onclick={oncancel}>
+		<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+		<button type="button" class="btn preset-outlined-surface-500 btn-sm" onclick={oncancel}>
 			Cancel
 		</button>
 	</div>
