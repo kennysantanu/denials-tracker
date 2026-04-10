@@ -6,6 +6,7 @@
 	import { formatDate } from '$lib/utils';
 	import DenialEditForm from './DenialEditForm.svelte';
 	import DenialNoteList from './DenialNoteList.svelte';
+	import { InsuranceNoteModal } from '$lib/components/modals';
 	import { openChatDrawer, updateChatContext } from '$lib/stores/chatContext.svelte';
 
 	type DenialRow = Database['public']['Tables']['denials']['Row'];
@@ -27,6 +28,7 @@
 	let { denial, permissions, patientId, insurances, labels, aiEnabled = false }: Props = $props();
 
 	let editing = $state(false);
+	let selectedInsurance = $state<InsuranceRow | null>(null);
 
 	let billedDisplay = $derived(
 		denial.billed_amount != null ? `$${denial.billed_amount.toFixed(2)}` : '—'
@@ -100,7 +102,18 @@
 				<!-- Insurances -->
 				{#if denial.insurances?.length}
 					<div class="text-sm text-surface-600">
-						Insurance: {denial.insurances.map((i) => i.name).join(', ')}
+						Insurance:
+						{#each denial.insurances as ins, i (ins.id)}
+							{#if i > 0},
+							{/if}
+							<button
+								type="button"
+								class="text-primary-600 underline hover:text-primary-800"
+								onclick={() => (selectedInsurance = ins)}
+							>
+								{ins.name}
+							</button>
+						{/each}
 					</div>
 				{/if}
 			</div>
@@ -156,3 +169,11 @@
 		<DenialNoteList notes={denial.notes ?? []} denialId={denial.id} {permissions} {patientId} />
 	</div>
 </div>
+
+{#if selectedInsurance}
+	<InsuranceNoteModal
+		insurance={selectedInsurance}
+		canEdit={!!permissions['manage_insurances']}
+		onclose={() => (selectedInsurance = null)}
+	/>
+{/if}

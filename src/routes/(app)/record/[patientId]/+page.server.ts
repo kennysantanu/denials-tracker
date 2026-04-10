@@ -9,7 +9,7 @@ import {
 	deleteDenial
 } from '$lib/server/db/denials';
 import { createNote, deleteNote, updateNote } from '$lib/server/db/notes';
-import { getInsurances } from '$lib/server/db/insurances';
+import { getInsurances, updateInsurance } from '$lib/server/db/insurances';
 import { getLabels } from '$lib/server/db/labels';
 import { uploadFile } from '$lib/server/db/files';
 import { logAudit } from '$lib/server/audit';
@@ -367,6 +367,37 @@ export const actions: Actions = {
 		}
 
 		logAudit(locals.supabase, user.id, 'update', 'note', String(noteId), undefined, request);
+
+		return { success: true };
+	},
+
+	updateInsuranceNote: async ({ locals, request }) => {
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		const formData = await request.formData();
+		const insuranceId = parseInt(formData.get('id') as string, 10);
+		const noteText = (formData.get('note') as string)?.trim() || null;
+
+		if (isNaN(insuranceId)) return fail(400, { error: 'Invalid insurance ID' });
+
+		const { error: updateError } = await updateInsurance(locals.supabase, insuranceId, {
+			note: noteText
+		});
+
+		if (updateError) {
+			return fail(400, { error: updateError.message });
+		}
+
+		logAudit(
+			locals.supabase,
+			user.id,
+			'update',
+			'insurance',
+			String(insuranceId),
+			undefined,
+			request
+		);
 
 		return { success: true };
 	}
