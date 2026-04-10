@@ -65,10 +65,16 @@ const securityHeadersHandle: Handle = async ({ event, resolve }) => {
 
 	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
-	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
+	// Allow iframes for file preview page (PDF viewer), deny everywhere else
+	if (path.startsWith('/file/view')) {
+		response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+		response.headers.set('Content-Security-Policy', `frame-src 'self' ${PUBLIC_SUPABASE_URL};`);
+	} else {
+		response.headers.set('X-Frame-Options', 'DENY');
+	}
 	return response;
 };
 

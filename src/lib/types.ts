@@ -38,6 +38,9 @@ export type Permission =
 	| 'manage_roles'
 	| 'manage_labels'
 	| 'audit_read'
+	| 'file_upload'
+	| 'file_edit'
+	| 'file_delete'
 	| 'admin';
 
 /**

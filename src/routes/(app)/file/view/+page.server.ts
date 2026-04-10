@@ -1,6 +1,12 @@
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-import { createSignedUrl } from '$lib/server/db/files';
+import { error, fail, redirect } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import {
+	createSignedUrl,
+	getFileByName,
+	getRelatedClaims,
+	updateFileMetadata,
+	deleteFile
+} from '$lib/server/db/files';
 import { logAudit } from '$lib/server/audit';
 
 export const load: PageServerLoad = async ({ locals, url, request }) => {
@@ -14,12 +20,18 @@ export const load: PageServerLoad = async ({ locals, url, request }) => {
 		redirect(303, '/file');
 	}
 
-	const { data, error } = await createSignedUrl(locals.supabase, name, 60);
+	const [signedUrlResult, fileResult, claimsResult] = await Promise.all([
+		createSignedUrl(locals.supabase, name, 60),
+		getFileByName(locals.supabase, name),
+		getRelatedClaims(locals.supabase, name)
+	]);
 
-	if (error || !data?.signedUrl) {
+	if (signedUrlResult.error || !signedUrlResult.data?.signedUrl) {
 		return {
 			signedUrl: null,
 			fileName: name,
+			fileRecord: null,
+			relatedClaims: [] as typeof claimsResult.data,
 			error: 'Could not generate file URL'
 		};
 	}
@@ -27,7 +39,56 @@ export const load: PageServerLoad = async ({ locals, url, request }) => {
 	logAudit(locals.supabase, user.id, 'view', 'file', name, undefined, request);
 
 	return {
-		signedUrl: data.signedUrl,
-		fileName: name
+		signedUrl: signedUrlResult.data.signedUrl,
+		fileName: name,
+		fileRecord: fileResult.data ?? null,
+		relatedClaims: claimsResult.data ?? []
 	};
+};
+
+export const actions: Actions = {
+	updateFileInfo: async ({ locals, request }) => {
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		const formData = await request.formData();
+		const name = formData.get('name') as string;
+		const status = formData.get('status') as string;
+		const note = formData.get('note') as string;
+
+		if (!name) return fail(400, { error: 'File name is required' });
+
+		const { error: updateError } = await updateFileMetadata(locals.supabase, name, {
+			status,
+			note
+		});
+
+		if (updateError) {
+			return fail(500, { error: 'Failed to update file info' });
+		}
+
+		logAudit(locals.supabase, user.id, 'update', 'file', name, { status, note }, request);
+
+		return { success: true };
+	},
+
+	deleteFile: async ({ locals, request }) => {
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		const formData = await request.formData();
+		const name = formData.get('name') as string;
+
+		if (!name) return fail(400, { error: 'File name is required' });
+
+		const { error: deleteError } = await deleteFile(locals.supabase, name);
+
+		if (deleteError) {
+			return fail(500, { error: 'Failed to delete file' });
+		}
+
+		logAudit(locals.supabase, user.id, 'delete', 'file', name, undefined, request);
+
+		redirect(303, '/file');
+	}
 };

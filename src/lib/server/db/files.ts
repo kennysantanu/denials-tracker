@@ -36,6 +36,44 @@ export async function uploadFile(
 	});
 }
 
+export async function getFileByName(supabase: SupabaseClient<Database>, name: string) {
+	return supabase.from('files').select('*').eq('name', name).single();
+}
+
+export async function updateFileMetadata(
+	supabase: SupabaseClient<Database>,
+	name: string,
+	metadata: { status?: string; note?: string }
+) {
+	return supabase.from('files').update({ metadata }).eq('name', name);
+}
+
+export async function getRelatedClaims(supabase: SupabaseClient<Database>, fileName: string) {
+	return supabase
+		.from('notes_files')
+		.select(
+			`
+			note_id,
+			notes!inner(
+				id,
+				note,
+				created_at,
+				created_by:users!public_notes_created_by_fkey(username),
+				denial_id,
+				denials!inner(
+					id,
+					service_start_date,
+					service_end_date,
+					patient_id,
+					patients!inner(id, first_name, last_name, date_of_birth),
+					denials_labels(labels(label_name, bg_color, txt_color))
+				)
+			)
+		`
+		)
+		.eq('file_name', fileName);
+}
+
 export async function deleteFile(supabase: SupabaseClient<Database>, fileName: string) {
 	const dbResult = await supabase.from('files').delete().eq('name', fileName);
 
