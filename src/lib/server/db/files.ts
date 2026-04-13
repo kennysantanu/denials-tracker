@@ -89,3 +89,52 @@ export async function deleteFile(supabase: SupabaseClient<Database>, fileName: s
 
 	return { data: storageResult.data, error: null };
 }
+
+export type DateStatus = 'new' | 'in-progress' | 'completed';
+
+/**
+ * Get the "worst" file status for each date in a given month.
+ * Priority: new (red) > in-progress (yellow) > completed (blue).
+ * Files without a metadata status default to 'new'.
+ */
+export async function getFileDateStatusesInMonth(
+	supabase: SupabaseClient<Database>,
+	year: number,
+	month: number
+): Promise<{ data: { date: string; status: DateStatus }[]; error: unknown }> {
+	const startDate = `${year}-${String(month).padStart(2, '0')}-01T00:00:00.000Z`;
+	const lastDay = new Date(year, month, 0).getDate();
+	const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59.999Z`;
+
+	const { data, error } = await supabase
+		.from('files')
+		.select('created_at, metadata')
+		.gte('created_at', startDate)
+		.lte('created_at', endDate)
+		.order('created_at', { ascending: true });
+
+	if (error) {
+		return { data: [], error };
+	}
+
+	// Group by date, tracking worst status per day
+	const dateStatuses = new Map<string, DateStatus>();
+	for (const file of data ?? []) {
+		const day = file.created_at.split('T')[0];
+		const meta = file.metadata as Record<string, unknown> | null;
+		const rawStatus = (meta?.status as string) ?? 'New';
+		const status: DateStatus =
+			rawStatus === 'In Progress' ? 'in-progress' : rawStatus === 'Completed' ? 'completed' : 'new';
+
+		const current = dateStatuses.get(day);
+		// Priority: new > in-progress > completed
+		if (!current || status === 'new' || (status === 'in-progress' && current === 'completed')) {
+			dateStatuses.set(day, status);
+		}
+	}
+
+	return {
+		data: Array.from(dateStatuses.entries()).map(([date, status]) => ({ date, status })),
+		error: null
+	};
+}
