@@ -12,8 +12,10 @@
 	type DenialRow = Database['public']['Tables']['denials']['Row'];
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
 	type LabelRow = Database['public']['Tables']['labels']['Row'];
+	type FileRow = Database['public']['Tables']['files']['Row'];
 	type NoteRow = Database['public']['Tables']['notes']['Row'] & {
 		created_by_user?: { username: string | null } | null;
+		notes_files?: { file_name: string; files: FileRow | null }[];
 	};
 
 	interface Props {

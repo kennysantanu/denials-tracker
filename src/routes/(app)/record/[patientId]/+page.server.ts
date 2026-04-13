@@ -59,7 +59,9 @@ export const load: PageServerLoad = async ({ locals, params, parent, request }) 
 			supabase.from('denials_labels').select('denial_id, label_id').in('denial_id', denialIds),
 			supabase
 				.from('notes')
-				.select('*, created_by_user:users!public_notes_created_by_fkey(username)')
+				.select(
+					'*, created_by_user:users!public_notes_created_by_fkey(username), notes_files(file_name, files!notes_files_file_name_fkey(name, size, mimetype, created_at))'
+				)
 				.in('denial_id', denialIds)
 				.order('created_at', { ascending: false })
 		]);
@@ -246,6 +248,7 @@ export const actions: Actions = {
 		const noteText = (formData.get('note') as string)?.trim();
 		const denialId = parseInt(formData.get('denial_id') as string, 10);
 		const files = formData.getAll('files') as File[];
+		const existingFileNames = formData.getAll('existing_files').map(String).filter(Boolean);
 
 		if (!noteText) return fail(400, { error: 'Note text is required' });
 		if (isNaN(denialId)) return fail(400, { error: 'Invalid denial ID' });
@@ -301,12 +304,28 @@ export const actions: Actions = {
 				throw new Error(noteError?.message ?? 'Failed to create note');
 			}
 
-			// Link files to note via notes_files junction
+			// Link uploaded files to note via notes_files junction
 			for (const filePath of uploadedFilePaths) {
 				await supabase.from('notes_files').insert({
 					note_id: note.id,
 					file_name: filePath
 				});
+			}
+
+			// Link existing files to note via notes_files junction
+			for (const fileName of existingFileNames) {
+				// Verify the file exists before linking
+				const { data: existingFile } = await supabase
+					.from('files')
+					.select('name')
+					.eq('name', fileName)
+					.single();
+				if (existingFile) {
+					await supabase.from('notes_files').insert({
+						note_id: note.id,
+						file_name: fileName
+					});
+				}
 			}
 
 			logAudit(supabase, user.id, 'create', 'note', String(note.id), { denialId }, request);
@@ -353,17 +372,40 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const noteId = parseInt(formData.get('id') as string, 10);
 		const noteText = (formData.get('note') as string)?.trim();
+		const addFiles = formData
+			.getAll('add_files')
+			.map((v) => v.toString())
+			.filter(Boolean);
+		const removeFiles = formData
+			.getAll('remove_files')
+			.map((v) => v.toString())
+			.filter(Boolean);
 
 		if (isNaN(noteId)) return fail(400, { error: 'Invalid note ID' });
 		if (!noteText) return fail(400, { error: 'Note text is required' });
 
-		const { error: updateError } = await updateNote(locals.supabase, noteId, {
+		const supabase = locals.supabase;
+
+		const { error: updateError } = await updateNote(supabase, noteId, {
 			note: noteText,
 			modified_by: user.id
 		});
 
 		if (updateError) {
 			return fail(400, { error: updateError.message });
+		}
+
+		// Remove file associations
+		if (removeFiles.length > 0) {
+			for (const fileName of removeFiles) {
+				await supabase.from('notes_files').delete().eq('note_id', noteId).eq('file_name', fileName);
+			}
+		}
+
+		// Add new file associations
+		if (addFiles.length > 0) {
+			const rows = addFiles.map((fileName) => ({ note_id: noteId, file_name: fileName }));
+			await supabase.from('notes_files').upsert(rows, { onConflict: 'note_id,file_name' });
 		}
 
 		logAudit(locals.supabase, user.id, 'update', 'note', String(noteId), undefined, request);

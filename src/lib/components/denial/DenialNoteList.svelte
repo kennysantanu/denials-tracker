@@ -3,8 +3,11 @@
 	import DenialNote from './DenialNote.svelte';
 	import NoteForm from './NoteForm.svelte';
 
+	type FileRow = Database['public']['Tables']['files']['Row'];
+
 	type NoteRow = Database['public']['Tables']['notes']['Row'] & {
 		created_by_user?: { username: string | null } | null;
+		notes_files?: { file_name: string; files: FileRow | null }[];
 	};
 
 	interface Props {
