@@ -35,10 +35,28 @@ describe('IdleTimeoutWarning.svelte', () => {
 	it('shows warning after idle timeout minus warning period', async () => {
 		render(IdleTimeoutWarning);
 
-		// Advance past TIMEOUT_MS - WARNING_MS = 13 minutes
+		// Default 15 min timeout, 2 min warning → warning at 13 min
 		vi.advanceTimersByTime(13 * 60 * 1000 + 100);
 
 		await expect.element(page.getByText('Session Expiring')).toBeInTheDocument();
+	});
+
+	it('respects custom timeoutMinutes prop', async () => {
+		render(IdleTimeoutWarning, { props: { timeoutMinutes: 10 } });
+
+		// 10 min timeout - 2 min warning = 8 min
+		vi.advanceTimersByTime(8 * 60 * 1000 + 100);
+
+		await expect.element(page.getByText('Session Expiring')).toBeInTheDocument();
+	});
+
+	it('does not show warning before custom timeout threshold', async () => {
+		render(IdleTimeoutWarning, { props: { timeoutMinutes: 10 } });
+
+		// 7 min is before the 8 min warning threshold
+		vi.advanceTimersByTime(7 * 60 * 1000);
+
+		await expect.element(page.getByText('Session Expiring')).not.toBeInTheDocument();
 	});
 
 	it('shows Continue Session button in warning dialog', async () => {

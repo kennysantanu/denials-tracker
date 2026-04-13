@@ -178,7 +178,7 @@
 	</div>
 </div>
 
-<IdleTimeoutWarning />
+<IdleTimeoutWarning timeoutMinutes={data.idleTimeoutMinutes} />
 
 {#if data.aiEnabled}
 	<AIChatDrawer />

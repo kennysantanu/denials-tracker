@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	// Idle timeout in ms (default: 15 minutes)
-	const TIMEOUT_MS = 15 * 60 * 1000;
+
+	interface Props {
+		timeoutMinutes?: number;
+	}
+	const { timeoutMinutes = 15 }: Props = $props();
+
+	// Idle timeout in ms — driven by server config (env cap + admin preference)
+	const TIMEOUT_MS = $derived(timeoutMinutes * 60 * 1000);
 	const WARNING_MS = 2 * 60 * 1000; // 2-minute warning
 	const STORAGE_KEY = 'denials_tracker_last_activity';
 

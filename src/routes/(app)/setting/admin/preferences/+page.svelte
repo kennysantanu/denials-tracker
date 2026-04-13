@@ -6,6 +6,7 @@
 
 	let aiBaseUrl = $state(data.aiBaseUrl ?? '');
 	let aiModelName = $state(data.aiModelName ?? '');
+	let idleTimeout = $state(data.idleTimeoutMinutes ?? 15);
 
 	function handleResult() {
 		return ({ result }: any) => {
@@ -25,14 +26,63 @@
 <div class="space-y-6">
 	<h2 class="text-xl font-semibold text-surface-900">System Preferences</h2>
 
+	<!-- Session Timeout Section -->
+	<div class="rounded-lg border border-surface-200 bg-white p-6">
+		<h3 class="mb-4 text-lg font-semibold text-surface-900">Session Timeout (HIPAA)</h3>
+		<div class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+			<p class="text-sm text-amber-800">
+				Auto-logout protects PHI by ending idle sessions. The maximum allowed value is
+				<strong>{data.maxIdleTimeout} minutes</strong> (set by server environment). Industry standard
+				for healthcare is 15–30 minutes.
+			</p>
+		</div>
+
+		<form
+			method="POST"
+			action="?/saveIdleTimeout"
+			use:enhance={() => {
+				return async ({ result, update }) => {
+					handleResult()({ result });
+					await update();
+				};
+			}}
+			class="flex items-end gap-4"
+		>
+			<div class="flex-1">
+				<label for="idle_timeout_minutes" class="mb-1 block text-sm font-medium text-surface-700">
+					Idle Timeout (minutes)
+				</label>
+				<input
+					id="idle_timeout_minutes"
+					name="idle_timeout_minutes"
+					type="number"
+					min="1"
+					max={data.maxIdleTimeout}
+					bind:value={idleTimeout}
+					class="w-full max-w-xs rounded-md border border-surface-300 px-3 py-2 text-sm"
+				/>
+				<p class="mt-1 text-xs text-surface-500">
+					Range: 1–{data.maxIdleTimeout} minutes (max set by <code>SESSION_TIMEOUT_MINUTES</code> env
+					var, up to 1440 min / 24 h). Default: 15. Users will see a 2-minute warning before auto-signout.
+				</p>
+			</div>
+			<button
+				type="submit"
+				class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+			>
+				Save
+			</button>
+		</form>
+	</div>
+
 	<!-- AI Configuration Section -->
 	<div class="rounded-lg border border-surface-200 bg-white p-6">
 		<h3 class="mb-4 text-lg font-semibold text-surface-900">AI Configuration</h3>
 		<div class="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
 			<p class="text-sm text-blue-800">
-				AI features connect to a <strong>local AI server only</strong> (e.g. LM Studio, Ollama).
-				No data is sent to external cloud services. Configure the base URL and model name of your
-				local AI server below.
+				AI features connect to a <strong>local AI server only</strong> (e.g. LM Studio, Ollama). No data
+				is sent to external cloud services. Configure the base URL and model name of your local AI server
+				below.
 			</p>
 		</div>
 
