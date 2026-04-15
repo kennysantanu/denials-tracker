@@ -1,2 +1,3 @@
 // Shared UI components — barrel file
-// Components will be added as needed
+export { default as InsuranceCombobox } from './InsuranceCombobox.svelte';
+export { default as LabelPillSelect } from './LabelPillSelect.svelte';

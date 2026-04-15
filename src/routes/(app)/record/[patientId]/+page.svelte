@@ -1,19 +1,20 @@
-<svelte:head>
-	<title>{data.patient.last_name}, {data.patient.first_name} — Denials Tracker</title>
-</svelte:head>
-
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { formatDate } from '$lib/utils';
 	import DenialCard from '$lib/components/denial/DenialCard.svelte';
+	import { InsuranceCombobox, LabelPillSelect } from '$lib/components/ui';
 	import { setChatContext } from '$lib/stores/chatContext.svelte';
 
 	let { data } = $props();
 
-	let openDenials = $derived(data.denials.filter((d: (typeof data.denials)[number]) => !d.is_closed));
-	let closedDenials = $derived(data.denials.filter((d: (typeof data.denials)[number]) => d.is_closed));
+	let openDenials = $derived(
+		data.denials.filter((d: (typeof data.denials)[number]) => !d.is_closed)
+	);
+	let closedDenials = $derived(
+		data.denials.filter((d: (typeof data.denials)[number]) => d.is_closed)
+	);
 
 	let showClosed = $state(false);
 	let showNewDenialForm = $state(false);
@@ -31,6 +32,10 @@
 		});
 	});
 </script>
+
+<svelte:head>
+	<title>{data.patient.last_name}, {data.patient.first_name} — Denials Tracker</title>
+</svelte:head>
 
 <div class="mx-auto max-w-5xl p-6">
 	<!-- Patient Header -->
@@ -85,7 +90,7 @@
 								showNewDenialForm = false;
 								await update();
 							} else if (result.type === 'failure') {
-							toastError('Error', String(result.data?.error ?? 'Failed to create denial'));
+								toastError('Error', String(result.data?.error ?? 'Failed to create denial'));
 							}
 						};
 					}}
@@ -118,27 +123,39 @@
 							<label for="billed_amount" class="mb-1 block text-sm font-medium">
 								Billed Amount
 							</label>
-							<input
-								type="number"
-								id="billed_amount"
-								name="billed_amount"
-								step="0.01"
-								min="0"
-								class="w-full rounded border border-surface-300 px-3 py-2"
-							/>
+							<div class="relative">
+								<span
+									class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-surface-400"
+									>$</span
+								>
+								<input
+									type="number"
+									id="billed_amount"
+									name="billed_amount"
+									step="0.01"
+									min="0"
+									placeholder="0.00"
+									class="w-full rounded border border-surface-300 py-2 pr-3 pl-7"
+								/>
+							</div>
 						</div>
 						<div>
-							<label for="paid_amount" class="mb-1 block text-sm font-medium">
-								Paid Amount
-							</label>
-							<input
-								type="number"
-								id="paid_amount"
-								name="paid_amount"
-								step="0.01"
-								min="0"
-								class="w-full rounded border border-surface-300 px-3 py-2"
-							/>
+							<label for="paid_amount" class="mb-1 block text-sm font-medium"> Paid Amount </label>
+							<div class="relative">
+								<span
+									class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-surface-400"
+									>$</span
+								>
+								<input
+									type="number"
+									id="paid_amount"
+									name="paid_amount"
+									step="0.01"
+									min="0"
+									placeholder="0.00"
+									class="w-full rounded border border-surface-300 py-2 pr-3 pl-7"
+								/>
+							</div>
 						</div>
 						<div>
 							<label for="follow_up_date" class="mb-1 block text-sm font-medium">
@@ -153,47 +170,33 @@
 						</div>
 					</div>
 
-					<!-- Insurance Checkboxes -->
+					<!-- Insurance Combobox -->
 					{#if data.allInsurances.length > 0}
-						<fieldset class="mt-4">
-							<legend class="mb-2 text-sm font-medium">Insurances</legend>
-							<div class="flex flex-wrap gap-3">
-								{#each data.allInsurances as ins (ins.id)}
-									<label class="inline-flex items-center gap-1.5 text-sm">
-										<input type="checkbox" name="insurance_ids" value={ins.id} />
-										{ins.name}
-									</label>
-								{/each}
-							</div>
-						</fieldset>
+						<div class="mt-4">
+							<InsuranceCombobox insurances={data.allInsurances} />
+						</div>
 					{/if}
 
-					<!-- Label Checkboxes -->
+					<!-- Label Pills -->
 					{#if data.allLabels.length > 0}
-						<fieldset class="mt-4">
-							<legend class="mb-2 text-sm font-medium">Labels</legend>
-							<div class="flex flex-wrap gap-3">
-								{#each data.allLabels as label (label.id)}
-									<label class="inline-flex items-center gap-1.5 text-sm">
-										<input type="checkbox" name="label_ids" value={label.id} />
-										<span
-											class="rounded px-1.5 py-0.5 text-xs"
-											style="background-color: {label.bg_color}; color: {label.txt_color};"
-										>
-											{label.label_name}
-										</span>
-									</label>
-								{/each}
-							</div>
-						</fieldset>
+						<div class="mt-4">
+							<LabelPillSelect labels={data.allLabels} />
+						</div>
 					{/if}
 
-					<div class="mt-6">
+					<div class="mt-6 flex gap-2">
 						<button
 							type="submit"
 							class="rounded-lg bg-primary-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
 						>
 							Create Denial
+						</button>
+						<button
+							type="button"
+							class="rounded-lg border border-surface-300 px-6 py-2 text-sm font-medium text-surface-600 transition-colors hover:bg-surface-100"
+							onclick={() => (showNewDenialForm = false)}
+						>
+							Cancel
 						</button>
 					</div>
 				</form>

@@ -4,6 +4,7 @@
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { formatDate } from '$lib/utils';
+	import { InsuranceCombobox, LabelPillSelect } from '$lib/components/ui';
 
 	type DenialRow = Database['public']['Tables']['denials']['Row'];
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
@@ -19,8 +20,8 @@
 
 	let { denial, insurances, labels, patientId, oncancel }: Props = $props();
 
-	let currentInsuranceIds = $derived(new Set(denial.insurances?.map((i) => i.id) ?? []));
-	let currentLabelIds = $derived(new Set(denial.labels?.map((l) => l.id) ?? []));
+	let currentInsuranceIds = $derived(denial.insurances?.map((i) => i.id) ?? []);
+	let currentLabelIds = $derived(denial.labels?.map((l) => l.id) ?? []);
 
 	function toInputDate(dateStr: string | null): string {
 		if (!dateStr) return '';
@@ -128,51 +129,18 @@
 		</label>
 	</div>
 
-	<!-- Insurances multi-select -->
+	<!-- Insurances combobox -->
 	{#if insurances.length}
-		<fieldset class="space-y-1">
-			<legend class="text-sm font-medium">Insurances</legend>
-			<div class="flex flex-wrap gap-3">
-				{#each insurances as ins (ins.id)}
-					<label class="flex items-center gap-1.5 text-sm">
-						<input
-							type="checkbox"
-							name="insurance_ids"
-							value={ins.id}
-							checked={currentInsuranceIds.has(ins.id)}
-							class="checkbox"
-						/>
-						{ins.name}
-					</label>
-				{/each}
-			</div>
-		</fieldset>
+		<div>
+			<InsuranceCombobox {insurances} selected={currentInsuranceIds} />
+		</div>
 	{/if}
 
-	<!-- Labels multi-select -->
+	<!-- Labels pill select -->
 	{#if labels.length}
-		<fieldset class="space-y-1">
-			<legend class="text-sm font-medium">Labels</legend>
-			<div class="flex flex-wrap gap-3">
-				{#each labels as label (label.id)}
-					<label class="flex items-center gap-1.5 text-sm">
-						<input
-							type="checkbox"
-							name="label_ids"
-							value={label.id}
-							checked={currentLabelIds.has(label.id)}
-							class="checkbox"
-						/>
-						<span
-							class="rounded px-1.5 py-0.5"
-							style="background-color: {label.bg_color}; color: {label.txt_color};"
-						>
-							{label.label_name}
-						</span>
-					</label>
-				{/each}
-			</div>
-		</fieldset>
+		<div>
+			<LabelPillSelect {labels} selected={currentLabelIds} />
+		</div>
 	{/if}
 
 	<!-- Actions -->
