@@ -4,7 +4,7 @@ export const toaster = createToaster({
 	overlap: true,
 	gap: 8,
 	removeDelay: 300,
-	placement: 'bottom-center'
+	placement: 'bottom'
 });
 
 export function toastSuccess(title: string, description?: string): void {

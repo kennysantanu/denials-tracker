@@ -95,7 +95,7 @@
 
 <div class="flex h-screen flex-col overflow-hidden bg-surface-50">
 	<!-- Top navbar -->
-	<header class="flex-shrink-0 border-b border-surface-200 bg-white">
+	<header class="shrink-0 border-b border-surface-200 bg-white">
 		<div class="flex h-16 items-center justify-between px-4 lg:px-8">
 			<!-- Left: Hamburger (mobile) + Logo -->
 			<div class="flex items-center gap-3">
