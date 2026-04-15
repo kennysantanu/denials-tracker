@@ -157,6 +157,97 @@ export const actions: Actions = {
 			return fail(400, { error: createError?.message ?? 'Failed to create denial' });
 		}
 
+		const initialNote = (formData.get('initial_note') as string)?.trim();
+		if (!initialNote) {
+			return fail(400, { error: 'Note is required' });
+		}
+
+		const files = formData.getAll('files') as File[];
+		const existingFileNames = formData.getAll('existing_files').map(String).filter(Boolean);
+		const supabase = locals.supabase;
+		const uploadedFilePaths: string[] = [];
+
+		try {
+			// Upload new files to storage
+			for (const file of files) {
+				if (!file.size || !file.name) continue;
+
+				const timestamp = Date.now();
+				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+				const storagePath = `${patientId}/${timestamp}_${safeName}`;
+
+				const { error: uploadError } = await uploadFile(supabase, storagePath, file, {
+					contentType: file.type
+				});
+
+				if (uploadError) {
+					throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+				}
+
+				uploadedFilePaths.push(storagePath);
+
+				const { error: fileDbError } = await supabase.from('files').insert({
+					name: storagePath,
+					size: file.size,
+					mimetype: file.type || null
+				});
+
+				if (fileDbError) {
+					throw new Error(`Failed to save file record: ${fileDbError.message}`);
+				}
+
+				await supabase.from('patients_files').insert({
+					patient_id: patientId,
+					file_name: storagePath
+				});
+			}
+
+			// Create the initial note
+			const { data: note, error: noteError } = await createNote(supabase, {
+				denial_id: denial.id,
+				note: initialNote,
+				created_by: user.id
+			});
+
+			if (noteError || !note) {
+				throw new Error(noteError?.message ?? 'Failed to create note');
+			}
+
+			// Link uploaded files to note
+			for (const filePath of uploadedFilePaths) {
+				await supabase.from('notes_files').insert({
+					note_id: note.id,
+					file_name: filePath
+				});
+			}
+
+			// Link existing files to note
+			for (const fileName of existingFileNames) {
+				const { data: existingFile } = await supabase
+					.from('files')
+					.select('name')
+					.eq('name', fileName)
+					.single();
+				if (existingFile) {
+					await supabase.from('notes_files').insert({
+						note_id: note.id,
+						file_name: fileName
+					});
+				}
+			}
+		} catch (err) {
+			// Clean up uploaded files on failure
+			if (uploadedFilePaths.length > 0) {
+				await supabase.storage.from('files').remove(uploadedFilePaths);
+				for (const fp of uploadedFilePaths) {
+					await supabase.from('files').delete().eq('name', fp);
+					await supabase.from('patients_files').delete().eq('file_name', fp);
+				}
+			}
+			const message = err instanceof Error ? err.message : 'Failed to save attachments';
+			return fail(400, { error: message });
+		}
+
 		logAudit(locals.supabase, user.id, 'create', 'denial', String(denial.id), undefined, request);
 
 		return { success: true };

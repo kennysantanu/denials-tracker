@@ -4,7 +4,7 @@
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { formatDate } from '$lib/utils';
 	import DenialCard from '$lib/components/denial/DenialCard.svelte';
-	import { InsuranceCombobox, LabelPillSelect } from '$lib/components/ui';
+	import { InsuranceCombobox, LabelPillSelect, NoteEditor } from '$lib/components/ui';
 	import { setChatContext } from '$lib/stores/chatContext.svelte';
 
 	let { data } = $props();
@@ -18,6 +18,8 @@
 
 	let showClosed = $state(false);
 	let showNewDenialForm = $state(false);
+
+	let noteEditor = $state<ReturnType<typeof NoteEditor>>();
 
 	// Set AI chat context for this patient
 	$effect(() => {
@@ -83,11 +85,13 @@
 				<form
 					method="POST"
 					action="?/createDenial"
+					enctype="multipart/form-data"
 					use:enhance={() => {
 						return async ({ result, update }) => {
 							if (result.type === 'success') {
 								toastSuccess('Denial created');
 								showNewDenialForm = false;
+								noteEditor?.reset();
 								await update();
 							} else if (result.type === 'failure') {
 								toastError('Error', String(result.data?.error ?? 'Failed to create denial'));
@@ -183,6 +187,16 @@
 							<LabelPillSelect labels={data.allLabels} />
 						</div>
 					{/if}
+
+					<!-- Initial Note + Attachments -->
+					<div class="mt-4">
+						<NoteEditor
+							bind:this={noteEditor}
+							name="initial_note"
+							required
+							placeholder="Enter denial reason or initial notes…"
+						/>
+					</div>
 
 					<div class="mt-6 flex gap-2">
 						<button
