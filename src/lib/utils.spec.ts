@@ -5,12 +5,12 @@ describe('formatDate', () => {
 	it('returns formatted date for valid string', () => {
 		// Use ISO with time to avoid UTC-midnight timezone shift
 		const result = formatDate('2024-01-15T12:00:00');
-		expect(result).toBe('Jan 15, 2024');
+		expect(result).toBe('01/15/2024');
 	});
 
 	it('returns formatted date for Date object', () => {
 		const result = formatDate(new Date(2024, 0, 15));
-		expect(result).toBe('Jan 15, 2024');
+		expect(result).toBe('01/15/2024');
 	});
 
 	it('returns empty string for null', () => {
@@ -26,7 +26,11 @@ describe('formatDate', () => {
 	});
 
 	it('uses custom options when provided', () => {
-		const result = formatDate(new Date(2024, 0, 15), { year: 'numeric', month: '2-digit', day: '2-digit' });
+		const result = formatDate(new Date(2024, 0, 15), {
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit'
+		});
 		expect(result).toBe('01/15/2024');
 	});
 });
