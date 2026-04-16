@@ -8,6 +8,12 @@ describe('formatDate', () => {
 		expect(result).toBe('01/15/2024');
 	});
 
+	it('handles date-only string without timezone shift', () => {
+		// Date-only strings like YYYY-MM-DD should never shift due to timezone
+		const result = formatDate('2026-01-28');
+		expect(result).toBe('01/28/2026');
+	});
+
 	it('returns formatted date for Date object', () => {
 		const result = formatDate(new Date(2024, 0, 15));
 		expect(result).toBe('01/15/2024');

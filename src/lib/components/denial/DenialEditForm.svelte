@@ -25,9 +25,15 @@
 
 	function toInputDate(dateStr: string | null): string {
 		if (!dateStr) return '';
+		// If already YYYY-MM-DD, return as-is to avoid UTC timezone shift
+		if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
 		const d = new Date(dateStr);
 		if (isNaN(d.getTime())) return '';
-		return d.toISOString().slice(0, 10);
+		// Use local date parts to avoid UTC shift
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${day}`;
 	}
 </script>
 
