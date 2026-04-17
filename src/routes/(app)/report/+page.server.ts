@@ -19,21 +19,33 @@ export const load: PageServerLoad = async ({ locals, parent, url, request }) => 
 	const startDate = url.searchParams.get('startDate') || startOfMonth;
 	const endDate = url.searchParams.get('endDate') || todayStr;
 	const includeClosed = url.searchParams.get('includeClosed') === 'true';
+	const dateModeParam = url.searchParams.get('dateMode');
+	const dateMode: 'service' | 'lastNote' = dateModeParam === 'lastNote' ? 'lastNote' : 'service';
 
 	const { data: reportData, error: dbError } = await getReportData(locals.supabase, {
 		startDate,
 		endDate,
-		includeClosed
+		includeClosed,
+		dateMode
 	});
 
 	if (dbError) error(500, 'Failed to load report data');
 
-	logAudit(locals.supabase, user.id, 'view', 'report', null, { startDate, endDate, includeClosed }, request);
+	logAudit(
+		locals.supabase,
+		user.id,
+		'view',
+		'report',
+		null,
+		{ startDate, endDate, includeClosed, dateMode },
+		request
+	);
 
 	return {
 		reportData: reportData ?? [],
 		startDate,
 		endDate,
-		includeClosed
+		includeClosed,
+		dateMode
 	};
 };

@@ -22,8 +22,8 @@
 	const navItems = [
 		{ href: '/dashboard', label: 'Dashboard', icon: '📊' },
 		{ href: '/record', label: 'Record', icon: '📋' },
-		{ href: '/file', label: 'Files', icon: '📁' },
 		{ href: '/report', label: 'Report', icon: '📈' },
+		{ href: '/file', label: 'Files', icon: '📁' },
 		{ href: '/setting', label: 'Settings', icon: '⚙️' }
 	];
 

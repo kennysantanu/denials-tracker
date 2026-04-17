@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { untrack } from 'svelte';
 
 	let { data } = $props();
 
-	let userId = $state(data.filters.userId ?? '');
-	let action = $state(data.filters.action ?? '');
-	let resourceType = $state(data.filters.resourceType ?? '');
-	let startDate = $state(data.filters.startDate ?? '');
-	let endDate = $state(data.filters.endDate ?? '');
+	const initialFilters = untrack(() => data.filters);
+	let userId = $state(initialFilters.userId ?? '');
+	let action = $state(initialFilters.action ?? '');
+	let resourceType = $state(initialFilters.resourceType ?? '');
+	let startDate = $state(initialFilters.startDate ?? '');
+	let endDate = $state(initialFilters.endDate ?? '');
 
 	let totalPages = $derived(Math.max(1, Math.ceil(data.totalCount / data.pageSize)));
 
@@ -50,7 +52,9 @@
 
 	// Unique values for filter dropdowns
 	let uniqueActions = $derived([...new Set(data.logs.map((l: any) => l.action))].sort());
-	let uniqueResourceTypes = $derived([...new Set(data.logs.map((l: any) => l.resource_type))].sort());
+	let uniqueResourceTypes = $derived(
+		[...new Set(data.logs.map((l: any) => l.resource_type))].sort()
+	);
 </script>
 
 <svelte:head>
@@ -72,7 +76,8 @@
 	<div class="rounded-lg border border-surface-200 bg-surface-50 p-4">
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
 			<div>
-				<label for="filter-user" class="mb-1 block text-xs font-medium text-surface-600">User</label>
+				<label for="filter-user" class="mb-1 block text-xs font-medium text-surface-600">User</label
+				>
 				<select
 					id="filter-user"
 					bind:value={userId}
@@ -85,7 +90,9 @@
 				</select>
 			</div>
 			<div>
-				<label for="filter-action" class="mb-1 block text-xs font-medium text-surface-600">Action</label>
+				<label for="filter-action" class="mb-1 block text-xs font-medium text-surface-600"
+					>Action</label
+				>
 				<input
 					id="filter-action"
 					type="text"
@@ -95,7 +102,9 @@
 				/>
 			</div>
 			<div>
-				<label for="filter-resource" class="mb-1 block text-xs font-medium text-surface-600">Resource Type</label>
+				<label for="filter-resource" class="mb-1 block text-xs font-medium text-surface-600"
+					>Resource Type</label
+				>
 				<input
 					id="filter-resource"
 					type="text"
@@ -105,7 +114,9 @@
 				/>
 			</div>
 			<div>
-				<label for="filter-start" class="mb-1 block text-xs font-medium text-surface-600">Start Date</label>
+				<label for="filter-start" class="mb-1 block text-xs font-medium text-surface-600"
+					>Start Date</label
+				>
 				<input
 					id="filter-start"
 					type="date"
@@ -114,7 +125,9 @@
 				/>
 			</div>
 			<div>
-				<label for="filter-end" class="mb-1 block text-xs font-medium text-surface-600">End Date</label>
+				<label for="filter-end" class="mb-1 block text-xs font-medium text-surface-600"
+					>End Date</label
+				>
 				<input
 					id="filter-end"
 					type="date"
@@ -149,48 +162,71 @@
 		<table class="min-w-[900px] divide-y divide-surface-200 text-sm">
 			<thead class="bg-surface-50">
 				<tr>
-					<th class="whitespace-nowrap px-4 py-3 text-left font-medium text-surface-600">Timestamp</th>
-					<th class="whitespace-nowrap px-4 py-3 text-left font-medium text-surface-600">User</th>
-					<th class="whitespace-nowrap px-4 py-3 text-left font-medium text-surface-600">Action</th>
-					<th class="whitespace-nowrap px-4 py-3 text-left font-medium text-surface-600">Resource</th>
-					<th class="whitespace-nowrap px-4 py-3 text-left font-medium text-surface-600">Resource ID</th>
-					<th class="whitespace-nowrap px-4 py-3 text-left font-medium text-surface-600">IP Address</th>
-					<th class="whitespace-nowrap px-4 py-3 text-left font-medium text-surface-600">Details</th>
+					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600"
+						>Timestamp</th
+					>
+					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600">User</th>
+					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600">Action</th>
+					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600"
+						>Resource</th
+					>
+					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600"
+						>Resource ID</th
+					>
+					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600"
+						>IP Address</th
+					>
+					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600">Details</th
+					>
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-surface-100">
 				{#each data.logs as log (log.id)}
 					{@const userMatch = data.users.find((u: any) => u.id === log.user_id)}
 					<tr class="hover:bg-surface-50">
-						<td class="whitespace-nowrap px-4 py-2 text-surface-700">
+						<td class="px-4 py-2 whitespace-nowrap text-surface-700">
 							{new Date(log.created_at).toLocaleString()}
 						</td>
 						<td class="px-4 py-2 text-surface-700">
 							{userMatch?.username || log.user_id || '—'}
 						</td>
 						<td class="px-4 py-2">
-							<span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium
-								{log.action === 'login' ? 'bg-green-100 text-green-800' :
-								 log.action === 'login_failed' ? 'bg-red-100 text-red-800' :
-								 log.action === 'logout' ? 'bg-yellow-100 text-yellow-800' :
-								 log.action === 'delete' ? 'bg-red-100 text-red-800' :
-								 log.action === 'create' ? 'bg-blue-100 text-blue-800' :
-								 log.action === 'update' ? 'bg-purple-100 text-purple-800' :
-								 log.action === 'export' ? 'bg-orange-100 text-orange-800' :
-								 'bg-surface-100 text-surface-800'}">
+							<span
+								class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium
+								{log.action === 'login'
+									? 'bg-green-100 text-green-800'
+									: log.action === 'login_failed'
+										? 'bg-red-100 text-red-800'
+										: log.action === 'logout'
+											? 'bg-yellow-100 text-yellow-800'
+											: log.action === 'delete'
+												? 'bg-red-100 text-red-800'
+												: log.action === 'create'
+													? 'bg-blue-100 text-blue-800'
+													: log.action === 'update'
+														? 'bg-purple-100 text-purple-800'
+														: log.action === 'export'
+															? 'bg-orange-100 text-orange-800'
+															: 'bg-surface-100 text-surface-800'}"
+							>
 								{log.action}
 							</span>
 						</td>
 						<td class="px-4 py-2 text-surface-700">{log.resource_type}</td>
 						<td class="px-4 py-2 text-surface-500">{log.resource_id || '—'}</td>
 						<td class="px-4 py-2 text-surface-500">{log.ip_address || '—'}</td>
-						<td class="max-w-xs truncate px-4 py-2 text-xs text-surface-500" title={log.details ? JSON.stringify(log.details) : ''}>
+						<td
+							class="max-w-xs truncate px-4 py-2 text-xs text-surface-500"
+							title={log.details ? JSON.stringify(log.details) : ''}
+						>
 							{log.details ? JSON.stringify(log.details) : '—'}
 						</td>
 					</tr>
 				{:else}
 					<tr>
-						<td colspan="7" class="px-4 py-8 text-center text-surface-500">No audit log entries found.</td>
+						<td colspan="7" class="px-4 py-8 text-center text-surface-500"
+							>No audit log entries found.</td
+						>
 					</tr>
 				{/each}
 			</tbody>

@@ -1,12 +1,18 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
+	import { untrack } from 'svelte';
 
 	let { data } = $props();
 
-	let aiBaseUrl = $state(data.aiBaseUrl ?? '');
-	let aiModelName = $state(data.aiModelName ?? '');
-	let idleTimeout = $state(data.idleTimeoutMinutes ?? 15);
+	const initialData = untrack(() => ({
+		aiBaseUrl: data.aiBaseUrl,
+		aiModelName: data.aiModelName,
+		idleTimeoutMinutes: data.idleTimeoutMinutes
+	}));
+	let aiBaseUrl = $state(initialData.aiBaseUrl ?? '');
+	let aiModelName = $state(initialData.aiModelName ?? '');
+	let idleTimeout = $state(initialData.idleTimeoutMinutes ?? 15);
 
 	function handleResult() {
 		return ({ result }: any) => {
