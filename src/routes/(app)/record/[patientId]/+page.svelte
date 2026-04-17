@@ -18,8 +18,26 @@
 
 	let showClosed = $state(false);
 	let showNewDenialForm = $state(false);
+	let uploading = $state(false);
+	let fileInput = $state<HTMLInputElement>();
 
 	let noteEditor = $state<ReturnType<typeof NoteEditor>>();
+
+	function displayFileName(fileName: string): string {
+		// Path format: patients/{ptid}/{timestamp}_{originalName}
+		const last = fileName.split('/').pop() ?? fileName;
+		const match = last.match(/^\d+_(.+)$/);
+		return match ? match[1] : last;
+	}
+
+	function formatBytes(bytes: number | null): string {
+		if (!bytes) return '';
+		if (bytes === 0) return '0 B';
+		const k = 1024;
+		const sizes = ['B', 'KB', 'MB', 'GB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+	}
 
 	// Set AI chat context for this patient
 	$effect(() => {
@@ -54,14 +72,109 @@
 					<p class="mt-2 text-sm text-surface-600">{data.patient.note}</p>
 				{/if}
 			</div>
-			<button
-				type="button"
-				class="self-start text-sm text-primary-600 hover:underline"
-				onclick={() => goto('/record')}
-			>
-				← Back to Records
-			</button>
+			<div class="flex items-center gap-3 self-start">
+				<button
+					type="button"
+					class="text-sm text-primary-600 hover:underline"
+					onclick={() => goto('/record')}
+				>
+					← Back to Records
+				</button>
+			</div>
 		</div>
+
+		<!-- Patient Files Panel -->
+		{#if data.patientFiles.length > 0 || data.permissions['file_upload']}
+			<div class="mt-4 border-t border-surface-200 pt-3">
+				<div class="flex flex-wrap items-center gap-1.5">
+					<span class="text-xs font-medium text-surface-500">Files:</span>
+
+					{#each data.patientFiles as file (file.name)}
+						<span
+							class="inline-flex items-center gap-1 rounded-full bg-surface-100 px-2.5 py-1 text-xs text-surface-700"
+						>
+							<a
+								href="/file/view?name={encodeURIComponent(file.name)}"
+								class="text-primary-600 hover:underline"
+								title={formatBytes(file.size) || undefined}
+							>
+								{displayFileName(file.name)}
+							</a>
+							{#if file.size}
+								<span class="text-surface-400">{formatBytes(file.size)}</span>
+							{/if}
+							{#if data.permissions['file_delete']}
+								<form
+									method="POST"
+									action="?/removePatientFile"
+									use:enhance={() => {
+										return async ({ result, update }) => {
+											if (result.type === 'success') {
+												toastSuccess('File removed');
+												await update();
+											} else if (result.type === 'failure') {
+												toastError('Error', String(result.data?.error ?? 'Failed to remove'));
+											}
+										};
+									}}
+								>
+									<input type="hidden" name="file_name" value={file.name} />
+									<button
+										type="submit"
+										class="ml-0.5 text-surface-400 hover:text-red-600"
+										title="Remove">✕</button
+									>
+								</form>
+							{/if}
+						</span>
+					{/each}
+
+					{#if data.permissions['file_upload']}
+						<form
+							method="POST"
+							action="?/uploadPatientFile"
+							enctype="multipart/form-data"
+							use:enhance={() => {
+								uploading = true;
+								return async ({ result, update }) => {
+									uploading = false;
+									if (result.type === 'success') {
+										toastSuccess('File uploaded');
+										if (fileInput) fileInput.value = '';
+										await update();
+									} else if (result.type === 'failure') {
+										toastError('Upload failed', String(result.data?.error ?? 'Unknown error'));
+									}
+								};
+							}}
+						>
+							<label
+								class="inline-flex cursor-pointer items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-600 transition-colors hover:bg-primary-100"
+							>
+								{#if uploading}
+									Uploading…
+								{:else}
+									+ Attach
+								{/if}
+								<input
+									bind:this={fileInput}
+									type="file"
+									name="files"
+									accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv"
+									multiple
+									class="hidden"
+									disabled={uploading}
+									onchange={(e) => {
+										const form = (e.target as HTMLInputElement).closest('form');
+										if (form) form.requestSubmit();
+									}}
+								/>
+							</label>
+						</form>
+					{/if}
+				</div>
+			</div>
+		{/if}
 	</div>
 
 	<!-- Open Denials -->

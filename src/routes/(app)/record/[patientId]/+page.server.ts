@@ -27,12 +27,18 @@ export const load: PageServerLoad = async ({ locals, params, parent, request }) 
 
 	const supabase = locals.supabase;
 
-	const [patientResult, denialsResult, insurancesResult, labelsResult] = await Promise.all([
-		getPatientById(supabase, patientId),
-		getDenialsByPatient(supabase, patientId),
-		getInsurances(supabase),
-		getLabels(supabase)
-	]);
+	const [patientResult, denialsResult, insurancesResult, labelsResult, patientFilesResult] =
+		await Promise.all([
+			getPatientById(supabase, patientId),
+			getDenialsByPatient(supabase, patientId),
+			getInsurances(supabase),
+			getLabels(supabase),
+			supabase
+				.from('patients_files')
+				.select('file_name, created_at')
+				.eq('patient_id', patientId)
+				.order('created_at', { ascending: false })
+		]);
 
 	if (patientResult.error || !patientResult.data) {
 		error(404, 'Patient not found');
@@ -42,6 +48,33 @@ export const load: PageServerLoad = async ({ locals, params, parent, request }) 
 	const denials = denialsResult.data ?? [];
 	const allInsurances = insurancesResult.data ?? [];
 	const allLabels = labelsResult.data ?? [];
+
+	// Fetch file details for patient files
+	const pfRows = patientFilesResult.data ?? [];
+	let patientFiles: {
+		name: string;
+		size: number | null;
+		mimetype: string | null;
+		created_at: string;
+	}[] = [];
+	if (pfRows.length > 0) {
+		const fileNames = pfRows.map((pf) => pf.file_name);
+		const { data: filesData } = await supabase
+			.from('files')
+			.select('name, size, mimetype, created_at')
+			.in('name', fileNames);
+
+		const filesMap = new Map((filesData ?? []).map((f) => [f.name, f]));
+		patientFiles = pfRows.map((pf) => {
+			const f = filesMap.get(pf.file_name);
+			return {
+				name: pf.file_name,
+				size: f?.size ?? null,
+				mimetype: f?.mimetype ?? null,
+				created_at: pf.created_at
+			};
+		});
+	}
 
 	// Fetch junction data and notes for all denials at once
 	const denialIds = denials.map((d) => d.id);
@@ -103,7 +136,8 @@ export const load: PageServerLoad = async ({ locals, params, parent, request }) 
 		denials: denialsWithRelations,
 		allInsurances,
 		allLabels,
-		permissions
+		permissions,
+		patientFiles
 	};
 };
 
@@ -531,6 +565,111 @@ export const actions: Actions = {
 			undefined,
 			request
 		);
+
+		return { success: true };
+	},
+
+	uploadPatientFile: async ({ locals, params, request }) => {
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		const patientId = parseInt(params.patientId, 10);
+		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
+
+		const formData = await request.formData();
+		const files = formData.getAll('files') as File[];
+
+		if (!files.length || !files[0].size) {
+			return fail(400, { error: 'No files selected' });
+		}
+
+		const supabase = locals.supabase;
+		const uploadedFilePaths: string[] = [];
+
+		try {
+			for (const file of files) {
+				if (!file.size || !file.name) continue;
+
+				const timestamp = Date.now();
+				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+				const storagePath = `patients/${patientId}/${timestamp}_${safeName}`;
+
+				const { error: uploadError } = await uploadFile(supabase, storagePath, file, {
+					contentType: file.type
+				});
+
+				if (uploadError) {
+					throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+				}
+
+				uploadedFilePaths.push(storagePath);
+
+				const { error: fileDbError } = await supabase.from('files').insert({
+					name: storagePath,
+					size: file.size,
+					mimetype: file.type || null
+				});
+
+				if (fileDbError) {
+					throw new Error(`Failed to save file record: ${fileDbError.message}`);
+				}
+
+				await supabase.from('patients_files').insert({
+					patient_id: patientId,
+					file_name: storagePath
+				});
+			}
+
+			logAudit(
+				supabase,
+				user.id,
+				'upload',
+				'patient_file',
+				String(patientId),
+				{ fileCount: uploadedFilePaths.length },
+				request
+			);
+
+			return { success: true };
+		} catch (err) {
+			// Clean up on failure
+			if (uploadedFilePaths.length > 0) {
+				await supabase.storage.from('files').remove(uploadedFilePaths);
+				for (const fp of uploadedFilePaths) {
+					await supabase.from('files').delete().eq('name', fp);
+					await supabase.from('patients_files').delete().eq('file_name', fp);
+				}
+			}
+			const message = err instanceof Error ? err.message : 'Failed to upload files';
+			return fail(400, { error: message });
+		}
+	},
+
+	removePatientFile: async ({ locals, params, request }) => {
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		const patientId = parseInt(params.patientId, 10);
+		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
+
+		const formData = await request.formData();
+		const fileName = formData.get('file_name') as string;
+		if (!fileName) return fail(400, { error: 'File name is required' });
+
+		const supabase = locals.supabase;
+
+		// Remove the patient-file link
+		const { error: unlinkError } = await supabase
+			.from('patients_files')
+			.delete()
+			.eq('patient_id', patientId)
+			.eq('file_name', fileName);
+
+		if (unlinkError) {
+			return fail(400, { error: unlinkError.message });
+		}
+
+		logAudit(supabase, user.id, 'delete', 'patient_file', String(patientId), { fileName }, request);
 
 		return { success: true };
 	}
