@@ -15,9 +15,10 @@
 		denialId: number;
 		permissions: Record<string, boolean>;
 		patientId: number;
+		searchQuery?: string;
 	}
 
-	let { notes, denialId, permissions, patientId }: Props = $props();
+	let { notes, denialId, permissions, patientId, searchQuery = '' }: Props = $props();
 
 	let showForm = $state(false);
 </script>
@@ -43,7 +44,7 @@
 	{#if notes.length}
 		<div class="space-y-2">
 			{#each notes as note (note.id)}
-				<DenialNote {note} {permissions} {patientId} />
+				<DenialNote {note} {permissions} {patientId} {searchQuery} />
 			{/each}
 		</div>
 	{:else}

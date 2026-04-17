@@ -25,12 +25,22 @@
 		insurances: InsuranceRow[];
 		labels: LabelRow[];
 		aiEnabled?: boolean;
+		searchQuery?: string;
 	}
 
-	let { denial, permissions, patientId, insurances, labels, aiEnabled = false }: Props = $props();
+	let {
+		denial,
+		permissions,
+		patientId,
+		insurances,
+		labels,
+		aiEnabled = false,
+		searchQuery = ''
+	}: Props = $props();
 
 	let editing = $state(false);
 	let selectedInsurance = $state<InsuranceRow | null>(null);
+	let menuOpen = $state(false);
 
 	let billedDisplay = $derived(
 		denial.billed_amount != null ? `$${denial.billed_amount.toFixed(2)}` : '—'
@@ -60,8 +70,24 @@
 						{/if}
 					</span>
 					{#if denial.follow_up_date}
-						<span class="text-warning-600">
-							Follow-up: {formatDate(denial.follow_up_date)}
+						{@const today = new Date()}
+						{@const followUp = new Date(denial.follow_up_date + 'T00:00:00')}
+						{@const isOverdue = followUp < today && !denial.is_closed}
+						{@const diffDays = Math.ceil(
+							(followUp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+						)}
+						<span
+							class={isOverdue
+								? 'font-medium text-red-600'
+								: diffDays <= 7 && !denial.is_closed
+									? 'font-medium text-warning-600'
+									: 'text-warning-600'}
+						>
+							{isOverdue
+								? '⚠ Overdue · '
+								: diffDays <= 7 && !denial.is_closed
+									? '⚠ '
+									: ''}Follow-up: {formatDate(denial.follow_up_date)}
 						</span>
 					{/if}
 				</div>
@@ -121,7 +147,7 @@
 			</div>
 
 			<!-- Action buttons -->
-			<div class="flex flex-wrap gap-2 sm:shrink-0">
+			<div class="flex flex-wrap items-start gap-2 sm:shrink-0">
 				{#if aiEnabled && permissions['generate_summary']}
 					<button
 						type="button"
@@ -131,36 +157,71 @@
 						🤖 Summarize
 					</button>
 				{/if}
-				{#if permissions['update_denial']}
-					<button
-						type="button"
-						class="btn preset-outlined-surface-500 btn-sm"
-						onclick={() => (editing = true)}
-					>
-						Edit
-					</button>
-				{/if}
-				{#if permissions['delete_denial']}
-					<form
-						method="POST"
-						action="?/deleteDenial"
-						use:enhance={() => {
-							return async ({ result }) => {
-								if (result.type === 'success') {
-									toastSuccess('Denial deleted');
-									await invalidateAll();
-								} else if (result.type === 'failure') {
-									toastError((result.data as Record<string, string>)?.error || 'Delete failed');
-								} else if (result.type === 'error') {
-									toastError('Something went wrong');
-								}
-							};
-						}}
-					>
-						<input type="hidden" name="id" value={denial.id} />
-						<input type="hidden" name="patientId" value={patientId} />
-						<button type="submit" class="btn preset-outlined-error-500 btn-sm"> Delete </button>
-					</form>
+				{#if permissions['update_denial'] || permissions['delete_denial']}
+					<div class="relative">
+						<button
+							type="button"
+							class="btn preset-outlined-surface-500 btn-sm px-1.5"
+							title="Actions"
+							onclick={() => (menuOpen = !menuOpen)}
+						>
+							⋮
+						</button>
+						{#if menuOpen}
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<div
+								class="absolute right-0 z-10 mt-1 min-w-32 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
+								onmouseleave={() => (menuOpen = false)}
+							>
+								{#if permissions['update_denial']}
+									<button
+										type="button"
+										class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
+										onclick={() => {
+											editing = true;
+											menuOpen = false;
+										}}
+									>
+										Edit
+									</button>
+								{/if}
+								{#if permissions['delete_denial']}
+									<form
+										method="POST"
+										action="?/deleteDenial"
+										use:enhance={() => {
+											menuOpen = false;
+											return async ({ result }) => {
+												if (result.type === 'success') {
+													toastSuccess('Denial deleted');
+													await invalidateAll();
+												} else if (result.type === 'failure') {
+													toastError(
+														(result.data as Record<string, string>)?.error || 'Delete failed'
+													);
+												} else if (result.type === 'error') {
+													toastError('Something went wrong');
+												}
+											};
+										}}
+									>
+										<input type="hidden" name="id" value={denial.id} />
+										<input type="hidden" name="patientId" value={patientId} />
+										<button
+											type="submit"
+											class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-surface-100"
+											onclick={(e) => {
+												if (!confirm('Delete this denial? This cannot be undone.'))
+													e.preventDefault();
+											}}
+										>
+											Delete
+										</button>
+									</form>
+								{/if}
+							</div>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</div>
@@ -168,7 +229,13 @@
 
 	<!-- Notes section -->
 	<div class="mt-4 border-t border-surface-200 pt-3">
-		<DenialNoteList notes={denial.notes ?? []} denialId={denial.id} {permissions} {patientId} />
+		<DenialNoteList
+			notes={denial.notes ?? []}
+			denialId={denial.id}
+			{permissions}
+			{patientId}
+			{searchQuery}
+		/>
 	</div>
 </div>
 

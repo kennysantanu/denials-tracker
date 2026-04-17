@@ -19,6 +19,33 @@ export function formatDate(
 }
 
 /**
+ * Escape HTML special characters to prevent XSS when rendering raw HTML.
+ */
+function escapeHtml(text: string): string {
+	return text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
+}
+
+/**
+ * Wrap all occurrences of `query` in `text` with a <mark> highlight tag.
+ * Returns an HTML string safe to use with {@html}.
+ */
+export function highlight(text: string | null | undefined, query: string): string {
+	const safe = escapeHtml(text ?? '');
+	const q = query.trim();
+	if (!q) return safe;
+	const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	return safe.replace(
+		new RegExp(`(${escaped})`, 'gi'),
+		'<mark class="bg-yellow-200 rounded-sm not-italic">$1</mark>'
+	);
+}
+
+/**
  * Smooth-scroll to an element by ID.
  */
 export function scrollTo(elementId: string): void {

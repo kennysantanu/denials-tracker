@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import type { Database } from '$lib/supabase';
-import { getPatientById } from '$lib/server/db/patients';
+import { getPatientById, updatePatient } from '$lib/server/db/patients';
 import {
 	getDenialsByPatient,
 	createDenial,
@@ -670,6 +670,35 @@ export const actions: Actions = {
 		}
 
 		logAudit(supabase, user.id, 'delete', 'patient_file', String(patientId), { fileName }, request);
+
+		return { success: true };
+	},
+
+	updatePatientNote: async ({ locals, params, request }) => {
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		const patientId = parseInt(params.patientId, 10);
+		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
+
+		const formData = await request.formData();
+		const note = (formData.get('note') as string)?.trim() || null;
+
+		const { error: updateError } = await updatePatient(locals.supabase, patientId, { note });
+
+		if (updateError) {
+			return fail(400, { error: updateError.message });
+		}
+
+		logAudit(
+			locals.supabase,
+			user.id,
+			'update',
+			'patient',
+			String(patientId),
+			{ field: 'note' },
+			request
+		);
 
 		return { success: true };
 	}

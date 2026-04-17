@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { invalidateAll } from '$app/navigation';
-	import { formatDate } from '$lib/utils';
+	import { formatDate, highlight } from '$lib/utils';
 	import { NoteEditor } from '$lib/components/ui';
 
 	type FileRow = Database['public']['Tables']['files']['Row'];
@@ -17,9 +17,10 @@
 		note: NoteRow;
 		permissions: Record<string, boolean>;
 		patientId: number;
+		searchQuery?: string;
 	}
 
-	let { note, permissions, patientId }: Props = $props();
+	let { note, permissions, patientId, searchQuery = '' }: Props = $props();
 
 	let menuOpen = $state(false);
 	let editing = $state(false);
@@ -103,7 +104,9 @@
 	{:else}
 		<div class="flex items-start justify-between gap-2">
 			<div class="flex-1">
-				<p class="text-sm whitespace-pre-wrap text-surface-800">{note.note}</p>
+				<p class="text-sm whitespace-pre-wrap text-surface-800">
+					{@html highlight(note.note, searchQuery)}
+				</p>
 				{#if attachedFiles.length > 0}
 					<div class="mt-2 flex flex-wrap gap-2">
 						{#each attachedFiles as file (file.name)}
