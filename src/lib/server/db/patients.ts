@@ -65,13 +65,20 @@ export async function getPatientsPaginated(
 	}
 
 	if (search && search.trim()) {
-		const q = search.trim();
-		const isoDate = toIsoDate(q);
-		const parts = [`last_name.ilike.%${q}%`, `first_name.ilike.%${q}%`];
-		if (isoDate) {
-			parts.push(`date_of_birth.eq.${isoDate}`);
+		// Strip characters that have special meaning in PostgREST's or() filter syntax
+		// (comma = clause separator, parens = grouping). Leaving them in breaks the parser.
+		const q = search
+			.trim()
+			.replace(/[,()\s]+/g, ' ')
+			.trim();
+		if (q) {
+			const isoDate = toIsoDate(q);
+			const parts = [`last_name.ilike.%${q}%`, `first_name.ilike.%${q}%`];
+			if (isoDate) {
+				parts.push(`date_of_birth.eq.${isoDate}`);
+			}
+			query = query.or(parts.join(','));
 		}
-		query = query.or(parts.join(','));
 	}
 
 	const secondarySort = sortBy === 'last_name' ? 'first_name' : 'last_name';
