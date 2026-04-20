@@ -7,7 +7,7 @@ services:
         PUBLIC_SUPABASE_ANON_KEY: ${PUBLIC_SUPABASE_ANON_KEY}
         SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
     ports:
-      - '3000:3000'
+      - '${HOST_PORT:-3000}:3000'
     env_file:
       - .env
     environment:
