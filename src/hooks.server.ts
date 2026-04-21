@@ -1,10 +1,30 @@
 import { createServerClient } from '@supabase/ssr';
 import { type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
+import { env } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import type { Database } from '$lib/supabase';
 
+/**
+ * Returns true when the request arrived over HTTPS.
+ *
+ * SvelteKit's adapter-node reads PROTOCOL_HEADER (set to x-forwarded-proto in
+ * docker-compose.yml) and populates event.url.protocol accordingly, so this
+ * works correctly whether the app is behind a TLS-terminating reverse proxy or
+ * accessed directly over plain HTTP (e.g. a LAN/Portainer deployment).
+ *
+ * AUTH_COOKIE_SECURE=true|false can force the value when needed.
+ */
+function isSecureRequest(event: Parameters<Handle>[0]['event']): boolean {
+	const override = env.AUTH_COOKIE_SECURE?.toLowerCase();
+	if (override === 'true') return true;
+	if (override === 'false') return false;
+	return event.url.protocol === 'https:';
+}
+
 const supabaseHandle: Handle = async ({ event, resolve }) => {
+	const secure = isSecureRequest(event);
+
 	event.locals.supabase = createServerClient<Database>(
 		PUBLIC_SUPABASE_URL!,
 		PUBLIC_SUPABASE_ANON_KEY!,
@@ -16,9 +36,7 @@ const supabaseHandle: Handle = async ({ event, resolve }) => {
 						event.cookies.set(name, value, {
 							...options,
 							path: '/',
-							secure: true,
-							httpOnly: true,
-							sameSite: 'strict'
+							secure
 						});
 					});
 				}
@@ -49,6 +67,7 @@ const supabaseHandle: Handle = async ({ event, resolve }) => {
 
 const securityHeadersHandle: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
+	const secure = isSecureRequest(event);
 
 	// HIPAA T-6.4.1: Prevent caching of PHI routes
 	const path = event.url.pathname;
@@ -63,7 +82,14 @@ const securityHeadersHandle: Handle = async ({ event, resolve }) => {
 		response.headers.set('Cache-Control', 'no-store');
 	}
 
-	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+	// Only emit HSTS over HTTPS. Sending it on HTTP causes browsers to
+	// permanently upgrade the host to HTTPS and break plain-HTTP deployments.
+	if (secure) {
+		response.headers.set(
+			'Strict-Transport-Security',
+			'max-age=31536000; includeSubDomains; preload'
+		);
+	}
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
