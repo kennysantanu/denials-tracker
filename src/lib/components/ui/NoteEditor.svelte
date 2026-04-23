@@ -127,6 +127,20 @@
 		filesToRemove = [];
 		showExistingPicker = false;
 	}
+
+	function autoresize(node: HTMLTextAreaElement) {
+		function resize() {
+			node.style.height = 'auto';
+			node.style.height = node.scrollHeight + 'px';
+		}
+		node.addEventListener('input', resize);
+		resize();
+		return {
+			destroy() {
+				node.removeEventListener('input', resize);
+			}
+		};
+	}
 </script>
 
 <!-- Hidden inputs for form submission -->
@@ -152,10 +166,11 @@
 		id="note-editor-{name}"
 		{name}
 		{required}
-		{rows}
+		rows="1"
 		{placeholder}
 		bind:value
-		class="w-full rounded border border-surface-300 px-3 py-2 text-sm placeholder:text-surface-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
+		use:autoresize
+		class="w-full resize-none overflow-hidden rounded border border-surface-300 px-3 py-2 text-sm placeholder:text-surface-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
 	></textarea>
 </div>
 

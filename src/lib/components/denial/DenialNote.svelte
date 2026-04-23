@@ -3,7 +3,8 @@
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { invalidateAll } from '$app/navigation';
-	import { formatDate, highlight } from '$lib/utils';
+	import { formatDate } from '$lib/utils';
+	import { marked } from 'marked';
 	import { NoteEditor } from '$lib/components/ui';
 
 	type FileRow = Database['public']['Tables']['files']['Row'];
@@ -21,6 +22,24 @@
 	}
 
 	let { note, permissions, patientId, searchQuery = '' }: Props = $props();
+
+	function renderNote(text: string, query: string): string {
+		const raw = marked.parse(text);
+		if (typeof raw !== 'string') return '';
+		// Sanitize dangerous URL schemes (SSR-safe XSS prevention)
+		let html = raw.replace(/(href|src)="(javascript:|data:)[^"]*"/gi, '$1="#"');
+		// Apply search highlight, tag-aware to avoid matching inside HTML attributes
+		if (query.trim()) {
+			const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			html = html.replace(
+				new RegExp(`(?![^<]*>)(${escaped})`, 'gi'),
+				'<mark class="bg-yellow-200 rounded-sm not-italic">$1</mark>'
+			);
+		}
+		return html;
+	}
+
+	let renderedNote = $derived(renderNote(note.note, searchQuery));
 
 	let menuOpen = $state(false);
 	let editing = $state(false);
@@ -104,9 +123,9 @@
 	{:else}
 		<div class="flex items-start justify-between gap-2">
 			<div class="flex-1">
-				<p class="text-sm whitespace-pre-wrap text-surface-800">
-					{@html highlight(note.note, searchQuery)}
-				</p>
+				<div class="prose prose-sm max-w-none text-surface-800">
+					{@html renderedNote}
+				</div>
 				{#if attachedFiles.length > 0}
 					<div class="mt-2 flex flex-wrap gap-2">
 						{#each attachedFiles as file (file.name)}

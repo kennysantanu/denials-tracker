@@ -3,6 +3,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { formatDate } from '$lib/utils';
+	import { marked } from 'marked';
 	import DenialCard from '$lib/components/denial/DenialCard.svelte';
 	import {
 		InsuranceCombobox,
@@ -36,6 +37,30 @@
 	let filterServiceDates = $state<string[]>([]);
 
 	let noteEditor = $state<ReturnType<typeof NoteEditor>>();
+	let confirmingFile = $state<string | null>(null);
+
+	function autoresize(node: HTMLTextAreaElement) {
+		function resize() {
+			node.style.height = 'auto';
+			node.style.height = node.scrollHeight + 'px';
+		}
+		node.addEventListener('input', resize);
+		resize();
+		return {
+			destroy() {
+				node.removeEventListener('input', resize);
+			}
+		};
+	}
+
+	function renderPatientNote(text: string): string {
+		const raw = marked.parse(text);
+		if (typeof raw !== 'string') return '';
+		// Sanitize dangerous URL schemes (SSR-safe XSS prevention)
+		return raw.replace(/(href|src)="(javascript:|data:)[^"]*"/gi, '$1="#"');
+	}
+
+	let renderedPatientNote = $derived(data.patient.note ? renderPatientNote(data.patient.note) : '');
 
 	function displayFileName(fileName: string): string {
 		// Path format: patients/{ptid}/{timestamp}_{originalName}
@@ -181,10 +206,11 @@
 					>
 						<textarea
 							name="note"
-							rows="2"
-							class="w-full rounded border border-surface-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+							rows="1"
+							class="w-full resize-none overflow-hidden rounded border border-surface-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
 							placeholder="Patient note…"
 							bind:value={noteText}
+							use:autoresize
 						></textarea>
 						<div class="mt-1.5 flex gap-2">
 							<button
@@ -204,7 +230,7 @@
 					</form>
 				{:else}
 					{#if data.patient.note}
-						<p class="mt-2 text-sm text-surface-600">{data.patient.note}</p>
+						<div class="prose prose-sm mt-2 max-w-none">{@html renderedPatientNote}</div>
 					{/if}
 					{#if data.permissions['manage_patients']}
 						<button
@@ -243,30 +269,43 @@
 								<span class="text-surface-400">{formatBytes(file.size)}</span>
 							{/if}
 							{#if data.permissions['file_delete']}
-								<form
-									method="POST"
-									action="?/removePatientFile"
-									use:enhance={() => {
-										return async ({ result, update }) => {
-											if (result.type === 'success') {
-												toastSuccess('File removed');
-												await update();
-											} else if (result.type === 'failure') {
-												toastError('Error', String(result.data?.error ?? 'Failed to remove'));
-											}
-										};
-									}}
-								>
-									<input type="hidden" name="file_name" value={file.name} />
+								{#if confirmingFile === file.name}
+									<span class="ml-0.5 inline-flex items-center gap-1">
+										<span class="text-surface-500">Remove?</span>
+										<form
+											method="POST"
+											action="?/removePatientFile"
+											use:enhance={() => {
+												return async ({ result, update }) => {
+													confirmingFile = null;
+													if (result.type === 'success') {
+														toastSuccess('File removed');
+														await update();
+													} else if (result.type === 'failure') {
+														toastError('Error', String(result.data?.error ?? 'Failed to remove'));
+													}
+												};
+											}}
+										>
+											<input type="hidden" name="file_name" value={file.name} />
+											<button type="submit" class="font-medium text-red-600 hover:text-red-800"
+												>Yes</button
+											>
+										</form>
+										<button
+											type="button"
+											class="text-surface-500 hover:text-surface-700"
+											onclick={() => (confirmingFile = null)}>No</button
+										>
+									</span>
+								{:else}
 									<button
-										type="submit"
+										type="button"
 										class="ml-0.5 text-surface-400 hover:text-red-600"
 										title="Remove"
-										onclick={(e) => {
-											if (!confirm('Remove this file?')) e.preventDefault();
-										}}>✕</button
+										onclick={() => (confirmingFile = file.name)}>✕</button
 									>
-								</form>
+								{/if}
 							{/if}
 						</span>
 					{/each}
