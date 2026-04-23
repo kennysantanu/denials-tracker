@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { hasPermission } from '$lib/types';
 	import { formatDate } from '$lib/utils';
@@ -53,6 +53,8 @@
 	let editFileInfo = $state(false);
 	let editStatus = $state('New');
 	let editNote = $state('');
+	let confirmDelete = $state(false);
+	let isDeleting = $state(false);
 
 	$effect(() => {
 		editStatus = meta.status ?? 'New';
@@ -87,14 +89,24 @@
 				<form
 					method="POST"
 					action="?/updateFileInfo"
-					use:enhance={() => {
-						return async ({ result, update }) => {
-							if (result.type === 'success') {
+					use:enhance={({ submitter }) => {
+						const deletingNow =
+							submitter?.getAttribute('formaction')?.includes('deleteFile') ?? false;
+						if (deletingNow) isDeleting = true;
+						return async ({ result }) => {
+							if (result.type === 'redirect') {
+								toastSuccess('File deleted');
+								await goto(result.location);
+							} else if (result.type === 'success') {
 								toastSuccess('File info updated');
 								editFileInfo = false;
 								await invalidateAll();
 							} else {
-								toastError('Failed to update file info');
+								toastError(deletingNow ? 'Failed to delete file' : 'Failed to update file info');
+								if (deletingNow) {
+									isDeleting = false;
+									confirmDelete = false;
+								}
 							}
 						};
 					}}
@@ -169,13 +181,35 @@
 									</button>
 								</div>
 								{#if canDelete}
-									<button
-										type="submit"
-										formaction="?/deleteFile"
-										class="rounded-md bg-error-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-error-700"
-									>
-										Delete
-									</button>
+									{#if confirmDelete}
+										<div class="flex items-center gap-2">
+											<span class="text-sm text-error-700">Delete this file permanently?</span>
+											<button
+												type="submit"
+												formaction="?/deleteFile"
+												disabled={isDeleting}
+												class="rounded-md bg-error-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-error-700 disabled:opacity-50"
+											>
+												{isDeleting ? 'Deleting…' : 'Yes, delete'}
+											</button>
+											<button
+												type="button"
+												disabled={isDeleting}
+												class="rounded-md border border-surface-300 px-4 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 disabled:opacity-50"
+												onclick={() => (confirmDelete = false)}
+											>
+												Cancel
+											</button>
+										</div>
+									{:else}
+										<button
+											type="button"
+											class="rounded-md bg-error-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-error-700"
+											onclick={() => (confirmDelete = true)}
+										>
+											Delete
+										</button>
+									{/if}
 								{/if}
 							</div>
 						{:else}
