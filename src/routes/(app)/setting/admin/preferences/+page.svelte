@@ -3,16 +3,26 @@
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { untrack } from 'svelte';
 
+	const DEFAULT_CHAT_PROMPT =
+		'You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.';
+
+	const DEFAULT_REWRITE_PROMPT =
+		'You are a professional medical billing assistant. Rewrite the following note to be clear, concise, and professional. Use proper medical billing terminology where appropriate. Return only the rewritten note text, with no explanations, prefixes, or surrounding quotes.';
+
 	let { data } = $props();
 
 	const initialData = untrack(() => ({
 		aiBaseUrl: data.aiBaseUrl,
 		aiModelName: data.aiModelName,
-		idleTimeoutMinutes: data.idleTimeoutMinutes
+		idleTimeoutMinutes: data.idleTimeoutMinutes,
+		aiChatSystemPrompt: data.aiChatSystemPrompt,
+		aiRewriteSystemPrompt: data.aiRewriteSystemPrompt
 	}));
 	let aiBaseUrl = $state(initialData.aiBaseUrl ?? '');
 	let aiModelName = $state(initialData.aiModelName ?? '');
 	let idleTimeout = $state(initialData.idleTimeoutMinutes ?? 15);
+	let aiChatPrompt = $state(initialData.aiChatSystemPrompt ?? '');
+	let aiRewritePrompt = $state(initialData.aiRewriteSystemPrompt ?? '');
 
 	function handleResult() {
 		return ({ result }: any) => {
@@ -151,6 +161,98 @@
 				{/if}
 			</div>
 		</form>
+
+		<!-- AI System Prompts -->
+		<div class="mt-6 space-y-6 border-t border-surface-200 pt-6">
+			<h4 class="text-base font-semibold text-surface-800">System Prompts</h4>
+			<p class="-mt-4 text-xs text-surface-500">
+				Customize the instructions sent to the AI. Leave blank to use the built-in default.
+			</p>
+
+			<!-- Chat assistant prompt -->
+			<form
+				method="POST"
+				action="?/saveAIChatPrompt"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						handleResult()({ result });
+						await update();
+					};
+				}}
+				class="space-y-2"
+			>
+				<label for="ai_chat_system_prompt" class="block text-sm font-medium text-surface-700">
+					Chat Assistant Prompt
+				</label>
+				<textarea
+					id="ai_chat_system_prompt"
+					name="ai_chat_system_prompt"
+					bind:value={aiChatPrompt}
+					rows="5"
+					placeholder={DEFAULT_CHAT_PROMPT}
+					class="w-full rounded-md border border-surface-300 px-3 py-2 font-mono text-sm placeholder:text-surface-300"
+				></textarea>
+				<div class="flex items-center gap-3">
+					<button
+						type="submit"
+						class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+					>
+						Save
+					</button>
+					{#if aiChatPrompt}
+						<button
+							type="button"
+							class="text-sm text-surface-500 hover:text-surface-800 hover:underline"
+							onclick={() => (aiChatPrompt = '')}
+						>
+							Reset to default
+						</button>
+					{/if}
+				</div>
+			</form>
+
+			<!-- Rewrite prompt -->
+			<form
+				method="POST"
+				action="?/saveAIRewritePrompt"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						handleResult()({ result });
+						await update();
+					};
+				}}
+				class="space-y-2"
+			>
+				<label for="ai_rewrite_system_prompt" class="block text-sm font-medium text-surface-700">
+					Note Rewrite Prompt
+				</label>
+				<textarea
+					id="ai_rewrite_system_prompt"
+					name="ai_rewrite_system_prompt"
+					bind:value={aiRewritePrompt}
+					rows="4"
+					placeholder={DEFAULT_REWRITE_PROMPT}
+					class="w-full rounded-md border border-surface-300 px-3 py-2 font-mono text-sm placeholder:text-surface-300"
+				></textarea>
+				<div class="flex items-center gap-3">
+					<button
+						type="submit"
+						class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+					>
+						Save
+					</button>
+					{#if aiRewritePrompt}
+						<button
+							type="button"
+							class="text-sm text-surface-500 hover:text-surface-800 hover:underline"
+							onclick={() => (aiRewritePrompt = '')}
+						>
+							Reset to default
+						</button>
+					{/if}
+				</div>
+			</form>
+		</div>
 	</div>
 
 	<!-- Other Preferences -->

@@ -4,7 +4,11 @@ import { isAIConfigured } from '$lib/server/ai/client';
 import { callChat } from '$lib/server/ai/chat';
 import { aiToolDefinitions, toolPermissions, type ToolContext } from '$lib/server/ai/tools';
 import { logAudit } from '$lib/server/audit';
-import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
+import { getSystemPreference } from '$lib/server/db/preferences';
+import type {
+	ChatCompletionMessageParam,
+	ChatCompletionTool
+} from 'openai/resources/chat/completions';
 
 // In-memory rate limiting: userId -> { count, resetAt }
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -37,7 +41,7 @@ setInterval(() => {
 	}
 }, 5 * 60_000);
 
-const SYSTEM_PROMPT = `You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.`;
+const DEFAULT_SYSTEM_PROMPT = `You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.`;
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const user = await locals.getUser();
@@ -46,7 +50,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Check if AI is configured
 	const configured = await isAIConfigured(locals.supabase);
 	if (!configured) {
-		error(503, 'AI is not configured. An administrator must set the AI Base URL and Model Name in Settings > Admin > Preferences.');
+		error(
+			503,
+			'AI is not configured. An administrator must set the AI Base URL and Model Name in Settings > Admin > Preferences.'
+		);
 	}
 
 	// Rate limiting
@@ -96,8 +103,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	};
 
 	// Prepend system message
+	const promptResult = await getSystemPreference(locals.supabase, 'ai_chat_system_prompt');
+	const systemPrompt = promptResult.data?.value?.trim() || DEFAULT_SYSTEM_PROMPT;
+
 	const fullMessages: ChatCompletionMessageParam[] = [
-		{ role: 'system', content: SYSTEM_PROMPT },
+		{ role: 'system', content: systemPrompt },
 		...messages
 	];
 
@@ -107,25 +117,47 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const durationMs = Date.now() - startTime;
 
 		// Log to audit_log
-		logAudit(locals.supabase, user.id, 'ai_chat', 'ai_interaction', null, {
-			messageCount: messages.length,
-			toolCalls: result.toolCalls?.map((t) => t.name) ?? [],
-			context: contextData
-		}, request);
+		logAudit(
+			locals.supabase,
+			user.id,
+			'ai_chat',
+			'ai_interaction',
+			null,
+			{
+				messageCount: messages.length,
+				toolCalls: result.toolCalls?.map((t) => t.name) ?? [],
+				context: contextData
+			},
+			request
+		);
 
 		// Log to ai_interactions table
 		const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
-		locals.supabase.from('ai_interactions').insert({
-			user_id: user.id,
-			denial_id: contextData.denialId ?? null,
-			interaction_type: result.toolCalls?.length ? result.toolCalls[0].name.includes('summary') ? 'summary_tool' : result.toolCalls[0].name.includes('appeal') ? 'appeal_tool' : result.toolCalls[0].name.includes('query') ? 'query_tool' : 'chat' : 'chat',
-			tool_name: result.toolCalls?.[0]?.name ?? null,
-			prompt_summary: typeof lastUserMessage?.content === 'string' ? lastUserMessage.content.slice(0, 500) : null,
-			response_summary: result.content.slice(0, 500) || null,
-			model_used: null,
-			tokens_used: null,
-			duration_ms: durationMs
-		}).then(() => {});
+		locals.supabase
+			.from('ai_interactions')
+			.insert({
+				user_id: user.id,
+				denial_id: contextData.denialId ?? null,
+				interaction_type: result.toolCalls?.length
+					? result.toolCalls[0].name.includes('summary')
+						? 'summary_tool'
+						: result.toolCalls[0].name.includes('appeal')
+							? 'appeal_tool'
+							: result.toolCalls[0].name.includes('query')
+								? 'query_tool'
+								: 'chat'
+					: 'chat',
+				tool_name: result.toolCalls?.[0]?.name ?? null,
+				prompt_summary:
+					typeof lastUserMessage?.content === 'string'
+						? lastUserMessage.content.slice(0, 500)
+						: null,
+				response_summary: result.content.slice(0, 500) || null,
+				model_used: null,
+				tokens_used: null,
+				duration_ms: durationMs
+			})
+			.then(() => {});
 
 		return json({
 			content: result.content,

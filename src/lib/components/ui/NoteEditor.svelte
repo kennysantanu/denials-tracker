@@ -2,6 +2,8 @@
 	import type { Database } from '$lib/supabase';
 	import type { DateStatus } from '$lib/server/db/files';
 	import FilesCalendar from '$lib/components/FilesCalendar.svelte';
+	import { isAIAvailable } from '$lib/stores/aiConfig';
+	import { onMount } from 'svelte';
 
 	type FileRow = Database['public']['Tables']['files']['Row'];
 
@@ -121,11 +123,69 @@
 		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 	}
 
+	// AI rewrite state
+	let aiAvailable = $state(false);
+	let rewriting = $state(false);
+	let preRewriteText = $state<string | null>(null);
+	let rewrittenText = $state<string | null>(null);
+
+	// Clear undo once the user edits after a rewrite
+	$effect(() => {
+		if (rewrittenText !== null && value !== rewrittenText) {
+			preRewriteText = null;
+			rewrittenText = null;
+		}
+	});
+
+	onMount(async () => {
+		aiAvailable = await isAIAvailable();
+	});
+
+	async function rewriteNote() {
+		if (!value.trim()) return;
+		rewriting = true;
+		try {
+			const res = await fetch('/api/v1/ai/rewrite', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text: value })
+			});
+			if (!res.ok) {
+				const data = await res.json().catch(() => ({}));
+				throw new Error(data.message || `Error ${res.status}`);
+			}
+			const data = await res.json();
+			preRewriteText = value;
+			rewrittenText = data.rewritten;
+			value = data.rewritten;
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : 'AI rewrite failed';
+			// Surface error inline without importing toast (keep NoteEditor dependency-light)
+			rewriteError = msg;
+			setTimeout(() => (rewriteError = ''), 5000);
+		} finally {
+			rewriting = false;
+		}
+	}
+
+	let rewriteError = $state('');
+
+	function undoRewrite() {
+		if (preRewriteText !== null) {
+			value = preRewriteText;
+			preRewriteText = null;
+			rewrittenText = null;
+		}
+	}
+
 	/** Call this from the parent after a successful form submission to reset internal state */
 	export function reset() {
 		selectedExistingFiles = [];
 		filesToRemove = [];
 		showExistingPicker = false;
+		preRewriteText = null;
+		rewrittenText = null;
+		rewriteError = '';
 	}
 
 	function autoresize(node: HTMLTextAreaElement) {
@@ -159,9 +219,46 @@
 
 <!-- Textarea -->
 <div>
-	<label for="note-editor-{name}" class="mb-1 block text-sm font-medium">
-		Note {#if required}<span class="text-red-500">*</span>{/if}
-	</label>
+	<div class="mb-1 flex items-center justify-between">
+		<label for="note-editor-{name}" class="block text-sm font-medium">
+			Note {#if required}<span class="text-red-500">*</span>{/if}
+		</label>
+		{#if aiAvailable}
+			<button
+				type="button"
+				class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors
+					{rewriting || !value.trim()
+					? 'cursor-not-allowed text-surface-300'
+					: 'text-primary-600 hover:bg-primary-50 hover:text-primary-800'}"
+				disabled={rewriting || !value.trim()}
+				onclick={rewriteNote}
+				aria-label="Rewrite note with AI"
+			>
+				{#if rewriting}
+					<svg class="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
+						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+						></circle>
+						<path
+							class="opacity-75"
+							fill="currentColor"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+						></path>
+					</svg>
+					Rewriting…
+				{:else}
+					<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+						/>
+					</svg>
+					Rewrite
+				{/if}
+			</button>
+		{/if}
+	</div>
 	<textarea
 		id="note-editor-{name}"
 		{name}
@@ -169,9 +266,22 @@
 		rows="1"
 		{placeholder}
 		bind:value
+		disabled={rewriting}
 		use:autoresize
-		class="w-full resize-none overflow-hidden rounded border border-surface-300 px-3 py-2 text-sm placeholder:text-surface-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
+		class="w-full resize-none overflow-hidden rounded border border-surface-300 px-3 py-2 text-sm placeholder:text-surface-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none disabled:bg-surface-50 disabled:text-surface-400"
 	></textarea>
+	{#if rewriteError}
+		<p class="mt-1 text-xs text-red-600">{rewriteError}</p>
+	{/if}
+	{#if preRewriteText !== null}
+		<button
+			type="button"
+			class="mt-1 text-xs text-surface-500 hover:text-surface-800 hover:underline"
+			onclick={undoRewrite}
+		>
+			↩ Undo rewrite
+		</button>
+	{/if}
 </div>
 
 <!-- Already-attached files (edit mode) -->
