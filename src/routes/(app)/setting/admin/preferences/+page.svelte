@@ -116,7 +116,9 @@
 					class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
 				/>
 				<p class="mt-1 text-xs text-surface-500">
-					OpenAI-compatible API endpoint (e.g. http://localhost:1234/v1 for LM Studio)
+					Full OpenAI-compatible base URL including path prefix — e.g.
+					<code>http://localhost:1234/v1</code> (LM Studio),
+					<code>http://localhost:11434/v1</code> (Ollama). Trailing slash is optional.
 				</p>
 			</div>
 			<div>

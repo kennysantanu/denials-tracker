@@ -26,10 +26,14 @@ export async function getOpenAIClient(
 		supabase.from('preferences').select('value').eq('name', 'ai_model_name').single()
 	]);
 
-	const baseURL = baseUrlResult.data?.value;
+	const rawBaseURL = baseUrlResult.data?.value;
 	const model = modelResult.data?.value;
 
-	if (!baseURL || !model) return null;
+	if (!rawBaseURL || !model) return null;
+
+	// Strip trailing slashes; the admin must enter the full base URL
+	// including any path prefix (e.g. http://host:1234/v1)
+	const baseURL = rawBaseURL.replace(/\/+$/, '');
 
 	const client = new OpenAI({
 		baseURL,

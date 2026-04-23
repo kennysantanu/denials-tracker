@@ -8,6 +8,8 @@ import { getOpenAIClient } from './client';
 import { executeToolCall, type ToolContext } from './tools';
 
 const MAX_TOOL_ROUNDS = 5;
+const NO_RESPONSE_ERROR =
+	'No response from AI model — check that your AI Base URL and Model Name are correct in Settings → Admin → Preferences';
 
 export interface ChatResult {
 	content: string;
@@ -33,15 +35,26 @@ export async function callChat(
 	// Working copy of messages for the conversation loop
 	const conversationMessages: ChatCompletionMessageParam[] = [...messages];
 
+	// Detect tool-calling support on first round: retry without tools if model returns empty choices
+	let toolsSupported = true;
+
 	for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+		const useTools = toolsSupported && tools.length > 0;
 		const response = await client.chat.completions.create({
 			model,
 			messages: conversationMessages,
-			tools: tools.length > 0 ? tools : undefined
+			tools: useTools ? tools : undefined
 		});
 
-		const choice = response.choices[0];
-		if (!choice) throw new Error('No response from AI model');
+		// Some OpenAI-compatible servers (Ollama, LM Studio, etc.) return empty choices
+		// when the model doesn't support tool calling. Fall back to no-tools on first round.
+		if (!response.choices?.length && round === 0 && useTools) {
+			toolsSupported = false;
+			continue;
+		}
+
+		const choice = response.choices?.[0];
+		if (!choice) throw new Error(NO_RESPONSE_ERROR);
 
 		const message = choice.message;
 
@@ -59,7 +72,11 @@ export async function callChat(
 		// Process each tool call
 		for (const toolCall of message.tool_calls) {
 			if (toolCall.type !== 'function') continue;
-			const fnCall = toolCall as { id: string; type: 'function'; function: { name: string; arguments: string } };
+			const fnCall = toolCall as {
+				id: string;
+				type: 'function';
+				function: { name: string; arguments: string };
+			};
 			const args = JSON.parse(fnCall.function.arguments);
 			const result = await executeToolCall(toolContext, fnCall.function.name, args);
 
@@ -83,8 +100,11 @@ export async function callChat(
 		messages: conversationMessages
 	});
 
+	const finalChoice = finalResponse.choices?.[0];
+	if (!finalChoice) throw new Error(NO_RESPONSE_ERROR);
+
 	return {
-		content: finalResponse.choices[0]?.message?.content ?? '',
+		content: finalChoice.message?.content ?? '',
 		toolCalls: toolLog.length > 0 ? toolLog : undefined
 	};
 }
