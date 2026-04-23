@@ -48,7 +48,7 @@
 			params.set('sortBy', String(merged.sortBy));
 			params.set('sortDir', String(merged.sortDir));
 		}
-		if (merged.pageSize !== 25) params.set('pageSize', String(merged.pageSize));
+		if (merged.pageSize !== 10) params.set('pageSize', String(merged.pageSize));
 		if (merged.page > 1) params.set('page', String(merged.page));
 		const qs = params.toString();
 		return `/record${qs ? `?${qs}` : ''}`;

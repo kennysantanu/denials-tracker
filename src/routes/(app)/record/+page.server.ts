@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ locals, request, url }) => {
 	const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
 	const pageSize = Math.min(
 		100,
-		Math.max(10, parseInt(url.searchParams.get('pageSize') ?? '25', 10) || 25)
+		Math.max(10, parseInt(url.searchParams.get('pageSize') ?? '10', 10) || 10)
 	);
 	const search = url.searchParams.get('search') ?? '';
 	const sortByParam = url.searchParams.get('sortBy') ?? 'last_name';
