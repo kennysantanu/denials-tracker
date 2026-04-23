@@ -94,8 +94,8 @@ const securityHeadersHandle: Handle = async ({ event, resolve }) => {
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
-	// Allow iframes for file preview page (PDF viewer), deny everywhere else
-	if (path.startsWith('/file/view')) {
+	// Allow iframes for file pages (PDF viewer in full view + preview dialog), deny everywhere else
+	if (path.startsWith('/file')) {
 		response.headers.set('X-Frame-Options', 'SAMEORIGIN');
 		response.headers.set('Content-Security-Policy', `frame-src 'self' ${PUBLIC_SUPABASE_URL};`);
 	} else {
