@@ -1,17 +1,54 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { goto } from '$app/navigation';
 	import { formatDate } from '$lib/utils';
 	import FilesCalendar from '$lib/components/FilesCalendar.svelte';
 
 	let { data } = $props();
 
-	function formatBytes(bytes: number): string {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+	type SortKey = 'name' | 'type' | 'uploaded' | 'status';
+	let sortKey = $state<SortKey>('name');
+	let sortAsc = $state(true);
+
+	function formatTime(iso: string | null): string {
+		if (!iso) return '—';
+		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
+
+	function getType(name: string): string {
+		const ext = name.split('.').pop();
+		return ext ? ext.toUpperCase() : '—';
+	}
+
+	function toggleSort(key: SortKey) {
+		if (sortKey === key) {
+			sortAsc = !sortAsc;
+		} else {
+			sortKey = key;
+			sortAsc = true;
+		}
+	}
+
+	const sortedFiles = $derived(() => {
+		return [...data.files].sort((a, b) => {
+			let aVal = '';
+			let bVal = '';
+			if (sortKey === 'name') {
+				aVal = a.name;
+				bVal = b.name;
+			} else if (sortKey === 'type') {
+				aVal = getType(a.name);
+				bVal = getType(b.name);
+			} else if (sortKey === 'uploaded') {
+				aVal = a.created_at ?? '';
+				bVal = b.created_at ?? '';
+			} else if (sortKey === 'status') {
+				aVal = ((a.metadata as Record<string, unknown> | null)?.status as string) ?? 'New';
+				bVal = ((b.metadata as Record<string, unknown> | null)?.status as string) ?? 'New';
+			}
+			const cmp = aVal.localeCompare(bVal);
+			return sortAsc ? cmp : -cmp;
+		});
+	});
 
 	function handleDateSelect(date: string) {
 		goto(`/file?date=${date}`);
@@ -62,13 +99,25 @@
 					<table class="w-full text-left text-sm">
 						<thead class="border-b border-surface-200 bg-surface-50">
 							<tr>
-								<th class="px-4 py-3 font-medium text-surface-700">Name</th>
-								<th class="px-4 py-3 font-medium text-surface-700">Size</th>
-								<th class="px-4 py-3 font-medium text-surface-700">Status</th>
+								{#each [['name', 'Name'], ['type', 'Type'], ['uploaded', 'Uploaded'], ['status', 'Status']] as [SortKey, string][] as [key, label]}
+									<th class="px-4 py-3 font-medium text-surface-700">
+										<button
+											class="inline-flex items-center gap-1 hover:text-surface-900"
+											onclick={() => toggleSort(key)}
+										>
+											{label}
+											{#if sortKey === key}
+												<span class="text-xs">{sortAsc ? '↑' : '↓'}</span>
+											{:else}
+												<span class="text-xs text-surface-400">↕</span>
+											{/if}
+										</button>
+									</th>
+								{/each}
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-surface-100">
-							{#each data.files as file (file.name)}
+							{#each sortedFiles() as file (file.name)}
 								{@const status =
 									((file.metadata as Record<string, unknown> | null)?.status as string) ?? 'New'}
 								<tr class="hover:bg-surface-50">
@@ -81,12 +130,15 @@
 										</a>
 									</td>
 									<td class="px-4 py-3 text-surface-600">
-										{formatBytes(file.size ?? 0)}
+										{getType(file.name)}
+									</td>
+									<td class="px-4 py-3 text-surface-600">
+										{formatTime(file.created_at)}
 									</td>
 									<td class="px-4 py-3">
 										<span
 											class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-											{status === 'New'
+{status === 'New'
 												? 'bg-red-100 text-red-800'
 												: status === 'In Progress'
 													? 'bg-amber-100 text-amber-800'
