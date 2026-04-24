@@ -88,6 +88,7 @@
 		<form
 			method="POST"
 			action="?/updateNote"
+			enctype="multipart/form-data"
 			class="space-y-3"
 			use:enhance={() => {
 				return async ({ result, update }) => {
@@ -106,13 +107,8 @@
 			}}
 		>
 			<input type="hidden" name="id" value={note.id} />
-			<NoteEditor
-				bind:this={noteEditor}
-				bind:value={editText}
-				required
-				{attachedFiles}
-				showUpload={false}
-			/>
+			<input type="hidden" name="patient_id" value={patientId} />
+			<NoteEditor bind:this={noteEditor} bind:value={editText} required {attachedFiles} />
 			<div class="flex gap-2">
 				<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
 				<button type="button" class="btn preset-outlined-surface-500 btn-sm" onclick={cancelEdit}>

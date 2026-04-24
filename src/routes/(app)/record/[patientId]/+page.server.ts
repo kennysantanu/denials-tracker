@@ -496,9 +496,15 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const noteId = parseInt(formData.get('id') as string, 10);
+		const patientId = parseInt(formData.get('patient_id') as string, 10);
 		const noteText = (formData.get('note') as string)?.trim();
+		const newFiles = formData.getAll('files') as File[];
 		const addFiles = formData
 			.getAll('add_files')
+			.map((v) => v.toString())
+			.filter(Boolean);
+		const existingFiles = formData
+			.getAll('existing_files')
 			.map((v) => v.toString())
 			.filter(Boolean);
 		const removeFiles = formData
@@ -510,32 +516,97 @@ export const actions: Actions = {
 		if (!noteText) return fail(400, { error: 'Note text is required' });
 
 		const supabase = locals.supabase;
+		const uploadedFilePaths: string[] = [];
 
-		const { error: updateError } = await updateNote(supabase, noteId, {
-			note: noteText,
-			modified_by: user.id
-		});
+		try {
+			const { error: updateError } = await updateNote(supabase, noteId, {
+				note: noteText,
+				modified_by: user.id
+			});
 
-		if (updateError) {
-			return fail(400, { error: updateError.message });
-		}
-
-		// Remove file associations
-		if (removeFiles.length > 0) {
-			for (const fileName of removeFiles) {
-				await supabase.from('notes_files').delete().eq('note_id', noteId).eq('file_name', fileName);
+			if (updateError) {
+				return fail(400, { error: updateError.message });
 			}
+
+			// Upload new files to storage
+			for (const file of newFiles) {
+				if (!file.size || !file.name) continue;
+
+				const timestamp = Date.now();
+				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+				const storagePath = isNaN(patientId)
+					? `notes/${timestamp}_${safeName}`
+					: `${patientId}/${timestamp}_${safeName}`;
+
+				const { error: uploadError } = await uploadFile(supabase, storagePath, file, {
+					contentType: file.type
+				});
+
+				if (uploadError) {
+					throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+				}
+
+				uploadedFilePaths.push(storagePath);
+
+				const { error: fileDbError } = await supabase.from('files').insert({
+					name: storagePath,
+					size: file.size,
+					mimetype: file.type || null
+				});
+
+				if (fileDbError) {
+					throw new Error(`Failed to save file record: ${fileDbError.message}`);
+				}
+
+				if (!isNaN(patientId)) {
+					await supabase.from('patients_files').insert({
+						patient_id: patientId,
+						file_name: storagePath
+					});
+				}
+
+				await supabase.from('notes_files').insert({
+					note_id: noteId,
+					file_name: storagePath
+				});
+			}
+
+			// Remove file associations
+			if (removeFiles.length > 0) {
+				for (const fileName of removeFiles) {
+					await supabase
+						.from('notes_files')
+						.delete()
+						.eq('note_id', noteId)
+						.eq('file_name', fileName);
+				}
+			}
+
+			// Associate existing files (add_files from edit mode, existing_files from notes with no prior attachments)
+			const filesToAssociate = [...addFiles, ...existingFiles];
+			if (filesToAssociate.length > 0) {
+				const rows = filesToAssociate.map((fileName) => ({ note_id: noteId, file_name: fileName }));
+				await supabase.from('notes_files').upsert(rows, { onConflict: 'note_id,file_name' });
+			}
+
+			logAudit(locals.supabase, user.id, 'update', 'note', String(noteId), undefined, request);
+
+			return { success: true };
+		} catch (err) {
+			// Clean up uploaded files on failure
+			if (uploadedFilePaths.length > 0) {
+				await supabase.storage.from('files').remove(uploadedFilePaths);
+				for (const fp of uploadedFilePaths) {
+					await supabase.from('files').delete().eq('name', fp);
+					if (!isNaN(patientId)) {
+						await supabase.from('patients_files').delete().eq('file_name', fp);
+					}
+				}
+			}
+
+			const message = err instanceof Error ? err.message : 'Failed to update note';
+			return fail(400, { error: message });
 		}
-
-		// Add new file associations
-		if (addFiles.length > 0) {
-			const rows = addFiles.map((fileName) => ({ note_id: noteId, file_name: fileName }));
-			await supabase.from('notes_files').upsert(rows, { onConflict: 'note_id,file_name' });
-		}
-
-		logAudit(locals.supabase, user.id, 'update', 'note', String(noteId), undefined, request);
-
-		return { success: true };
 	},
 
 	updateInsuranceNote: async ({ locals, request }) => {
