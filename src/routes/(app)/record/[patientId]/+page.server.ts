@@ -772,5 +772,96 @@ export const actions: Actions = {
 		);
 
 		return { success: true };
+	},
+
+	copyDenial: async ({ locals, params, request }) => {
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		const patientId = parseInt(params.patientId, 10);
+		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
+
+		const formData = await request.formData();
+
+		const sourceDenialId = parseInt(formData.get('source_denial_id') as string, 10);
+		if (isNaN(sourceDenialId)) return fail(400, { error: 'Invalid source denial ID' });
+
+		const serviceStartDate = formData.get('service_start_date') as string;
+		if (!serviceStartDate) return fail(400, { error: 'Service start date is required' });
+
+		const serviceEndDate = (formData.get('service_end_date') as string) || null;
+		const billedAmount = formData.get('billed_amount')
+			? parseFloat(formData.get('billed_amount') as string)
+			: null;
+		const paidAmount = formData.get('paid_amount')
+			? parseFloat(formData.get('paid_amount') as string)
+			: null;
+		const followUpDate = (formData.get('follow_up_date') as string) || null;
+
+		const insuranceIds = formData
+			.getAll('insurance_ids')
+			.map(Number)
+			.filter((n) => !isNaN(n));
+		const labelIds = formData
+			.getAll('label_ids')
+			.map(Number)
+			.filter((n) => !isNaN(n));
+		const copyNoteIds = formData
+			.getAll('copy_note_ids')
+			.map(Number)
+			.filter((n) => !isNaN(n));
+
+		const supabase = locals.supabase;
+
+		// Create the new denial
+		const { data: newDenial, error: createError } = await createDenial(
+			supabase,
+			{
+				patient_id: patientId,
+				service_start_date: serviceStartDate,
+				service_end_date: serviceEndDate,
+				billed_amount: billedAmount,
+				paid_amount: paidAmount,
+				follow_up_date: followUpDate,
+				is_closed: false
+			},
+			insuranceIds.length ? insuranceIds : undefined,
+			labelIds.length ? labelIds : undefined
+		);
+
+		if (createError || !newDenial) {
+			return fail(400, { error: createError?.message ?? 'Failed to create denial' });
+		}
+
+		// Copy selected notes (re-fetched server-side to prevent client tampering)
+		if (copyNoteIds.length > 0) {
+			const { data: sourceNotes } = await supabase
+				.from('notes')
+				.select('id, note')
+				.eq('denial_id', sourceDenialId)
+				.in('id', copyNoteIds);
+
+			if (sourceNotes?.length) {
+				for (const sourceNote of sourceNotes) {
+					await createNote(supabase, {
+						denial_id: newDenial.id,
+						note: sourceNote.note,
+						created_by: user.id
+					});
+				}
+			}
+		}
+
+		logAudit(
+			supabase,
+			user.id,
+			'create',
+			'denial',
+			String(newDenial.id),
+			{ copied_from: sourceDenialId },
+			request
+		);
+
+		return { success: true };
 	}
 };

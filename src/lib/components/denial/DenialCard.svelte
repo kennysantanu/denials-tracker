@@ -5,6 +5,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { formatDate } from '$lib/utils';
 	import DenialEditForm from './DenialEditForm.svelte';
+	import DenialCopyModal from './DenialCopyModal.svelte';
 	import DenialNoteList from './DenialNoteList.svelte';
 	import { InsuranceNoteModal } from '$lib/components/modals';
 	import { openChatDrawer, updateChatContext } from '$lib/stores/chatContext.svelte';
@@ -39,6 +40,7 @@
 	}: Props = $props();
 
 	let editing = $state(false);
+	let copying = $state(false);
 	let selectedInsurance = $state<InsuranceRow | null>(null);
 	let menuOpen = $state(false);
 
@@ -157,7 +159,7 @@
 						🤖 Summarize
 					</button>
 				{/if}
-				{#if permissions['update_denial'] || permissions['delete_denial']}
+				{#if permissions['update_denial'] || permissions['delete_denial'] || permissions['create_denial']}
 					<div class="relative">
 						<button
 							type="button"
@@ -183,6 +185,18 @@
 										}}
 									>
 										Edit
+									</button>
+								{/if}
+								{#if permissions['create_denial']}
+									<button
+										type="button"
+										class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
+										onclick={() => {
+											copying = true;
+											menuOpen = false;
+										}}
+									>
+										Copy
 									</button>
 								{/if}
 								{#if permissions['delete_denial']}
@@ -245,4 +259,8 @@
 		canEdit={!!permissions['manage_insurances']}
 		onclose={() => (selectedInsurance = null)}
 	/>
+{/if}
+
+{#if copying}
+	<DenialCopyModal {denial} {insurances} {labels} {patientId} onclose={() => (copying = false)} />
 {/if}

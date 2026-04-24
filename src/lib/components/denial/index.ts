@@ -1,4 +1,5 @@
 export { default as DenialCard } from './DenialCard.svelte';
+export { default as DenialCopyModal } from './DenialCopyModal.svelte';
 export { default as DenialEditForm } from './DenialEditForm.svelte';
 export { default as DenialNoteList } from './DenialNoteList.svelte';
 export { default as DenialNote } from './DenialNote.svelte';
