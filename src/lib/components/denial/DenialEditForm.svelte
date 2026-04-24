@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Database } from '$lib/supabase';
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -22,6 +23,13 @@
 
 	let currentInsuranceIds = $derived(denial.insurances?.map((i) => i.id) ?? []);
 	let currentLabelIds = $derived(denial.labels?.map((l) => l.id) ?? []);
+	let followUpDate = $state(untrack(() => toInputDate(denial.follow_up_date)));
+
+	function dateFromToday(days: number): string {
+		const d = new Date();
+		d.setDate(d.getDate() + days);
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	}
 
 	function toInputDate(dateStr: string | null): string {
 		if (!dateStr) return '';
@@ -112,15 +120,24 @@
 		</label>
 
 		<!-- Follow-up date -->
-		<label class="label">
+		<div class="label">
 			<span class="label-text text-sm font-medium">Follow-up Date</span>
-			<input
-				type="date"
-				name="follow_up_date"
-				class="input"
-				value={toInputDate(denial.follow_up_date)}
-			/>
-		</label>
+			<input type="date" name="follow_up_date" class="input" bind:value={followUpDate} />
+			<div class="mt-1.5 flex flex-wrap gap-1">
+				{#each [{ label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
+					<button
+						type="button"
+						onclick={() => (followUpDate = dateFromToday(preset.days))}
+						class="rounded-full border border-surface-300 px-2.5 py-0.5 text-xs font-medium text-surface-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 {followUpDate ===
+						dateFromToday(preset.days)
+							? 'border-primary-500 bg-primary-50 text-primary-700'
+							: ''}"
+					>
+						{preset.label}
+					</button>
+				{/each}
+			</div>
+		</div>
 
 		<!-- Is closed -->
 		<label class="flex items-center gap-2 self-end py-2">

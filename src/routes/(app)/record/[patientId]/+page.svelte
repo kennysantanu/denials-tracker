@@ -24,6 +24,13 @@
 
 	let showClosed = $state(false);
 	let showNewDenialModal = $state(false);
+	let newDenialFollowUpDate = $state('');
+
+	function dateFromToday(days: number): string {
+		const d = new Date();
+		d.setDate(d.getDate() + days);
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	}
 	let uploading = $state(false);
 	let fileInput = $state<HTMLInputElement>();
 	let editingNote = $state(false);
@@ -425,7 +432,10 @@
 				<button
 					type="button"
 					class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-					onclick={() => (showNewDenialModal = true)}
+					onclick={() => {
+						showNewDenialModal = true;
+						newDenialFollowUpDate = '';
+					}}
 				>
 					+ New Denial
 				</button>
@@ -608,8 +618,33 @@
 								type="date"
 								id="modal_follow_up_date"
 								name="follow_up_date"
+								bind:value={newDenialFollowUpDate}
 								class="w-full rounded border border-surface-300 px-3 py-2"
 							/>
+							<div class="mt-1.5 flex flex-wrap gap-1">
+								{#each [{ label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
+									<button
+										type="button"
+										onclick={() => (newDenialFollowUpDate = dateFromToday(preset.days))}
+										class="rounded-full border border-surface-300 px-2.5 py-0.5 text-xs font-medium text-surface-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 {newDenialFollowUpDate ===
+										dateFromToday(preset.days)
+											? 'border-primary-500 bg-primary-50 text-primary-700'
+											: ''}"
+									>
+										{preset.label}
+									</button>
+								{/each}
+							</div>
+						</div>
+						<div class="flex items-center gap-2 self-end py-2">
+							<input
+								type="checkbox"
+								id="modal_is_closed"
+								name="is_closed"
+								value="true"
+								class="rounded border-surface-300"
+							/>
+							<label for="modal_is_closed" class="text-sm font-medium">Closed</label>
 						</div>
 					</div>
 
