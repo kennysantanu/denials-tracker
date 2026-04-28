@@ -1,11 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import {
-	getDashboardStats,
-	getRecentActivity,
-	getFollowUpsDueThisWeek,
-	getDenialsByLabel
-} from '$lib/server/db/dashboard';
+import { getOpenFollowUps, getNoFollowUpDenials, groupFollowUps } from '$lib/server/db/followups';
+import type { FollowUpDenial } from '$lib/server/db/followups';
 import { logAudit } from '$lib/server/audit';
 
 export const load: PageServerLoad = async ({ locals, parent, request }) => {
@@ -17,36 +13,33 @@ export const load: PageServerLoad = async ({ locals, parent, request }) => {
 	const { permissions } = await parent();
 	const supabase = locals.supabase;
 
-	const [statsResult, activityResult, followUpsResult, labelResult] = await Promise.all([
-		getDashboardStats(supabase),
-		getRecentActivity(supabase, 10),
-		getFollowUpsDueThisWeek(supabase),
-		getDenialsByLabel(supabase)
+	const [followUpsResult, noDateResult] = await Promise.all([
+		getOpenFollowUps(supabase),
+		getNoFollowUpDenials(supabase)
 	]);
 
-	const canViewReports = !!permissions['view_reports'];
 	const canCreateDenial = !!permissions['create_denial'];
 	const canManagePatients = !!permissions['manage_patients'];
 
-	// Gate financial stats behind view_reports permission
-	const stats = statsResult.data
-		? {
-				totalOpen: statsResult.data.totalOpen,
-				totalBilled: canViewReports ? statsResult.data.totalBilled : null,
-				totalPaid: canViewReports ? statsResult.data.totalPaid : null,
-				recoveryRate: canViewReports ? statsResult.data.recoveryRate : null
-			}
-		: { totalOpen: 0, totalBilled: null, totalPaid: null, recoveryRate: null };
+	const grouped = groupFollowUps((followUpsResult.data ?? []) as unknown as FollowUpDenial[]);
+	grouped.noDate = (noDateResult.data ?? []) as unknown as FollowUpDenial[];
 
 	// Log PHI access
 	logAudit(supabase, user.id, 'view', 'dashboard', null, undefined, request);
 
 	return {
-		stats,
-		recentActivity: activityResult.data ?? [],
-		followUps: followUpsResult.data ?? [],
-		denialsByLabel: labelResult.data ?? [],
-		canViewReports,
+		grouped,
+		counts: {
+			overdue: grouped.overdue.length,
+			thisWeek: grouped.thisWeek.length,
+			upcoming: grouped.upcoming.length,
+			noDate: grouped.noDate.length,
+			total:
+				grouped.overdue.length +
+				grouped.thisWeek.length +
+				grouped.upcoming.length +
+				grouped.noDate.length
+		},
 		canCreateDenial,
 		canManagePatients
 	};
