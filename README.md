@@ -95,6 +95,73 @@ npm run test        # Both
 
 ---
 
+## Deployment
+
+Two scenarios are supported, both driven by the same `.env` file:
+
+### 1. App only (existing Supabase project — cloud or self-hosted)
+
+```sh
+./install.sh           # or ./install.ps1 on Windows
+# Choose option [1] App only and paste in your Supabase URL / keys / DB URL.
+```
+
+Or manually:
+
+```sh
+cp .env.example .env   # then edit PUBLIC_SUPABASE_URL, keys, DATABASE_URL, ORIGIN
+docker compose up -d
+```
+
+The `migrate` sidecar applies every file in `supabase/migrations/` against
+`DATABASE_URL` in timestamp order. It tracks applied files in
+`public._app_migrations`, so re-runs are no-ops and new migrations apply
+cleanly with `docker compose run --rm migrate`.
+
+### 2. App + bundled self-hosted Supabase (single host)
+
+```sh
+./install.sh           # or ./install.ps1 on Windows
+# Choose option [2] App + Supabase. Secrets and JWTs are generated for you.
+```
+
+Or manually:
+
+```sh
+cp .env.example .env   # then fill in POSTGRES_PASSWORD, JWT_SECRET, etc.
+docker compose -f docker-compose.yml -f docker-compose.supabase.yml up -d
+```
+
+This brings up: app, migrate, db (Postgres 15), kong (API gateway), auth
+(GoTrue), rest (PostgREST), storage + imgproxy, postgres-meta, and Studio
+(admin UI on `http://localhost:54323` by default).
+
+> The bundled Supabase stack is a slim subset of the upstream
+> [supabase/supabase docker setup](https://github.com/supabase/supabase/tree/master/docker)
+> (Apache-2.0). Realtime, edge functions, analytics/Logflare, and the
+> Supavisor pooler are intentionally omitted — Denials Tracker doesn't use
+> them. Vendored upstream files live in `supabase/volumes/` with the
+> required `LICENSE` and `NOTICE.md`.
+
+### Reverse proxy / TLS
+
+Both modes set `PROTOCOL_HEADER=x-forwarded-proto` and
+`HOST_HEADER=x-forwarded-host`, so any TLS-terminating proxy (Caddy,
+Nginx, Traefik, Cloudflare Tunnel) in front works out of the box. Make
+sure `ORIGIN` matches the public URL users type into the browser
+(including scheme and port).
+
+### Bundled mode networking note
+
+`PUBLIC_SUPABASE_URL` is baked into the browser bundle at build time and
+must be reachable by the **user's browser**. Inside the docker network the
+app container reaches Supabase via `SUPABASE_INTERNAL_URL=http://kong:8000`
+(set automatically by `docker-compose.supabase.yml`). When unset (app-only
+mode), SSR falls back to `PUBLIC_SUPABASE_URL` — the right behaviour for
+external Supabase projects.
+
+---
+
 ## HIPAA Technical Safeguards
 
 | Safeguard               | Implementation                                                                                     |

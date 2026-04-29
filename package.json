@@ -14,7 +14,8 @@
 		"format": "prettier --write .",
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
-		"test:e2e": "playwright test"
+		"test:e2e": "playwright test",
+		"setup:admin": "node --env-file=.env scripts/setup-admin.mjs"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.58.2",

@@ -1,0 +1,255 @@
+#!/usr/bin/env pwsh
+# Denials Tracker — interactive installer (Windows / PowerShell / pwsh).
+#
+# Usage:
+#   ./install.ps1                # interactive
+#   ./install.ps1 -Mode app      # non-interactive, app-only
+#   ./install.ps1 -Mode bundled  # non-interactive, app + Supabase
+
+[CmdletBinding()]
+param(
+    [ValidateSet('app', 'bundled')]
+    [string]$Mode,
+    [switch]$Force,
+    [switch]$ResetData
+)
+
+$ErrorActionPreference = 'Stop'
+Set-Location -Path $PSScriptRoot
+
+function Write-Header($text) {
+    Write-Host ''
+    Write-Host ('=' * 70) -ForegroundColor Cyan
+    Write-Host "  $text" -ForegroundColor Cyan
+    Write-Host ('=' * 70) -ForegroundColor Cyan
+}
+
+function New-RandomSecret([int]$Length = 48) {
+    $bytes = New-Object byte[] $Length
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    return ([Convert]::ToBase64String($bytes) -replace '[^A-Za-z0-9]', '').Substring(0, $Length)
+}
+
+function ConvertTo-Base64Url([byte[]]$Bytes) {
+    return ([Convert]::ToBase64String($Bytes) -replace '\+', '-' -replace '/', '_').TrimEnd('=')
+}
+
+function New-SupabaseJwt {
+    param(
+        [Parameter(Mandatory)] [string]$Role,
+        [Parameter(Mandatory)] [string]$Secret,
+        [int]$ExpiryYears = 10
+    )
+    $header = '{"alg":"HS256","typ":"JWT"}'
+    $iat = [int][double]::Parse((Get-Date -UFormat %s))
+    $exp = $iat + (60 * 60 * 24 * 365 * $ExpiryYears)
+    $payload = "{`"role`":`"$Role`",`"iss`":`"supabase`",`"iat`":$iat,`"exp`":$exp}"
+
+    $hB = ConvertTo-Base64Url ([System.Text.Encoding]::UTF8.GetBytes($header))
+    $pB = ConvertTo-Base64Url ([System.Text.Encoding]::UTF8.GetBytes($payload))
+    $signingInput = "$hB.$pB"
+
+    $hmac = New-Object System.Security.Cryptography.HMACSHA256
+    $hmac.Key = [System.Text.Encoding]::UTF8.GetBytes($Secret)
+    $sig = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($signingInput))
+    $sigB = ConvertTo-Base64Url $sig
+    return "$signingInput.$sigB"
+}
+
+# -----------------------------------------------------------------------------
+
+Write-Header 'Denials Tracker installer'
+
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    Write-Error 'Docker is not installed or not on PATH. Install Docker Desktop first.'
+    exit 1
+}
+
+# Mode selection
+if (-not $Mode) {
+    Write-Host ''
+    Write-Host 'Choose deployment mode:'
+    Write-Host '  [1] App only           (you already have a Supabase project, cloud or self-hosted)'
+    Write-Host '  [2] App + Supabase     (bundled local self-hosted Supabase, single host)'
+    Write-Host ''
+    do {
+        $choice = Read-Host 'Enter 1 or 2'
+    } while ($choice -notin '1', '2')
+    $Mode = if ($choice -eq '1') { 'app' } else { 'bundled' }
+}
+
+Write-Host ''
+Write-Host "Selected mode: $Mode" -ForegroundColor Green
+
+# .env existence check
+if ((Test-Path .env) -and -not $Force) {
+    Write-Host ''
+    $overwrite = Read-Host '.env already exists. Overwrite? [y/N]'
+    if ($overwrite -notin 'y', 'Y') {
+        Write-Host 'Keeping existing .env. Skipping config generation.' -ForegroundColor Yellow
+        $skipEnv = $true
+    }
+}
+
+if (-not $skipEnv) {
+    Write-Header 'Generating .env'
+
+    if ($Mode -eq 'bundled') {
+        $projectName = (Split-Path $PSScriptRoot -Leaf).ToLower()
+        $bundledVolumes = @(
+            "${projectName}_supabase-db-data",
+            "${projectName}_supabase-db-config",
+            "${projectName}_supabase-storage-data"
+        )
+        $existing = docker volume ls --format '{{.Name}}' 2>$null |
+            Where-Object { $bundledVolumes -contains $_ }
+
+        if ($existing) {
+            Write-Host ''
+            Write-Host 'WARNING: existing Supabase data volumes detected:' -ForegroundColor Yellow
+            $existing | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
+            Write-Host 'A new .env will mint new database/JWT secrets that cannot' -ForegroundColor Yellow
+            Write-Host 'authenticate against these volumes. They must be removed' -ForegroundColor Yellow
+            Write-Host 'or you must keep the existing .env.' -ForegroundColor Yellow
+            Write-Host 'This will DELETE all database data, uploads, and users.' -ForegroundColor Red
+
+            $reset = $ResetData
+            if (-not $reset) {
+                $answer = Read-Host 'Delete these volumes and start fresh? [y/N]'
+                $reset = ($answer -in 'y', 'Y')
+            }
+
+            if (-not $reset) {
+                Write-Error 'Aborting: cannot regenerate .env without resetting data volumes. Re-run with -ResetData, answer y at the prompt, or keep your existing .env.'
+                exit 1
+            }
+
+            Write-Host 'Stopping containers and removing volumes...' -ForegroundColor DarkGray
+            docker compose -f docker-compose.yml -f docker-compose.supabase.yml down -v --remove-orphans 2>&1 | Out-Null
+            foreach ($vol in $existing) {
+                docker volume rm $vol 2>&1 | Out-Null
+            }
+        }
+    }
+
+    $hostPort = Read-Host 'App host port [3000]'
+    if ([string]::IsNullOrWhiteSpace($hostPort)) { $hostPort = '3000' }
+
+    $origin = Read-Host "Public origin of the app (browser-facing) [http://localhost:$hostPort]"
+    if ([string]::IsNullOrWhiteSpace($origin)) { $origin = "http://localhost:$hostPort" }
+
+    if ($Mode -eq 'bundled') {
+        $kongPort = Read-Host 'Supabase API (Kong) host port [8000]'
+        if ([string]::IsNullOrWhiteSpace($kongPort)) { $kongPort = '8000' }
+
+        Write-Host 'Generating secrets and JWTs...' -ForegroundColor DarkGray
+        $pgPassword       = New-RandomSecret 32
+        $jwtSecret        = New-RandomSecret 48
+        $pgMetaCryptoKey  = New-RandomSecret 32
+        $dashboardPassword= New-RandomSecret 24
+        $anonKey          = New-SupabaseJwt -Role 'anon' -Secret $jwtSecret
+        $serviceKey       = New-SupabaseJwt -Role 'service_role' -Secret $jwtSecret
+
+        $publicSupabaseUrl = "http://localhost:$kongPort"
+        $databaseUrl       = "postgres://postgres:$pgPassword@db:5432/postgres"
+
+        $envBody = @"
+# Generated by install.ps1 on $(Get-Date -Format o)
+PUBLIC_SUPABASE_URL=$publicSupabaseUrl
+PUBLIC_SUPABASE_ANON_KEY=$anonKey
+SUPABASE_SERVICE_ROLE_KEY=$serviceKey
+SUPABASE_INTERNAL_URL=http://kong:8000
+DATABASE_URL=$databaseUrl
+ORIGIN=$origin
+HOST_PORT=$hostPort
+
+SESSION_TIMEOUT_MINUTES=30
+MAX_LOGIN_ATTEMPTS=5
+PASSWORD_EXPIRY_DAYS=90
+
+POSTGRES_PASSWORD=$pgPassword
+POSTGRES_PORT=5432
+POSTGRES_DB=postgres
+JWT_SECRET=$jwtSecret
+JWT_EXPIRY=3600
+PG_META_CRYPTO_KEY=$pgMetaCryptoKey
+
+DASHBOARD_USERNAME=supabase
+DASHBOARD_PASSWORD=$dashboardPassword
+KONG_HTTP_PORT=$kongPort
+KONG_HTTPS_PORT=8443
+STUDIO_PORT=54323
+
+DISABLE_SIGNUP=true
+ENABLE_EMAIL_SIGNUP=true
+ENABLE_EMAIL_AUTOCONFIRM=true
+
+SMTP_ADMIN_EMAIL=
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USER=
+SMTP_PASS=
+SMTP_SENDER_NAME=Denials Tracker
+"@
+        $envBody | Set-Content -Path .env -NoNewline
+        Write-Host ''
+        Write-Host '.env written. Save these credentials somewhere safe:' -ForegroundColor Green
+        Write-Host "  Studio admin password:  $dashboardPassword" -ForegroundColor Yellow
+        Write-Host "  Postgres password:      $pgPassword" -ForegroundColor Yellow
+    }
+    else {
+        Write-Host ''
+        Write-Host 'Enter your Supabase project credentials:' -ForegroundColor Cyan
+        $publicSupabaseUrl = Read-Host '  Supabase URL (e.g. https://xxx.supabase.co)'
+        $anonKey           = Read-Host '  Supabase anon key'
+        $serviceKey        = Read-Host '  Supabase service-role key'
+        $databaseUrl       = Read-Host '  Database URL (postgresql://postgres:PWD@host:5432/postgres)'
+
+        $envBody = @"
+# Generated by install.ps1 on $(Get-Date -Format o)
+PUBLIC_SUPABASE_URL=$publicSupabaseUrl
+PUBLIC_SUPABASE_ANON_KEY=$anonKey
+SUPABASE_SERVICE_ROLE_KEY=$serviceKey
+DATABASE_URL=$databaseUrl
+ORIGIN=$origin
+HOST_PORT=$hostPort
+
+SESSION_TIMEOUT_MINUTES=30
+MAX_LOGIN_ATTEMPTS=5
+PASSWORD_EXPIRY_DAYS=90
+"@
+        $envBody | Set-Content -Path .env -NoNewline
+        Write-Host '.env written.' -ForegroundColor Green
+    }
+}
+
+# -----------------------------------------------------------------------------
+
+Write-Header 'Starting containers'
+
+if ($Mode -eq 'bundled') {
+    docker compose -f docker-compose.yml -f docker-compose.supabase.yml up -d --build
+}
+else {
+    docker compose up -d --build
+}
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error 'docker compose up failed.'
+    exit $LASTEXITCODE
+}
+
+Write-Host ''
+Write-Host 'Containers started. Useful commands:' -ForegroundColor Green
+Write-Host '  docker compose logs -f app        # tail app logs'
+Write-Host '  docker compose ps                 # see status'
+Write-Host '  docker compose run --rm migrate   # re-apply pending migrations'
+Write-Host ''
+
+$envContent = Get-Content .env -Raw
+$originLine = ($envContent -split "`n" | Where-Object { $_ -match '^ORIGIN=' }) -replace 'ORIGIN=', ''
+Write-Host "App URL:    $($originLine.Trim())" -ForegroundColor Cyan
+if ($Mode -eq 'bundled') {
+    $studioPort = (($envContent -split "`n" | Where-Object { $_ -match '^STUDIO_PORT=' }) -replace 'STUDIO_PORT=', '').Trim()
+    Write-Host "Studio UI:  http://localhost:$studioPort  (basic auth, see DASHBOARD_USERNAME/PASSWORD in .env)" -ForegroundColor Cyan
+}

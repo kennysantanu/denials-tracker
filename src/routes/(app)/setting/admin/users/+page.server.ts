@@ -4,7 +4,7 @@ import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
 import { logAudit } from '$lib/server/audit';
 import { getUsers, createUser, updateUser, deleteUser } from '$lib/server/db/users';
 import { getRoles } from '$lib/server/db/roles';
@@ -47,7 +47,7 @@ export const actions: Actions = {
 		const form = await superValidate(request, zod(createUserSchema));
 		if (!form.valid) return fail(400, { createForm: form });
 
-		const adminClient = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+		const adminClient = createClient(getServerSupabaseUrl(), SUPABASE_SERVICE_ROLE_KEY);
 
 		// Create auth user
 		const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
@@ -99,7 +99,7 @@ export const actions: Actions = {
 		// Prevent self-deletion
 		if (id === user.id) return fail(400, { error: 'Cannot delete your own account' });
 
-		const adminClient = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+		const adminClient = createClient(getServerSupabaseUrl(), SUPABASE_SERVICE_ROLE_KEY);
 
 		// Delete from public.users first
 		const { error: dbError } = await deleteUser(locals.supabase, id);
