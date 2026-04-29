@@ -10,7 +10,8 @@
 param(
     [ValidateSet('app', 'bundled')]
     [string]$Mode,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$ResetData
 )
 
 $ErrorActionPreference = 'Stop'
@@ -92,6 +93,44 @@ if ((Test-Path .env) -and -not $Force) {
 
 if (-not $skipEnv) {
     Write-Header 'Generating .env'
+
+    if ($Mode -eq 'bundled') {
+        $projectName = (Split-Path $PSScriptRoot -Leaf).ToLower()
+        $bundledVolumes = @(
+            "${projectName}_supabase-db-data",
+            "${projectName}_supabase-db-config",
+            "${projectName}_supabase-storage-data"
+        )
+        $existing = docker volume ls --format '{{.Name}}' 2>$null |
+            Where-Object { $bundledVolumes -contains $_ }
+
+        if ($existing) {
+            Write-Host ''
+            Write-Host 'WARNING: existing Supabase data volumes detected:' -ForegroundColor Yellow
+            $existing | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
+            Write-Host 'A new .env will mint new database/JWT secrets that cannot' -ForegroundColor Yellow
+            Write-Host 'authenticate against these volumes. They must be removed' -ForegroundColor Yellow
+            Write-Host 'or you must keep the existing .env.' -ForegroundColor Yellow
+            Write-Host 'This will DELETE all database data, uploads, and users.' -ForegroundColor Red
+
+            $reset = $ResetData
+            if (-not $reset) {
+                $answer = Read-Host 'Delete these volumes and start fresh? [y/N]'
+                $reset = ($answer -in 'y', 'Y')
+            }
+
+            if (-not $reset) {
+                Write-Error 'Aborting: cannot regenerate .env without resetting data volumes. Re-run with -ResetData, answer y at the prompt, or keep your existing .env.'
+                exit 1
+            }
+
+            Write-Host 'Stopping containers and removing volumes...' -ForegroundColor DarkGray
+            docker compose -f docker-compose.yml -f docker-compose.supabase.yml down -v --remove-orphans 2>&1 | Out-Null
+            foreach ($vol in $existing) {
+                docker volume rm $vol 2>&1 | Out-Null
+            }
+        }
+    }
 
     $hostPort = Read-Host 'App host port [3000]'
     if ([string]::IsNullOrWhiteSpace($hostPort)) { $hostPort = '3000' }

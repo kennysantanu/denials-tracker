@@ -5,6 +5,10 @@
 #   ./install.sh                # interactive
 #   ./install.sh app            # non-interactive, app-only
 #   ./install.sh bundled        # non-interactive, app + Supabase
+#
+# Env flags:
+#   RESET_DATA=1   skip the volume-wipe prompt and always wipe stale Supabase
+#                  data volumes when regenerating .env in bundled mode.
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -95,6 +99,49 @@ fi
 
 if ! $skip_env; then
   header 'Generating .env'
+
+  if [ "$mode" = "bundled" ]; then
+    project_name=$(basename "$PWD" | tr '[:upper:]' '[:lower:]')
+    bundled_volumes=(
+      "${project_name}_supabase-db-data"
+      "${project_name}_supabase-db-config"
+      "${project_name}_supabase-storage-data"
+    )
+    existing=()
+    while IFS= read -r v; do
+      for target in "${bundled_volumes[@]}"; do
+        [ "$v" = "$target" ] && existing+=("$v")
+      done
+    done < <(docker volume ls --format '{{.Name}}' 2>/dev/null)
+
+    if [ ${#existing[@]} -gt 0 ]; then
+      echo ""
+      color_yellow "WARNING: existing Supabase data volumes detected:"
+      for v in "${existing[@]}"; do color_yellow "  - $v"; done
+      color_yellow "A new .env will mint new database/JWT secrets that cannot"
+      color_yellow "authenticate against these volumes. They must be removed"
+      color_yellow "or you must keep the existing .env."
+      printf '\033[31m%s\033[0m\n' "This will DELETE all database data, uploads, and users."
+
+      reset=${RESET_DATA:-}
+      if [ -z "$reset" ]; then
+        read -r -p "Delete these volumes and start fresh? [y/N]: " ans
+        case "$ans" in y|Y) reset=1 ;; *) reset=0 ;; esac
+      fi
+
+      if [ "$reset" != "1" ]; then
+        echo "ERROR: cannot regenerate .env without resetting data volumes." >&2
+        echo "       Re-run with RESET_DATA=1, answer y at the prompt, or keep your existing .env." >&2
+        exit 1
+      fi
+
+      echo "Stopping containers and removing volumes..."
+      docker compose -f docker-compose.yml -f docker-compose.supabase.yml down -v --remove-orphans >/dev/null 2>&1 || true
+      for v in "${existing[@]}"; do
+        docker volume rm "$v" >/dev/null 2>&1 || true
+      done
+    fi
+  fi
 
   read -r -p "App host port [3000]: " host_port
   host_port="${host_port:-3000}"
