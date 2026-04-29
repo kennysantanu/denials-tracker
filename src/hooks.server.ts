@@ -1,9 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
-import { type Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
+import { isSystemInitialized } from '$lib/server/setupState';
 import type { Database } from '$lib/supabase';
 
 /**
@@ -66,6 +67,28 @@ const supabaseHandle: Handle = async ({ event, resolve }) => {
 	});
 };
 
+/**
+ * When the deployment has zero users in `public.users`, force visitors of
+ * `/` and `/signin` to the first-time setup page so a fresh install is
+ * actually reachable. Once at least one user exists, the redirect stops
+ * (and `/setup` itself bounces back to `/signin`).
+ */
+const setupRedirectHandle: Handle = async ({ event, resolve }) => {
+	const path = event.url.pathname;
+
+	// Only the public landing routes need this check. Skip everything else
+	// (assets, APIs, auth callbacks, /setup itself, app routes) so we don't
+	// pay for a count query on the hot path.
+	if (event.request.method !== 'GET') return resolve(event);
+	if (path !== '/' && path !== '/signin') return resolve(event);
+
+	if (!(await isSystemInitialized())) {
+		redirect(303, '/setup');
+	}
+
+	return resolve(event);
+};
+
 const securityHeadersHandle: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 	const secure = isSecureRequest(event);
@@ -105,4 +128,4 @@ const securityHeadersHandle: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle = sequence(supabaseHandle, securityHeadersHandle);
+export const handle = sequence(supabaseHandle, setupRedirectHandle, securityHeadersHandle);
