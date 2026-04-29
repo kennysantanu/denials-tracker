@@ -3,6 +3,7 @@ import { type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
 import type { Database } from '$lib/supabase';
 
 /**
@@ -26,7 +27,7 @@ const supabaseHandle: Handle = async ({ event, resolve }) => {
 	const secure = isSecureRequest(event);
 
 	event.locals.supabase = createServerClient<Database>(
-		PUBLIC_SUPABASE_URL!,
+		getServerSupabaseUrl(),
 		PUBLIC_SUPABASE_ANON_KEY!,
 		{
 			cookies: {

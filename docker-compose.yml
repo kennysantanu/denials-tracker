@@ -1,20 +1,42 @@
+# Denials Tracker — App deployment (default)
+#
+# Usage:
+#   App only (existing/external Supabase):
+#     docker compose up -d
+#
+#   App + bundled self-hosted Supabase:
+#     docker compose -f docker-compose.yml -f docker-compose.supabase.yml up -d
+#
+#   Or use the install script: ./install.sh / ./install.ps1
+
+name: denials-tracker
+
 services:
   app:
+    container_name: denials-tracker-app
     build:
       context: .
       args:
         PUBLIC_SUPABASE_URL: ${PUBLIC_SUPABASE_URL}
         PUBLIC_SUPABASE_ANON_KEY: ${PUBLIC_SUPABASE_ANON_KEY}
         SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    image: denials-tracker:latest
+    env_file:
+      - .env
     ports:
       - '${HOST_PORT:-3000}:3000'
     environment:
-      - ORIGIN=${ORIGIN:-http://localhost:3000}
-      - PROTOCOL_HEADER=x-forwarded-proto
-      - HOST_HEADER=x-forwarded-host
-      - SESSION_TIMEOUT_MINUTES=${SESSION_TIMEOUT_MINUTES:-30}
-      - MAX_LOGIN_ATTEMPTS=${MAX_LOGIN_ATTEMPTS:-5}
-      - PASSWORD_EXPIRY_DAYS=${PASSWORD_EXPIRY_DAYS:-90}
+      ORIGIN: ${ORIGIN:-http://localhost:3000}
+      PROTOCOL_HEADER: x-forwarded-proto
+      HOST_HEADER: x-forwarded-host
+      SUPABASE_INTERNAL_URL: ${SUPABASE_INTERNAL_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      SESSION_TIMEOUT_MINUTES: ${SESSION_TIMEOUT_MINUTES:-30}
+      MAX_LOGIN_ATTEMPTS: ${MAX_LOGIN_ATTEMPTS:-5}
+      PASSWORD_EXPIRY_DAYS: ${PASSWORD_EXPIRY_DAYS:-90}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
     stop_grace_period: 10s
     deploy:
@@ -29,3 +51,16 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  migrate:
+    container_name: denials-tracker-migrate
+    image: postgres:15-alpine
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    volumes:
+      - ./supabase/migrations:/migrations:ro
+      - ./supabase/migrate.sh:/migrate.sh:ro
+    entrypoint: ['/bin/sh', '/migrate.sh']
+    restart: 'no'
