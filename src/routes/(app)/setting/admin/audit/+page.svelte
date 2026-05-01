@@ -62,184 +62,145 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<h2 class="text-xl font-semibold text-surface-900">Audit Log</h2>
-		<button
-			onclick={exportCsv}
-			class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-		>
-			Export CSV
-		</button>
-	</div>
+	<header class="flex flex-wrap items-end justify-between gap-3">
+		<div>
+			<h2 class="text-xl font-semibold text-surface-900">Audit log</h2>
+			<p class="text-sm text-surface-500">
+				HIPAA-compliant activity log of all user and system actions.
+			</p>
+		</div>
+		<button onclick={exportCsv} class="btn preset-filled-primary-500 btn-sm"> Export CSV </button>
+	</header>
 
 	<!-- Filters -->
-	<div class="rounded-lg border border-surface-200 bg-surface-50 p-4">
+	<div class="card bg-surface-50 p-4">
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-			<div>
-				<label for="filter-user" class="mb-1 block text-xs font-medium text-surface-600">User</label
-				>
-				<select
-					id="filter-user"
-					bind:value={userId}
-					class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
-				>
-					<option value="">All Users</option>
+			<label class="label">
+				<span class="label-text">User</span>
+				<select id="filter-user" bind:value={userId} class="select">
+					<option value="">All users</option>
 					{#each data.users as u (u.id)}
 						<option value={u.id}>{u.username || u.id}</option>
 					{/each}
 				</select>
-			</div>
-			<div>
-				<label for="filter-action" class="mb-1 block text-xs font-medium text-surface-600"
-					>Action</label
-				>
+			</label>
+			<label class="label">
+				<span class="label-text">Action</span>
 				<input
 					id="filter-action"
 					type="text"
 					bind:value={action}
 					placeholder="e.g. view, create, login"
-					class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
+					class="input"
 				/>
-			</div>
-			<div>
-				<label for="filter-resource" class="mb-1 block text-xs font-medium text-surface-600"
-					>Resource Type</label
-				>
+			</label>
+			<label class="label">
+				<span class="label-text">Resource type</span>
 				<input
 					id="filter-resource"
 					type="text"
 					bind:value={resourceType}
 					placeholder="e.g. patient, denial"
-					class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
+					class="input"
 				/>
-			</div>
-			<div>
-				<label for="filter-start" class="mb-1 block text-xs font-medium text-surface-600"
-					>Start Date</label
-				>
-				<input
-					id="filter-start"
-					type="date"
-					bind:value={startDate}
-					class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
-				/>
-			</div>
-			<div>
-				<label for="filter-end" class="mb-1 block text-xs font-medium text-surface-600"
-					>End Date</label
-				>
-				<input
-					id="filter-end"
-					type="date"
-					bind:value={endDate}
-					class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
-				/>
-			</div>
+			</label>
+			<label class="label">
+				<span class="label-text">Start date</span>
+				<input id="filter-start" type="date" bind:value={startDate} class="input" />
+			</label>
+			<label class="label">
+				<span class="label-text">End date</span>
+				<input id="filter-end" type="date" bind:value={endDate} class="input" />
+			</label>
 		</div>
-		<div class="mt-3 flex gap-2">
-			<button
-				onclick={applyFilters}
-				class="rounded-md bg-primary-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-700"
-			>
-				Apply Filters
-			</button>
-			<button
-				onclick={clearFilters}
-				class="rounded-md border border-surface-300 px-3 py-1.5 text-sm font-medium text-surface-700 hover:bg-surface-100"
-			>
-				Clear
+		<div class="mt-4 flex justify-end gap-2">
+			<button onclick={clearFilters} class="btn preset-tonal btn-sm">Clear</button>
+			<button onclick={applyFilters} class="btn preset-filled-primary-500 btn-sm">
+				Apply filters
 			</button>
 		</div>
 	</div>
 
 	<!-- Results count -->
 	<p class="text-sm text-surface-600">
-		{data.totalCount} entries found · Page {data.page} of {totalPages}
+		<strong>{data.totalCount}</strong> entries · Page {data.page} of {totalPages}
 	</p>
 
 	<!-- Table -->
-	<div class="overflow-x-auto rounded-lg border border-surface-200">
-		<table class="min-w-[900px] divide-y divide-surface-200 text-sm">
-			<thead class="bg-surface-50">
-				<tr>
-					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600"
-						>Timestamp</th
-					>
-					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600">User</th>
-					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600">Action</th>
-					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600"
-						>Resource</th
-					>
-					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600"
-						>Resource ID</th
-					>
-					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600"
-						>IP Address</th
-					>
-					<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600">Details</th
-					>
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-surface-100">
-				{#each data.logs as log (log.id)}
-					{@const userMatch = data.users.find((u: any) => u.id === log.user_id)}
-					<tr class="hover:bg-surface-50">
-						<td class="px-4 py-2 whitespace-nowrap text-surface-700">
-							{new Date(log.created_at).toLocaleString()}
-						</td>
-						<td class="px-4 py-2 text-surface-700">
-							{userMatch?.username || log.user_id || '—'}
-						</td>
-						<td class="px-4 py-2">
-							<span
-								class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium
-								{log.action === 'login'
-									? 'bg-green-100 text-green-800'
-									: log.action === 'login_failed'
-										? 'bg-red-100 text-red-800'
-										: log.action === 'logout'
-											? 'bg-yellow-100 text-yellow-800'
-											: log.action === 'delete'
-												? 'bg-red-100 text-red-800'
-												: log.action === 'create'
-													? 'bg-blue-100 text-blue-800'
-													: log.action === 'update'
-														? 'bg-purple-100 text-purple-800'
-														: log.action === 'export'
-															? 'bg-orange-100 text-orange-800'
-															: 'bg-surface-100 text-surface-800'}"
-							>
-								{log.action}
-							</span>
-						</td>
-						<td class="px-4 py-2 text-surface-700">{log.resource_type}</td>
-						<td class="px-4 py-2 text-surface-500">{log.resource_id || '—'}</td>
-						<td class="px-4 py-2 text-surface-500">{log.ip_address || '—'}</td>
-						<td
-							class="max-w-xs truncate px-4 py-2 text-xs text-surface-500"
-							title={log.details ? JSON.stringify(log.details) : ''}
-						>
-							{log.details ? JSON.stringify(log.details) : '—'}
-						</td>
-					</tr>
-				{:else}
+	<div class="card border border-surface-200 bg-white p-0 shadow-sm">
+		<div class="table-wrap">
+			<table class="table caption-bottom">
+				<thead>
 					<tr>
-						<td colspan="7" class="px-4 py-8 text-center text-surface-500"
-							>No audit log entries found.</td
-						>
+						<th class="whitespace-nowrap">Timestamp</th>
+						<th>User</th>
+						<th>Action</th>
+						<th>Resource</th>
+						<th>Resource ID</th>
+						<th>IP address</th>
+						<th>Details</th>
 					</tr>
-				{/each}
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+					{#each data.logs as log (log.id)}
+						{@const userMatch = data.users.find((u: any) => u.id === log.user_id)}
+						{@const badgeColor =
+							log.action === 'login' || log.action === 'create'
+								? 'success'
+								: log.action === 'login_failed' || log.action === 'delete'
+									? 'error'
+									: log.action === 'logout' || log.action === 'export'
+										? 'warning'
+										: log.action === 'update'
+											? 'primary'
+											: 'surface'}
+						<tr>
+							<td class="whitespace-nowrap text-surface-700">
+								{new Date(log.created_at).toLocaleString()}
+							</td>
+							<td class="text-surface-700">
+								{userMatch?.username || log.user_id || '—'}
+							</td>
+							<td>
+								<span class="badge preset-tonal-{badgeColor}">{log.action}</span>
+							</td>
+							<td class="text-surface-700">{log.resource_type}</td>
+							<td class="font-mono text-xs text-surface-500">
+								{log.resource_id || '—'}
+							</td>
+							<td class="font-mono text-xs text-surface-500">
+								{log.ip_address || '—'}
+							</td>
+							<td
+								class="max-w-xs truncate text-xs text-surface-500"
+								title={log.details ? JSON.stringify(log.details) : ''}
+							>
+								{log.details ? JSON.stringify(log.details) : '—'}
+							</td>
+						</tr>
+					{:else}
+						<tr>
+							<td colspan="7">
+								<div
+									class="rounded-container border-2 border-dashed border-surface-200 p-8 text-center"
+								>
+									<p class="text-sm text-surface-500">No audit log entries found.</p>
+								</div>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
 	</div>
 
 	<!-- Pagination -->
 	{#if totalPages > 1}
-		<div class="flex items-center justify-center gap-2">
+		<div class="flex flex-wrap items-center justify-center gap-2">
 			<button
 				onclick={() => goToPage(data.page - 1)}
 				disabled={data.page <= 1}
-				class="rounded-md border border-surface-300 px-3 py-1.5 text-sm font-medium text-surface-700 hover:bg-surface-100 disabled:opacity-50"
+				class="btn preset-tonal btn-sm"
 			>
 				Previous
 			</button>
@@ -251,9 +212,7 @@
 			}) as p (p)}
 				<button
 					onclick={() => goToPage(p)}
-					class="rounded-md px-3 py-1.5 text-sm font-medium {p === data.page
-						? 'bg-primary-600 text-white'
-						: 'border border-surface-300 text-surface-700 hover:bg-surface-100'}"
+					class="btn btn-sm {p === data.page ? 'preset-filled-primary-500' : 'preset-tonal'}"
 				>
 					{p}
 				</button>
@@ -261,7 +220,7 @@
 			<button
 				onclick={() => goToPage(data.page + 1)}
 				disabled={data.page >= totalPages}
-				class="rounded-md border border-surface-300 px-3 py-1.5 text-sm font-medium text-surface-700 hover:bg-surface-100 disabled:opacity-50"
+				class="btn preset-tonal btn-sm"
 			>
 				Next
 			</button>

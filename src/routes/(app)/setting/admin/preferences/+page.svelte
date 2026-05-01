@@ -40,13 +40,18 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<h2 class="text-xl font-semibold text-surface-900">System Preferences</h2>
+	<header>
+		<h2 class="text-xl font-semibold text-surface-900">System Preferences</h2>
+		<p class="text-sm text-surface-500">
+			Workspace-wide defaults for security, AI, and other system behavior.
+		</p>
+	</header>
 
 	<!-- Session Timeout Section -->
-	<div class="rounded-lg border border-surface-200 bg-white p-6">
-		<h3 class="mb-4 text-lg font-semibold text-surface-900">Session Timeout (HIPAA)</h3>
-		<div class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
-			<p class="text-sm text-amber-800">
+	<section class="card border border-surface-200 bg-white p-6 shadow-sm">
+		<h3 class="mb-4 text-lg font-semibold text-surface-900">Session timeout (HIPAA)</h3>
+		<div class="mb-4 rounded-base border-l-4 border-warning-500 bg-warning-50 p-3">
+			<p class="text-sm text-surface-800">
 				Auto-logout protects PHI by ending idle sessions. The maximum allowed value is
 				<strong>{data.maxIdleTimeout} minutes</strong> (set by server environment). Industry standard
 				for healthcare is 15–30 minutes.
@@ -56,18 +61,15 @@
 		<form
 			method="POST"
 			action="?/saveIdleTimeout"
-			use:enhance={() => {
-				return async ({ result, update }) => {
+			use:enhance={() =>
+				async ({ result, update }) => {
 					handleResult()({ result });
 					await update();
-				};
-			}}
-			class="flex items-end gap-4"
+				}}
+			class="flex flex-col gap-3 sm:flex-row sm:items-end"
 		>
-			<div class="flex-1">
-				<label for="idle_timeout_minutes" class="mb-1 block text-sm font-medium text-surface-700">
-					Idle Timeout (minutes)
-				</label>
+			<label class="label flex-1">
+				<span class="label-text">Idle timeout (minutes)</span>
 				<input
 					id="idle_timeout_minutes"
 					name="idle_timeout_minutes"
@@ -75,134 +77,118 @@
 					min="1"
 					max={data.maxIdleTimeout}
 					bind:value={idleTimeout}
-					class="w-full max-w-xs rounded-md border border-surface-300 px-3 py-2 text-sm"
+					class="input max-w-xs"
 				/>
-				<p class="mt-1 text-xs text-surface-500">
-					Range: 1–{data.maxIdleTimeout} minutes (max set by <code>SESSION_TIMEOUT_MINUTES</code> env
-					var, up to 1440 min / 24 h). Default: 15. Users will see a 2-minute warning before auto-signout.
-				</p>
-			</div>
-			<button
-				type="submit"
-				class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-			>
-				Save
-			</button>
+				<span class="text-xs text-surface-500">
+					Range: 1–{data.maxIdleTimeout} minutes (max set by
+					<code>SESSION_TIMEOUT_MINUTES</code>, up to 1440 / 24 h). Default: 15. Users see a
+					2-minute warning before auto-signout.
+				</span>
+			</label>
+			<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
 		</form>
-	</div>
+	</section>
 
 	<!-- AI Configuration Section -->
-	<div class="rounded-lg border border-surface-200 bg-white p-6">
-		<h3 class="mb-4 text-lg font-semibold text-surface-900">AI Configuration</h3>
-		<div class="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
-			<p class="text-sm text-blue-800">
+	<section class="card border border-surface-200 bg-white p-6 shadow-sm">
+		<div class="mb-4 flex items-center justify-between gap-3">
+			<h3 class="text-lg font-semibold text-surface-900">AI configuration</h3>
+			{#if aiBaseUrl && aiModelName}
+				<span class="badge preset-tonal-success">● AI enabled</span>
+			{:else}
+				<span class="badge preset-tonal-surface">○ AI disabled</span>
+			{/if}
+		</div>
+		<div class="mb-4 rounded-base border-l-4 border-primary-500 bg-primary-50 p-3">
+			<p class="text-sm text-surface-800">
 				AI features connect to a <strong>local AI server only</strong> (e.g. LM Studio, Ollama). No data
-				is sent to external cloud services. Configure the base URL and model name of your local AI server
-				below.
+				is sent to external cloud services.
 			</p>
 		</div>
 
 		<form
 			method="POST"
 			action="?/saveAIConfig"
-			use:enhance={() => {
-				return async ({ result, update }) => {
+			use:enhance={() =>
+				async ({ result, update }) => {
 					handleResult()({ result });
 					await update();
-				};
-			}}
+				}}
 			class="space-y-4"
 		>
-			<div>
-				<label for="ai_base_url" class="mb-1 block text-sm font-medium text-surface-700">
-					AI Base URL
-				</label>
+			<label class="label">
+				<span class="label-text">AI base URL</span>
 				<input
 					id="ai_base_url"
 					name="ai_base_url"
 					type="url"
 					bind:value={aiBaseUrl}
 					placeholder="http://localhost:1234/v1"
-					class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
+					class="input"
 				/>
-				<p class="mt-1 text-xs text-surface-500">
-					Full OpenAI-compatible base URL including path prefix — e.g.
-					<code>http://localhost:1234/v1</code> (LM Studio),
-					<code>http://localhost:11434/v1</code> (Ollama). Trailing slash is optional.
-				</p>
-			</div>
-			<div>
-				<label for="ai_model_name" class="mb-1 block text-sm font-medium text-surface-700">
-					AI Model Name
-				</label>
+				<span class="text-xs text-surface-500">
+					Full OpenAI-compatible base URL — e.g. <code>http://localhost:1234/v1</code> (LM Studio)
+					or <code>http://localhost:11434/v1</code> (Ollama).
+				</span>
+			</label>
+			<label class="label">
+				<span class="label-text">AI model name</span>
 				<input
 					id="ai_model_name"
 					name="ai_model_name"
 					type="text"
 					bind:value={aiModelName}
 					placeholder="local-model"
-					class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
+					class="input"
 				/>
-				<p class="mt-1 text-xs text-surface-500">
-					Model identifier as configured in your local AI server
-				</p>
-			</div>
-			<div class="flex items-center gap-3">
-				<button
-					type="submit"
-					class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-				>
-					Save AI Settings
+				<span class="text-xs text-surface-500">
+					Model identifier as configured in your local AI server.
+				</span>
+			</label>
+			<div>
+				<button type="submit" class="btn preset-filled-primary-500 btn-sm">
+					Save AI settings
 				</button>
-				{#if aiBaseUrl && aiModelName}
-					<span class="text-xs text-success-600">● AI Enabled</span>
-				{:else}
-					<span class="text-xs text-surface-400">○ AI Disabled (both fields required)</span>
-				{/if}
 			</div>
 		</form>
 
 		<!-- AI System Prompts -->
 		<div class="mt-6 space-y-6 border-t border-surface-200 pt-6">
-			<h4 class="text-base font-semibold text-surface-800">System Prompts</h4>
-			<p class="-mt-4 text-xs text-surface-500">
-				Customize the instructions sent to the AI. Leave blank to use the built-in default.
-			</p>
+			<div>
+				<h4 class="text-base font-semibold text-surface-900">System prompts</h4>
+				<p class="text-xs text-surface-500">
+					Customize the instructions sent to the AI. Leave blank to use the built-in default.
+				</p>
+			</div>
 
 			<!-- Chat assistant prompt -->
 			<form
 				method="POST"
 				action="?/saveAIChatPrompt"
-				use:enhance={() => {
-					return async ({ result, update }) => {
+				use:enhance={() =>
+					async ({ result, update }) => {
 						handleResult()({ result });
 						await update();
-					};
-				}}
+					}}
 				class="space-y-2"
 			>
-				<label for="ai_chat_system_prompt" class="block text-sm font-medium text-surface-700">
-					Chat Assistant Prompt
+				<label class="label">
+					<span class="label-text">Chat assistant prompt</span>
+					<textarea
+						id="ai_chat_system_prompt"
+						name="ai_chat_system_prompt"
+						bind:value={aiChatPrompt}
+						rows="5"
+						placeholder={DEFAULT_CHAT_PROMPT}
+						class="textarea font-mono"
+					></textarea>
 				</label>
-				<textarea
-					id="ai_chat_system_prompt"
-					name="ai_chat_system_prompt"
-					bind:value={aiChatPrompt}
-					rows="5"
-					placeholder={DEFAULT_CHAT_PROMPT}
-					class="w-full rounded-md border border-surface-300 px-3 py-2 font-mono text-sm placeholder:text-surface-300"
-				></textarea>
-				<div class="flex items-center gap-3">
-					<button
-						type="submit"
-						class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-					>
-						Save
-					</button>
+				<div class="flex items-center gap-2">
+					<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
 					{#if aiChatPrompt}
 						<button
 							type="button"
-							class="text-sm text-surface-500 hover:text-surface-800 hover:underline"
+							class="btn preset-tonal btn-sm"
 							onclick={() => (aiChatPrompt = '')}
 						>
 							Reset to default
@@ -215,36 +201,30 @@
 			<form
 				method="POST"
 				action="?/saveAIRewritePrompt"
-				use:enhance={() => {
-					return async ({ result, update }) => {
+				use:enhance={() =>
+					async ({ result, update }) => {
 						handleResult()({ result });
 						await update();
-					};
-				}}
+					}}
 				class="space-y-2"
 			>
-				<label for="ai_rewrite_system_prompt" class="block text-sm font-medium text-surface-700">
-					Note Rewrite Prompt
+				<label class="label">
+					<span class="label-text">Note rewrite prompt</span>
+					<textarea
+						id="ai_rewrite_system_prompt"
+						name="ai_rewrite_system_prompt"
+						bind:value={aiRewritePrompt}
+						rows="4"
+						placeholder={DEFAULT_REWRITE_PROMPT}
+						class="textarea font-mono"
+					></textarea>
 				</label>
-				<textarea
-					id="ai_rewrite_system_prompt"
-					name="ai_rewrite_system_prompt"
-					bind:value={aiRewritePrompt}
-					rows="4"
-					placeholder={DEFAULT_REWRITE_PROMPT}
-					class="w-full rounded-md border border-surface-300 px-3 py-2 font-mono text-sm placeholder:text-surface-300"
-				></textarea>
-				<div class="flex items-center gap-3">
-					<button
-						type="submit"
-						class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-					>
-						Save
-					</button>
+				<div class="flex items-center gap-2">
+					<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
 					{#if aiRewritePrompt}
 						<button
 							type="button"
-							class="text-sm text-surface-500 hover:text-surface-800 hover:underline"
+							class="btn preset-tonal btn-sm"
 							onclick={() => (aiRewritePrompt = '')}
 						>
 							Reset to default
@@ -253,48 +233,49 @@
 				</div>
 			</form>
 		</div>
-	</div>
+	</section>
 
 	<!-- Other Preferences -->
-	{#if data.preferences.length === 0}
-		<p class="text-sm text-surface-500">No other system preferences found.</p>
-	{:else}
-		<div class="space-y-4">
-			{#each data.preferences as pref (pref.id)}
-				<form
-					method="POST"
-					action="?/setPreference"
-					use:enhance={() => {
-						return async ({ result, update }) => {
-							handleResult()({ result });
-							await update();
-						};
-					}}
-					class="flex items-end gap-4 rounded-md border border-surface-200 bg-surface-50 p-4"
-				>
-					<input type="hidden" name="name" value={pref.name} />
-					<input type="hidden" name="data_type" value={pref.data_type ?? 'string'} />
-					<div class="flex-1">
-						<label for="pref-{pref.id}" class="mb-1 block text-sm font-medium text-surface-700">
-							{pref.name}
-						</label>
-						<p class="mb-2 text-xs text-surface-500">Type: {pref.data_type ?? 'string'}</p>
-						<input
-							id="pref-{pref.id}"
-							name="value"
-							type="text"
-							value={pref.value ?? ''}
-							class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm"
-						/>
-					</div>
-					<button
-						type="submit"
-						class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+	<section class="space-y-3">
+		<h3 class="text-lg font-semibold text-surface-900">Other preferences</h3>
+		{#if data.preferences.length === 0}
+			<div class="rounded-container border-2 border-dashed border-surface-200 p-8 text-center">
+				<p class="text-sm text-surface-500">No other system preferences found.</p>
+			</div>
+		{:else}
+			<div class="space-y-3">
+				{#each data.preferences as pref (pref.id)}
+					<form
+						method="POST"
+						action="?/setPreference"
+						use:enhance={() =>
+							async ({ result, update }) => {
+								handleResult()({ result });
+								await update();
+							}}
+						class="card border border-surface-200 bg-white p-4 shadow-sm"
 					>
-						Save
-					</button>
-				</form>
-			{/each}
-		</div>
-	{/if}
+						<input type="hidden" name="name" value={pref.name} />
+						<input type="hidden" name="data_type" value={pref.data_type ?? 'string'} />
+						<div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+							<label class="label flex-1" for="pref-{pref.id}">
+								<span class="label-text">{pref.name}</span>
+								<input
+									id="pref-{pref.id}"
+									name="value"
+									type="text"
+									value={pref.value ?? ''}
+									class="input"
+								/>
+								<span class="text-xs text-surface-500">
+									Type: <code>{pref.data_type ?? 'string'}</code>
+								</span>
+							</label>
+							<button type="submit" class="btn preset-filled-primary-500 btn-sm"> Save </button>
+						</div>
+					</form>
+				{/each}
+			</div>
+		{/if}
+	</section>
 </div>

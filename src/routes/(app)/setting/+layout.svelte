@@ -5,68 +5,156 @@
 	let currentPath = $derived(page.url.pathname);
 	let permissions = $derived((data as any).permissions ?? {});
 
-	const manageTabs = [
-		{ href: '/setting/manage/account', label: 'Account' },
-		{ href: '/setting/manage/patients', label: 'Patients' },
-		{ href: '/setting/manage/insurances', label: 'Insurances' },
-		{ href: '/setting/manage/preferences', label: 'Preferences' }
+	type NavItem = { href: string; label: string; description?: string };
+
+	const manageItems: NavItem[] = [
+		{ href: '/setting/manage/account', label: 'Account', description: 'Email and password' },
+		{ href: '/setting/manage/patients', label: 'Patients', description: 'Patient roster' },
+		{ href: '/setting/manage/insurances', label: 'Insurances', description: 'Payer list' },
+		{
+			href: '/setting/manage/preferences',
+			label: 'Preferences',
+			description: 'Personal options'
+		}
 	];
 
-	const adminTabs = [
-		{ href: '/setting/admin/users', label: 'Users' },
-		{ href: '/setting/admin/roles', label: 'Roles' },
-		{ href: '/setting/admin/labels', label: 'Labels' },
-		{ href: '/setting/admin/preferences', label: 'Preferences' },
-		{ href: '/setting/admin/audit', label: 'Audit Log' }
+	const adminItems: NavItem[] = [
+		{ href: '/setting/admin/users', label: 'Users', description: 'Manage workspace users' },
+		{ href: '/setting/admin/roles', label: 'Roles', description: 'Roles and permissions' },
+		{ href: '/setting/admin/labels', label: 'Labels', description: 'Denial labels' },
+		{ href: '/setting/admin/preferences', label: 'System', description: 'AI, session, system' },
+		{ href: '/setting/admin/audit', label: 'Audit Log', description: 'Activity history' }
 	];
 
 	function isActive(href: string): boolean {
 		return currentPath === href || currentPath.startsWith(href + '/');
 	}
+
+	let activeItem = $derived(
+		[...manageItems, ...adminItems].find((i) => isActive(i.href)) ?? manageItems[0]
+	);
+	let activeSection = $derived(adminItems.some((i) => isActive(i.href)) ? 'Admin' : 'Manage');
 </script>
 
-<div class="mx-auto max-w-6xl px-4 py-6">
-	<h1 class="mb-6 text-2xl font-bold text-surface-900">Settings</h1>
+<div class="mx-auto w-full max-w-7xl px-4 py-6">
+	<!-- Page header -->
+	<header class="mb-6 space-y-1">
+		<!-- Breadcrumb: full path on md+, current page only on mobile -->
+		<nav class="flex items-center gap-1.5 text-sm text-surface-500" aria-label="Breadcrumb">
+			<a href="/dashboard" class="hover:text-primary-600 hover:underline">Home</a>
+			<span aria-hidden="true">/</span>
+			<span class="hidden font-medium text-surface-700 sm:inline">Settings</span>
+			<span class="hidden sm:inline" aria-hidden="true">/</span>
+			<span class="hidden text-surface-500 sm:inline">{activeSection}</span>
+			<span class="hidden sm:inline" aria-hidden="true">/</span>
+			<span class="font-medium text-surface-800">{activeItem.label}</span>
+		</nav>
+		<h1 class="text-2xl font-bold tracking-tight text-surface-900">Settings</h1>
+		<p class="text-sm text-surface-500">
+			Manage your account, workspace data, and (for admins) system configuration.
+		</p>
+	</header>
 
-	<div class="mb-6 space-y-4">
-		<!-- Manage tabs -->
-		<div>
-			<h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-500">Manage</h2>
-			<nav class="flex flex-wrap gap-1 border-b border-surface-200 pb-2">
-				{#each manageTabs as tab (tab.href)}
+	<!-- Mobile nav: horizontal scroll pills (hidden on md+) -->
+	<div class="mb-6 md:hidden">
+		<div class="-mx-4 overflow-x-auto px-4 pb-2">
+			<div class="flex min-w-max items-center gap-1">
+				<span class="mr-1 shrink-0 text-xs font-semibold tracking-wide text-surface-500 uppercase">
+					Manage
+				</span>
+				{#each manageItems as item (item.href)}
 					<a
-						href={tab.href}
-						class="rounded-t-md px-4 py-2 text-sm font-medium transition-colors {isActive(tab.href)
-							? 'border-b-2 border-primary-500 bg-primary-50 text-primary-700'
-							: 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
+						href={item.href}
+						aria-current={isActive(item.href) ? 'page' : undefined}
+						class="btn shrink-0 btn-sm {isActive(item.href)
+							? 'preset-filled-primary-500'
+							: 'preset-tonal'}"
 					>
-						{tab.label}
+						{item.label}
 					</a>
 				{/each}
-			</nav>
-		</div>
-
-		<!-- Admin tabs (only visible to admins) -->
-		{#if permissions['admin']}
-			<div>
-				<h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-500">Admin</h2>
-				<nav class="flex flex-wrap gap-1 border-b border-surface-200 pb-2">
-					{#each adminTabs as tab (tab.href)}
+				{#if permissions['admin']}
+					<span class="mx-2 h-5 w-px shrink-0 bg-surface-300" aria-hidden="true"></span>
+					<span
+						class="mr-1 shrink-0 text-xs font-semibold tracking-wide text-surface-500 uppercase"
+					>
+						Admin
+					</span>
+					{#each adminItems as item (item.href)}
 						<a
-							href={tab.href}
-							class="rounded-t-md px-4 py-2 text-sm font-medium transition-colors {isActive(tab.href)
-								? 'border-b-2 border-primary-500 bg-primary-50 text-primary-700'
-								: 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
+							href={item.href}
+							aria-current={isActive(item.href) ? 'page' : undefined}
+							class="btn shrink-0 btn-sm {isActive(item.href)
+								? 'preset-filled-primary-500'
+								: 'preset-tonal'}"
 						>
-							{tab.label}
+							{item.label}
 						</a>
 					{/each}
-				</nav>
+				{/if}
 			</div>
-		{/if}
+		</div>
 	</div>
 
-	<div class="rounded-lg border border-surface-200 bg-white p-6">
-		{@render children()}
+	<div class="grid gap-6 md:grid-cols-[240px_1fr]">
+		<!-- Sidebar nav: hidden on mobile, shown on md+ -->
+		<aside class="hidden space-y-6 md:block">
+			<nav aria-label="Manage settings" class="space-y-2">
+				<h2 class="px-2 text-xs font-semibold tracking-wide text-surface-500 uppercase">Manage</h2>
+				<ul class="space-y-1">
+					{#each manageItems as item (item.href)}
+						<li>
+							<a
+								href={item.href}
+								aria-current={isActive(item.href) ? 'page' : undefined}
+								class="flex flex-col rounded-base px-3 py-2 text-sm transition-colors {isActive(
+									item.href
+								)
+									? 'preset-tonal-primary font-semibold text-primary-700'
+									: 'text-surface-700 hover:bg-surface-100'}"
+							>
+								<span>{item.label}</span>
+								{#if item.description}
+									<span class="text-xs font-normal text-surface-500">{item.description}</span>
+								{/if}
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</nav>
+
+			{#if permissions['admin']}
+				<nav aria-label="Admin settings" class="space-y-2">
+					<h2 class="px-2 text-xs font-semibold tracking-wide text-surface-500 uppercase">Admin</h2>
+					<ul class="space-y-1">
+						{#each adminItems as item (item.href)}
+							<li>
+								<a
+									href={item.href}
+									aria-current={isActive(item.href) ? 'page' : undefined}
+									class="flex flex-col rounded-base px-3 py-2 text-sm transition-colors {isActive(
+										item.href
+									)
+										? 'preset-tonal-primary font-semibold text-primary-700'
+										: 'text-surface-700 hover:bg-surface-100'}"
+								>
+									<span>{item.label}</span>
+									{#if item.description}
+										<span class="text-xs font-normal text-surface-500">
+											{item.description}
+										</span>
+									{/if}
+								</a>
+							</li>
+						{/each}
+					</ul>
+				</nav>
+			{/if}
+		</aside>
+
+		<!-- Main content -->
+		<section class="min-w-0">
+			{@render children()}
+		</section>
 	</div>
 </div>

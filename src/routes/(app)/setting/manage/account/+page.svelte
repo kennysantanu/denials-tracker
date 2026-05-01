@@ -1,20 +1,27 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { superForm } from 'sveltekit-superforms';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { page } from '$app/state';
+	import { untrack } from 'svelte';
 
 	let { data } = $props();
 
-	const { form, errors, enhance: formEnhance, message } = superForm(data.form, {
-		onResult({ result }) {
-			if (result.type === 'success') {
-				toastSuccess('Password updated successfully');
-			} else if (result.type === 'failure') {
-				toastError((result.data as any)?.error ?? 'Failed to update password');
+	const {
+		form,
+		errors,
+		enhance: formEnhance
+	} = superForm(
+		untrack(() => data.form),
+		{
+			onResult({ result }) {
+				if (result.type === 'success') {
+					toastSuccess('Password updated successfully');
+				} else if (result.type === 'failure') {
+					toastError((result.data as any)?.error ?? 'Failed to update password');
+				}
 			}
 		}
-	});
+	);
 
 	let user = $derived((page.data as any).user);
 	let expired = $derived((data as any).expired);
@@ -25,84 +32,97 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<h2 class="text-xl font-semibold text-surface-900">Account Settings</h2>
+	<header>
+		<h2 class="text-xl font-semibold text-surface-900">Account</h2>
+		<p class="text-sm text-surface-500">Update your account credentials.</p>
+	</header>
 
 	{#if expired}
-		<div class="rounded-md border border-red-300 bg-red-50 p-4">
-			<p class="text-sm font-medium text-red-800">
-				Your password has expired. Please change your password to continue using the application.
-			</p>
+		<div
+			class="rounded-base border-l-4 border-error-500 bg-error-50 p-4 text-sm text-error-700"
+			role="alert"
+		>
+			<p class="font-semibold">Your password has expired.</p>
+			<p>Please change your password below to continue using the application.</p>
 		</div>
 	{/if}
 
-	<!-- Email (read-only) -->
-	<div>
-		<label class="mb-1 block text-sm font-medium text-surface-700">Email</label>
-		<input
-			type="email"
-			value={user?.email ?? ''}
-			disabled
-			class="w-full max-w-md rounded-md border border-surface-300 bg-surface-100 px-3 py-2 text-sm text-surface-500"
-		/>
-	</div>
+	<!-- Profile -->
+	<section
+		class="card border border-surface-200 bg-white p-6 shadow-sm"
+		aria-labelledby="profile-heading"
+	>
+		<h3 id="profile-heading" class="mb-4 text-base font-semibold text-surface-900">Profile</h3>
+		<label class="label max-w-md">
+			<span class="label-text">Email</span>
+			<input class="input" type="email" value={user?.email ?? ''} disabled readonly />
+		</label>
+	</section>
 
-	<!-- Change Password Form -->
-	<form method="POST" action="?/changePassword" use:formEnhance class="max-w-md space-y-4">
-		<h3 class="text-lg font-medium text-surface-800">Change Password</h3>
+	<!-- Change Password -->
+	<section
+		class="card border border-surface-200 bg-white p-6 shadow-sm"
+		aria-labelledby="password-heading"
+	>
+		<h3 id="password-heading" class="mb-1 text-base font-semibold text-surface-900">
+			Change password
+		</h3>
+		<p class="mb-4 text-sm text-surface-500">
+			Use a strong password that you don't reuse elsewhere.
+		</p>
 
-		<div>
-			<label for="currentPassword" class="mb-1 block text-sm font-medium text-surface-700"
-				>Current Password</label
-			>
-			<input
-				id="currentPassword"
-				name="currentPassword"
-				type="password"
-				bind:value={$form.currentPassword}
-				class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-			/>
-			{#if $errors.currentPassword}
-				<p class="mt-1 text-xs text-red-600">{$errors.currentPassword}</p>
-			{/if}
-		</div>
+		<form method="POST" action="?/changePassword" use:formEnhance class="max-w-md space-y-4">
+			<label class="label">
+				<span class="label-text">Current password</span>
+				<input
+					id="currentPassword"
+					name="currentPassword"
+					type="password"
+					autocomplete="current-password"
+					class="input {$errors.currentPassword ? 'input-error' : ''}"
+					aria-invalid={$errors.currentPassword ? 'true' : undefined}
+					bind:value={$form.currentPassword}
+				/>
+				{#if $errors.currentPassword}
+					<p class="text-xs text-error-500">{$errors.currentPassword}</p>
+				{/if}
+			</label>
 
-		<div>
-			<label for="newPassword" class="mb-1 block text-sm font-medium text-surface-700"
-				>New Password</label
-			>
-			<input
-				id="newPassword"
-				name="newPassword"
-				type="password"
-				bind:value={$form.newPassword}
-				class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-			/>
-			{#if $errors.newPassword}
-				<p class="mt-1 text-xs text-red-600">{$errors.newPassword}</p>
-			{/if}
-		</div>
+			<label class="label">
+				<span class="label-text">New password</span>
+				<input
+					id="newPassword"
+					name="newPassword"
+					type="password"
+					autocomplete="new-password"
+					class="input {$errors.newPassword ? 'input-error' : ''}"
+					aria-invalid={$errors.newPassword ? 'true' : undefined}
+					bind:value={$form.newPassword}
+				/>
+				{#if $errors.newPassword}
+					<p class="text-xs text-error-500">{$errors.newPassword}</p>
+				{/if}
+			</label>
 
-		<div>
-			<label for="confirmPassword" class="mb-1 block text-sm font-medium text-surface-700"
-				>Confirm Password</label
-			>
-			<input
-				id="confirmPassword"
-				name="confirmPassword"
-				type="password"
-				bind:value={$form.confirmPassword}
-				class="w-full rounded-md border border-surface-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-			/>
-			{#if $errors.confirmPassword}
-				<p class="mt-1 text-xs text-red-600">{$errors.confirmPassword}</p>
-			{/if}
-		</div>
+			<label class="label">
+				<span class="label-text">Confirm new password</span>
+				<input
+					id="confirmPassword"
+					name="confirmPassword"
+					type="password"
+					autocomplete="new-password"
+					class="input {$errors.confirmPassword ? 'input-error' : ''}"
+					aria-invalid={$errors.confirmPassword ? 'true' : undefined}
+					bind:value={$form.confirmPassword}
+				/>
+				{#if $errors.confirmPassword}
+					<p class="text-xs text-error-500">{$errors.confirmPassword}</p>
+				{/if}
+			</label>
 
-		<button
-			type="submit"
-			class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-		>
-			Update Password
-		</button>
-	</form>
+			<div class="flex justify-end">
+				<button type="submit" class="btn preset-filled-primary-500"> Update password </button>
+			</div>
+		</form>
+	</section>
 </div>
