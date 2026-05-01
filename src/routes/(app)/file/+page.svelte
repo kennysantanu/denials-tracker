@@ -1,9 +1,14 @@
 ﻿<script lang="ts">
 	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { formatDate } from '$lib/utils';
 	import FilesCalendar from '$lib/components/FilesCalendar.svelte';
+	import { toastSuccess, toastError } from '$lib/toast';
 
 	let { data } = $props();
+
+	let uploading = $state(false);
+	let fileInput = $state<HTMLInputElement | null>(null);
 
 	type SortKey = 'name' | 'type' | 'uploaded' | 'status';
 	let sortKey = $state<SortKey>('name');
@@ -94,7 +99,51 @@
 </svelte:head>
 
 <div class="mx-auto max-w-5xl space-y-6 p-6">
-	<h1 class="text-2xl font-bold text-surface-900">Files</h1>
+	<div class="flex items-center justify-between gap-4">
+		<h1 class="text-2xl font-bold text-surface-900">Files</h1>
+		<form
+			method="POST"
+			action="?/uploadNewFile"
+			enctype="multipart/form-data"
+			use:enhance={() => {
+				uploading = true;
+				return async ({ result, update }) => {
+					uploading = false;
+					if (result.type === 'success') {
+						toastSuccess('Files uploaded');
+						if (fileInput) fileInput.value = '';
+						await update();
+					} else if (result.type === 'failure') {
+						toastError(
+							'Upload failed',
+							String((result.data as Record<string, unknown>)?.error ?? 'Unknown error')
+						);
+					}
+				};
+			}}
+		>
+			<label class="btn cursor-pointer preset-filled-primary-500 btn-sm">
+				{#if uploading}
+					Uploading…
+				{:else}
+					Upload Files
+				{/if}
+				<input
+					bind:this={fileInput}
+					type="file"
+					name="files"
+					accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv"
+					multiple
+					class="hidden"
+					disabled={uploading}
+					onchange={(e) => {
+						const form = (e.target as HTMLInputElement).closest('form');
+						if (form) form.requestSubmit();
+					}}
+				/>
+			</label>
+		</form>
+	</div>
 
 	<div class="flex flex-col gap-6 lg:flex-row">
 		<!-- Calendar sidebar -->
