@@ -1,6 +1,12 @@
-import adapter from '@sveltejs/adapter-node';
+import nodeAdapter from '@sveltejs/adapter-node';
+import cloudflareAdapter from '@sveltejs/adapter-cloudflare';
 import { relative, sep } from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
+
+// Pick adapter at build time:
+//   SK_ADAPTER=cloudflare  -> Cloudflare Pages / Workers
+//   anything else (default) -> adapter-node (Docker, Portainer, local dev)
+const adapter = process.env.SK_ADAPTER === 'cloudflare' ? cloudflareAdapter() : nodeAdapter();
 
 // Read PUBLIC_SUPABASE_URL for CSP connect-src (env files aren't loaded yet at config time)
 function getSupabaseUrl() {
@@ -29,7 +35,7 @@ const config = {
 		}
 	},
 	kit: {
-		adapter: adapter(),
+		adapter: adapter,
 		csp: {
 			mode: 'auto',
 			directives: {

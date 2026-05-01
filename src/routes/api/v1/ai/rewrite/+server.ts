@@ -27,12 +27,17 @@ function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number
 	return { allowed: true };
 }
 
-setInterval(() => {
-	const now = Date.now();
-	for (const [key, val] of rateLimitMap) {
-		if (now >= val.resetAt) rateLimitMap.delete(key);
-	}
-}, 5 * 60_000);
+// Clean up stale entries periodically.
+// Guarded for Node only — Cloudflare Workers reject `setInterval` at module init.
+// On CF the Map is per-isolate (ephemeral) so unbounded growth isn't a concern.
+if (typeof process !== 'undefined' && process.versions?.node) {
+	setInterval(() => {
+		const now = Date.now();
+		for (const [key, val] of rateLimitMap) {
+			if (now >= val.resetAt) rateLimitMap.delete(key);
+		}
+	}, 5 * 60_000);
+}
 
 const DEFAULT_REWRITE_PROMPT =
 	'You are a professional medical billing assistant. Rewrite the following note to be clear, concise, and professional. Use proper medical billing terminology where appropriate. Return only the rewritten note text, with no explanations, prefixes, or surrounding quotes.';

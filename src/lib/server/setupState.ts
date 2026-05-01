@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
 import type { Database } from '$lib/supabase';
 
@@ -11,7 +11,7 @@ let adminClient: SupabaseClient<Database> | null = null;
 
 function getAdminClient(): SupabaseClient<Database> {
 	if (!adminClient) {
-		adminClient = createClient<Database>(getServerSupabaseUrl(), SUPABASE_SERVICE_ROLE_KEY, {
+		adminClient = createClient<Database>(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY, {
 			auth: { persistSession: false, autoRefreshToken: false }
 		});
 	}

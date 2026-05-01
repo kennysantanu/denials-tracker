@@ -3,7 +3,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { passwordSchema } from '$lib/schemas/auth';
 import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
 import { isSystemInitialized } from '$lib/server/setupState';
@@ -54,7 +54,7 @@ export const actions: Actions = {
 		//      admin yet exists to satisfy the "manage_users" policy.
 		const adminClient = createClient<Database>(
 			getServerSupabaseUrl(),
-			SUPABASE_SERVICE_ROLE_KEY
+			env.SUPABASE_SERVICE_ROLE_KEY
 		);
 
 		const { data: created, error: createError } = await adminClient.auth.admin.createUser({

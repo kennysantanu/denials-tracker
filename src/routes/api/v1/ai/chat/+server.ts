@@ -33,13 +33,17 @@ function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number
 	return { allowed: true };
 }
 
-// Clean up stale entries periodically
-setInterval(() => {
-	const now = Date.now();
-	for (const [key, val] of rateLimitMap) {
-		if (now >= val.resetAt) rateLimitMap.delete(key);
-	}
-}, 5 * 60_000);
+// Clean up stale entries periodically.
+// Guarded for Node only — Cloudflare Workers reject `setInterval` at module init.
+// On CF the Map is per-isolate (ephemeral) so unbounded growth isn't a concern.
+if (typeof process !== 'undefined' && process.versions?.node) {
+	setInterval(() => {
+		const now = Date.now();
+		for (const [key, val] of rateLimitMap) {
+			if (now >= val.resetAt) rateLimitMap.delete(key);
+		}
+	}, 5 * 60_000);
+}
 
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.`;
 

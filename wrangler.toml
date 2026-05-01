@@ -1,0 +1,20 @@
+#:schema node_modules/wrangler/config-schema.json
+# Cloudflare Pages config for Denials Tracker.
+#
+# Used when deploying to Cloudflare Pages with adapter-cloudflare.
+# Build command:  npm run build:cf
+# Build output:   .svelte-kit/cloudflare
+#
+# Environment variables (set via Cloudflare dashboard or `wrangler pages secret put`):
+#   PUBLIC_SUPABASE_URL          (public - can be a build var)
+#   PUBLIC_SUPABASE_ANON_KEY     (public)
+#   SUPABASE_SERVICE_ROLE_KEY    (secret)
+#   ORIGIN                       (e.g. https://your-app.pages.dev)
+#
+# Note: Cloudflare Pages requires Supabase Cloud (or another publicly-reachable
+# Supabase). Local/Docker Supabase is not reachable from the CF edge.
+
+name = "denials-tracker"
+compatibility_date = "2025-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".svelte-kit/cloudflare"

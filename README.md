@@ -44,19 +44,19 @@ Designed and built from the ground up with a security-first architecture: PHI is
 
 ## Tech Stack
 
-| Category      | Technology                                                                                      |
-| ------------- | ----------------------------------------------------------------------------------------------- |
-| Framework     | [SvelteKit 2](https://kit.svelte.dev/) + [Svelte 5](https://svelte.dev/) (Runes)                |
-| Language      | TypeScript 5.9                                                                                  |
-| UI            | [Skeleton](https://skeleton.dev/) v4 + [Tailwind CSS](https://tailwindcss.com/) 4               |
-| Theme         | Custom "Meridian" clinical theme                                                                |
-| Backend / DB  | [Supabase](https://supabase.com/) (self-hosted) — PostgreSQL, Auth, Storage, RLS                |
-| Auth          | `@supabase/ssr` — cookie-based server-side auth via SvelteKit hooks                             |
-| Forms         | [sveltekit-superforms](https://superforms.rocks/) + [Zod](https://zod.dev/) (schema validation) |
-| AI (optional) | OpenAI SDK — [LM Studio](https://lmstudio.ai/) or [Ollama](https://ollama.com/) (local-only)    |
-| Markdown      | [marked](https://marked.js.org/) + [DOMPurify](https://github.com/cure53/DOMPurify)             |
-| Testing       | [Vitest](https://vitest.dev/) (unit/component) + [Playwright](https://playwright.dev/) (E2E)    |
-| Deployment    | Docker (multi-stage, non-root) + Docker Compose + `@sveltejs/adapter-node`                      |
+| Category      | Technology                                                                                                      |
+| ------------- | --------------------------------------------------------------------------------------------------------------- |
+| Framework     | [SvelteKit 2](https://kit.svelte.dev/) + [Svelte 5](https://svelte.dev/) (Runes)                                |
+| Language      | TypeScript 5.9                                                                                                  |
+| UI            | [Skeleton](https://skeleton.dev/) v4 + [Tailwind CSS](https://tailwindcss.com/) 4                               |
+| Theme         | Custom "Meridian" clinical theme                                                                                |
+| Backend / DB  | [Supabase](https://supabase.com/) (self-hosted) — PostgreSQL, Auth, Storage, RLS                                |
+| Auth          | `@supabase/ssr` — cookie-based server-side auth via SvelteKit hooks                                             |
+| Forms         | [sveltekit-superforms](https://superforms.rocks/) + [Zod](https://zod.dev/) (schema validation)                 |
+| AI (optional) | OpenAI SDK — [LM Studio](https://lmstudio.ai/) or [Ollama](https://ollama.com/) (local-only)                    |
+| Markdown      | [marked](https://marked.js.org/) + [DOMPurify](https://github.com/cure53/DOMPurify)                             |
+| Testing       | [Vitest](https://vitest.dev/) (unit/component) + [Playwright](https://playwright.dev/) (E2E)                    |
+| Deployment    | Docker / Portainer (`adapter-node`) or Cloudflare Pages (`adapter-cloudflare`) — runtime selected at build time |
 
 ---
 
@@ -97,68 +97,145 @@ npm run test        # Both
 
 ## Deployment
 
-Two scenarios are supported, both driven by the same `.env` file:
+The app supports three runtime targets (Local Docker, Portainer Git stack,
+Cloudflare Pages) against two backend options (self-hosted Supabase via
+Docker, or Supabase Cloud).
 
-### 1. App only (existing Supabase project — cloud or self-hosted)
+| Target / Backend          | Self-hosted Supabase (Docker) |  Supabase Cloud   |
+| ------------------------- | :---------------------------: | :---------------: |
+| **Local Docker**          |  ✅ both stacks via compose   | ✅ app stack only |
+| **Portainer (Git stack)** |  ✅ both stacks via compose   | ✅ app stack only |
+| **Cloudflare Pages**      | ❌ (not reachable from edge)  |        ✅         |
+
+All targets share the same source. Secrets are injected at runtime via
+environment variables (`$env/dynamic/*`) — the build artifact contains no
+instance-specific values, so the same image / bundle deploys anywhere.
+
+### Required environment variables
+
+| Variable                    | Required | Notes                                                       |
+| --------------------------- | :------: | ----------------------------------------------------------- |
+| `PUBLIC_SUPABASE_URL`       |    ✅    | Public Supabase URL the browser hits                        |
+| `PUBLIC_SUPABASE_ANON_KEY`  |    ✅    | Public anon key                                             |
+| `SUPABASE_SERVICE_ROLE_KEY` |    ✅    | **Secret** — admin operations and setup                     |
+| `ORIGIN`                    |    ✅    | Public URL of the app (`https://...`)                       |
+| `DATABASE_URL`              |    ⚠️    | Only needed when running migrations (`migrate` profile)     |
+| `SUPABASE_INTERNAL_URL`     | optional | Docker-internal Supabase URL (set automatically by overlay) |
+
+---
+
+### 1. Local Docker
+
+#### App only (existing Supabase — cloud or external host)
 
 ```sh
 ./install.sh           # or ./install.ps1 on Windows
-# Choose option [1] App only and paste in your Supabase URL / keys / DB URL.
+# Choose option [1] App only and paste in your Supabase URL / keys.
 ```
 
 Or manually:
 
 ```sh
-cp .env.example .env   # then edit PUBLIC_SUPABASE_URL, keys, DATABASE_URL, ORIGIN
+cp .env.example .env   # then edit PUBLIC_SUPABASE_URL, keys, ORIGIN
 docker compose up -d
 ```
 
-The `migrate` sidecar applies every file in `supabase/migrations/` against
-`DATABASE_URL` in timestamp order. It tracks applied files in
-`public._app_migrations`, so re-runs are no-ops and new migrations apply
-cleanly with `docker compose run --rm migrate`.
-
-### 2. App + bundled self-hosted Supabase (single host)
+To run database migrations once against the configured `DATABASE_URL`:
 
 ```sh
-./install.sh           # or ./install.ps1 on Windows
+docker compose --profile migrate up migrate
+```
+
+#### App + bundled self-hosted Supabase (single host)
+
+```sh
+./install.sh
 # Choose option [2] App + Supabase. Secrets and JWTs are generated for you.
 ```
 
 Or manually:
 
 ```sh
-cp .env.example .env   # then fill in POSTGRES_PASSWORD, JWT_SECRET, etc.
-docker compose -f docker-compose.yml -f docker-compose.supabase.yml up -d
+cp .env.example .env   # POSTGRES_PASSWORD, JWT_SECRET, etc.
+docker compose --profile with-local-db \
+  -f docker-compose.yml -f docker-compose.supabase.yml up -d
 ```
 
-This brings up: app, migrate, db (Postgres 15), kong (API gateway), auth
-(GoTrue), rest (PostgREST), storage + imgproxy, postgres-meta, and Studio
-(admin UI on `http://localhost:54323` by default).
+Brings up: app, migrate, db (Postgres 15), kong, auth (GoTrue), rest
+(PostgREST), storage + imgproxy, postgres-meta, Studio.
 
 > The bundled Supabase stack is a slim subset of the upstream
 > [supabase/supabase docker setup](https://github.com/supabase/supabase/tree/master/docker)
 > (Apache-2.0). Realtime, edge functions, analytics/Logflare, and the
-> Supavisor pooler are intentionally omitted — Denials Tracker doesn't use
-> them. Vendored upstream files live in `supabase/volumes/` with the
-> required `LICENSE` and `NOTICE.md`.
+> Supavisor pooler are intentionally omitted. Vendored files live in
+> `supabase/volumes/` with the required `LICENSE` and `NOTICE.md`.
+
+---
+
+### 2. Portainer (Git repository stack)
+
+Create a stack in Portainer pointing at this repository's Git URL.
+Portainer will clone the repo, run `docker compose build` (no registry
+needed; `pull_policy: build` keeps it from trying Docker Hub), and start
+the containers.
+
+In the stack's **Environment variables** form, set the variables from the
+table above. Optionally set the **profile** in the advanced compose
+options:
+
+- **(default)** — App only, points at external Supabase.
+- **`migrate`** — Also runs migrations once at startup.
+- **`with-local-db`** — Bundled self-hosted Supabase. Requires also
+  selecting the secondary compose file `docker-compose.supabase.yml` in
+  the stack's "Additional file" field.
+
+`.env` is **not** required (it is marked optional in compose). All values
+come from the Portainer stack form.
+
+---
+
+### 3. Cloudflare Pages
+
+Cloudflare Pages requires **Supabase Cloud** (or any publicly-reachable
+Supabase) — the CF edge cannot reach a Docker-local backend.
+
+**Project setup (Cloudflare dashboard → Pages → Create → Connect to Git):**
+
+| Field                  | Value                                                       |
+| ---------------------- | ----------------------------------------------------------- |
+| Build command          | `npm run build:cf`                                          |
+| Build output directory | `.svelte-kit/cloudflare`                                    |
+| Environment variables  | `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`, `ORIGIN` |
+| Secrets                | `SUPABASE_SERVICE_ROLE_KEY` (mark as encrypted)             |
+
+The build script `npm run build:cf` sets `SK_ADAPTER=cloudflare` so
+SvelteKit emits Workers-compatible output. Default builds (`npm run build`)
+keep emitting `adapter-node` for Docker.
+
+**Migrations**: run them out-of-band against your Supabase Cloud project
+(`supabase db push`, the dashboard SQL editor, or the migrate container
+locally pointed at your cloud `DATABASE_URL`).
+
+**Known CF caveat**: in-memory rate limiting on the AI routes is per-isolate
+on Workers (not globally enforced). For strict global rate limiting on CF,
+migrate to Cloudflare KV or Durable Objects.
+
+---
 
 ### Reverse proxy / TLS
 
-Both modes set `PROTOCOL_HEADER=x-forwarded-proto` and
+Docker/Portainer modes set `PROTOCOL_HEADER=x-forwarded-proto` and
 `HOST_HEADER=x-forwarded-host`, so any TLS-terminating proxy (Caddy,
-Nginx, Traefik, Cloudflare Tunnel) in front works out of the box. Make
-sure `ORIGIN` matches the public URL users type into the browser
-(including scheme and port).
+Nginx, Traefik, Cloudflare Tunnel) in front works out of the box.
+Cloudflare Pages handles TLS automatically. Make sure `ORIGIN` matches
+the public URL users type into the browser (including scheme).
 
 ### Bundled mode networking note
 
-`PUBLIC_SUPABASE_URL` is baked into the browser bundle at build time and
-must be reachable by the **user's browser**. Inside the docker network the
-app container reaches Supabase via `SUPABASE_INTERNAL_URL=http://kong:8000`
-(set automatically by `docker-compose.supabase.yml`). When unset (app-only
-mode), SSR falls back to `PUBLIC_SUPABASE_URL` — the right behaviour for
-external Supabase projects.
+In bundled-Supabase mode, the app container reaches Supabase via
+`SUPABASE_INTERNAL_URL=http://kong:8000` (set automatically by
+`docker-compose.supabase.yml`). When unset, SSR falls back to
+`PUBLIC_SUPABASE_URL` — the right behaviour for external/cloud Supabase.
 
 ---
 

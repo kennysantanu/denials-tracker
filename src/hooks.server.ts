@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { env } from '$env/dynamic/private';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { env as publicEnv } from '$env/dynamic/public';
 import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
 import { isSystemInitialized } from '$lib/server/setupState';
 import type { Database } from '$lib/supabase';
@@ -29,7 +29,7 @@ const supabaseHandle: Handle = async ({ event, resolve }) => {
 
 	event.locals.supabase = createServerClient<Database>(
 		getServerSupabaseUrl(),
-		PUBLIC_SUPABASE_ANON_KEY!,
+		publicEnv.PUBLIC_SUPABASE_ANON_KEY!,
 		{
 			cookies: {
 				getAll: () => event.cookies.getAll(),
@@ -121,7 +121,10 @@ const securityHeadersHandle: Handle = async ({ event, resolve }) => {
 	// Allow iframes for file pages (PDF viewer in full view + preview dialog), deny everywhere else
 	if (path.startsWith('/file')) {
 		response.headers.set('X-Frame-Options', 'SAMEORIGIN');
-		response.headers.set('Content-Security-Policy', `frame-src 'self' ${PUBLIC_SUPABASE_URL};`);
+		response.headers.set(
+			'Content-Security-Policy',
+			`frame-src 'self' ${publicEnv.PUBLIC_SUPABASE_URL};`
+		);
 	} else {
 		response.headers.set('X-Frame-Options', 'DENY');
 	}

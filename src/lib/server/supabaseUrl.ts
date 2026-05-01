@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { env as publicEnv } from '$env/dynamic/public';
 
 /**
  * Returns the Supabase URL to use for server-side (SSR / admin) requests.
@@ -12,5 +12,5 @@ import { PUBLIC_SUPABASE_URL } from '$env/static/public';
  * for outbound API calls. When unset, behavior is unchanged.
  */
 export function getServerSupabaseUrl(): string {
-	return env.SUPABASE_INTERNAL_URL || PUBLIC_SUPABASE_URL!;
+	return env.SUPABASE_INTERNAL_URL || publicEnv.PUBLIC_SUPABASE_URL!;
 }
