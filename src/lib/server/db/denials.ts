@@ -13,7 +13,7 @@ export async function getDenialsByPatient(
 		.from('denials')
 		.select('*')
 		.eq('patient_id', patientId)
-		.order('created_at', { ascending: false });
+		.order('service_start_date', { ascending: false });
 }
 
 export async function createDenial(
@@ -22,11 +22,7 @@ export async function createDenial(
 	insuranceIds?: number[],
 	labelIds?: number[]
 ): Promise<{ data: DenialsRow | null; error: PostgrestError | null }> {
-	const { data: denial, error } = await supabase
-		.from('denials')
-		.insert(data)
-		.select()
-		.single();
+	const { data: denial, error } = await supabase.from('denials').insert(data).select().single();
 
 	if (error || !denial) {
 		return { data: null, error };
@@ -136,10 +132,7 @@ export async function deleteDenial(
 		return { data: null, error: insError };
 	}
 
-	const { error: lblError } = await supabase
-		.from('denials_labels')
-		.delete()
-		.eq('denial_id', id);
+	const { error: lblError } = await supabase.from('denials_labels').delete().eq('denial_id', id);
 	if (lblError) {
 		return { data: null, error: lblError };
 	}
