@@ -11,7 +11,7 @@ import {
 import { createNote, deleteNote, updateNote } from '$lib/server/db/notes';
 import { getInsurances, updateInsurance } from '$lib/server/db/insurances';
 import { getLabels } from '$lib/server/db/labels';
-import { uploadFile } from '$lib/server/db/files';
+import { uploadFile, getVersionedPath } from '$lib/server/db/files';
 import { logAudit } from '$lib/server/audit';
 
 export const load: PageServerLoad = async ({ locals, params, parent, request }) => {
@@ -206,9 +206,10 @@ export const actions: Actions = {
 			for (const file of files) {
 				if (!file.size || !file.name) continue;
 
-				const timestamp = Date.now();
 				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-				const storagePath = `${patientId}/${timestamp}_${safeName}`;
+				const now = new Date();
+				const dateFolder = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+				const storagePath = await getVersionedPath(supabase, dateFolder, safeName);
 
 				const { error: uploadError } = await uploadFile(supabase, storagePath, file, {
 					contentType: file.type
@@ -386,9 +387,10 @@ export const actions: Actions = {
 			for (const file of files) {
 				if (!file.size || !file.name) continue;
 
-				const timestamp = Date.now();
 				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-				const storagePath = `${patientId}/${timestamp}_${safeName}`;
+				const now = new Date();
+				const dateFolder = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+				const storagePath = await getVersionedPath(supabase, dateFolder, safeName);
 
 				const { error: uploadError } = await uploadFile(supabase, storagePath, file, {
 					contentType: file.type
@@ -532,11 +534,10 @@ export const actions: Actions = {
 			for (const file of newFiles) {
 				if (!file.size || !file.name) continue;
 
-				const timestamp = Date.now();
 				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-				const storagePath = isNaN(patientId)
-					? `notes/${timestamp}_${safeName}`
-					: `${patientId}/${timestamp}_${safeName}`;
+				const now = new Date();
+				const dateFolder = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+				const storagePath = await getVersionedPath(supabase, dateFolder, safeName);
 
 				const { error: uploadError } = await uploadFile(supabase, storagePath, file, {
 					contentType: file.type
@@ -661,9 +662,10 @@ export const actions: Actions = {
 			for (const file of files) {
 				if (!file.size || !file.name) continue;
 
-				const timestamp = Date.now();
 				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-				const storagePath = `patients/${patientId}/${timestamp}_${safeName}`;
+				const now = new Date();
+				const dateFolder = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+				const storagePath = await getVersionedPath(supabase, dateFolder, safeName);
 
 				const { error: uploadError } = await uploadFile(supabase, storagePath, file, {
 					contentType: file.type

@@ -36,6 +36,30 @@ export async function uploadFile(
 	});
 }
 
+export async function getVersionedPath(
+	supabase: SupabaseClient<Database>,
+	dateFolder: string,
+	fileName: string
+): Promise<string> {
+	const dot = fileName.lastIndexOf('.');
+	const base = dot >= 0 ? fileName.slice(0, dot) : fileName;
+	const ext = dot >= 0 ? fileName.slice(dot) : '';
+
+	let candidate = `${dateFolder}/${fileName}`;
+	let version = 2;
+
+	while (true) {
+		const { data } = await supabase
+			.from('files')
+			.select('name')
+			.eq('name', candidate)
+			.maybeSingle();
+		if (!data) return candidate;
+		candidate = `${dateFolder}/${base}(${version})${ext}`;
+		version++;
+	}
+}
+
 export async function getFileByName(supabase: SupabaseClient<Database>, name: string) {
 	return supabase.from('files').select('*').eq('name', name).single();
 }

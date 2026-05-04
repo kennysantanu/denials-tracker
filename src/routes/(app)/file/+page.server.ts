@@ -4,6 +4,7 @@ import {
 	getFilesByDate,
 	getFileDateStatusesInMonth,
 	uploadFile,
+	getVersionedPath,
 	type DateStatus
 } from '$lib/server/db/files';
 import { logAudit } from '$lib/server/audit';
@@ -56,9 +57,10 @@ export const actions: Actions = {
 			for (const file of files) {
 				if (!file.size || !file.name) continue;
 
-				const timestamp = Date.now();
 				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-				const storagePath = `${timestamp}_${safeName}`;
+				const now = new Date();
+				const dateFolder = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+				const storagePath = await getVersionedPath(supabase, dateFolder, safeName);
 
 				const { error: uploadError } = await uploadFile(supabase, storagePath, file, {
 					contentType: file.type
