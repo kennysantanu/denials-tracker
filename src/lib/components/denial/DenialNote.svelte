@@ -23,7 +23,15 @@
 
 	let { note, permissions, patientId, searchQuery = '' }: Props = $props();
 
-	function renderNote(text: string, query: string): string {
+	function escapeHtml(str: string): string {
+		return str
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;');
+	}
+
+	function renderNote(text: string, query: string, prefix: string): string {
 		const raw = marked.parse(text);
 		if (typeof raw !== 'string') return '';
 		// Sanitize dangerous URL schemes (SSR-safe XSS prevention)
@@ -36,10 +44,23 @@
 				'<mark class="bg-yellow-200 rounded-sm not-italic">$1</mark>'
 			);
 		}
+		// Inject prefix inside the first <p> so date/user and note text are truly inline
+		if (prefix) {
+			html = html.replace(/^<p>/, `<p>${prefix}`);
+		}
 		return html;
 	}
 
-	let renderedNote = $derived(renderNote(note.note, searchQuery));
+	let notePrefix = $derived(
+		formatDate(note.created_at) +
+			(note.created_by_user?.username
+				? ` <span class="font-bold">(${escapeHtml(note.created_by_user.username)}): </span>`
+				: note.created_by
+					? ` <span class="font-bold">(${escapeHtml(note.created_by)}): </span>`
+					: ' ')
+	);
+
+	let renderedNote = $derived(renderNote(note.note, searchQuery, notePrefix));
 
 	let menuOpen = $state(false);
 	let editing = $state(false);
@@ -151,14 +172,6 @@
 						{/each}
 					</div>
 				{/if}
-				<p class="mt-1 text-xs text-surface-500">
-					{formatDate(note.created_at)}
-					{#if note.created_by_user?.username}
-						<span>by {note.created_by_user.username}</span>
-					{:else if note.created_by}
-						<span>by {note.created_by}</span>
-					{/if}
-				</p>
 			</div>
 
 			{#if permissions['update_denial'] || permissions['delete_denial']}
