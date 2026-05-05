@@ -63,7 +63,7 @@
 </script>
 
 <svelte:head>
-	<title>View File — Denials Tracker</title>
+	<title>{data.fileName} | Denials Tracker</title>
 </svelte:head>
 
 <div class="mx-auto max-w-5xl space-y-6 p-6">
@@ -119,8 +119,8 @@
 							<!-- Edit Mode -->
 							<div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
 								<div>
-									<span class="text-xs font-medium text-surface-500">File Name</span>
-									<p class="mt-1 text-sm text-surface-800">{extractFileName(data.fileName)}</p>
+									<span class="text-xs font-medium text-surface-500">File Path</span>
+									<p class="mt-1 text-sm text-surface-800">{data.fileName}</p>
 								</div>
 								<div>
 									<span class="text-xs font-medium text-surface-500">Upload Date</span>
@@ -216,8 +216,8 @@
 							<!-- View Mode -->
 							<div class="grid grid-cols-2 gap-4 sm:grid-cols-5">
 								<div>
-									<span class="text-xs font-medium text-surface-500">File Name</span>
-									<p class="mt-1 text-sm text-surface-800">{extractFileName(data.fileName)}</p>
+									<span class="text-xs font-medium text-surface-500">File Path</span>
+									<p class="mt-1 text-sm text-surface-800">{data.fileName}</p>
 								</div>
 								<div>
 									<span class="text-xs font-medium text-surface-500">Upload Date</span>
