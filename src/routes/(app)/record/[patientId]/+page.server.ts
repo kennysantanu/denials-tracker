@@ -230,11 +230,6 @@ export const actions: Actions = {
 				if (fileDbError) {
 					throw new Error(`Failed to save file record: ${fileDbError.message}`);
 				}
-
-				await supabase.from('patients_files').insert({
-					patient_id: patientId,
-					file_name: storagePath
-				});
 			}
 
 			// Create the initial note
@@ -276,7 +271,6 @@ export const actions: Actions = {
 				await supabase.storage.from('files').remove(uploadedFilePaths);
 				for (const fp of uploadedFilePaths) {
 					await supabase.from('files').delete().eq('name', fp);
-					await supabase.from('patients_files').delete().eq('file_name', fp);
 				}
 			}
 			const message = err instanceof Error ? err.message : 'Failed to save attachments';
@@ -412,12 +406,6 @@ export const actions: Actions = {
 				if (fileDbError) {
 					throw new Error(`Failed to save file record: ${fileDbError.message}`);
 				}
-
-				// Insert patients_files junction
-				await supabase.from('patients_files').insert({
-					patient_id: patientId,
-					file_name: storagePath
-				});
 			}
 
 			// Create the note
@@ -464,7 +452,6 @@ export const actions: Actions = {
 				await supabase.storage.from('files').remove(uploadedFilePaths);
 				for (const fp of uploadedFilePaths) {
 					await supabase.from('files').delete().eq('name', fp);
-					await supabase.from('patients_files').delete().eq('file_name', fp);
 				}
 			}
 
@@ -559,13 +546,6 @@ export const actions: Actions = {
 					throw new Error(`Failed to save file record: ${fileDbError.message}`);
 				}
 
-				if (!isNaN(patientId)) {
-					await supabase.from('patients_files').insert({
-						patient_id: patientId,
-						file_name: storagePath
-					});
-				}
-
 				await supabase.from('notes_files').insert({
 					note_id: noteId,
 					file_name: storagePath
@@ -599,9 +579,6 @@ export const actions: Actions = {
 				await supabase.storage.from('files').remove(uploadedFilePaths);
 				for (const fp of uploadedFilePaths) {
 					await supabase.from('files').delete().eq('name', fp);
-					if (!isNaN(patientId)) {
-						await supabase.from('patients_files').delete().eq('file_name', fp);
-					}
 				}
 			}
 
