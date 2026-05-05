@@ -171,7 +171,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.patient.last_name}, {data.patient.first_name} — Denials Tracker</title>
+	<title>{data.patient.last_name}, {data.patient.first_name} | Denials Tracker</title>
 </svelte:head>
 
 <div class="mx-auto max-w-5xl p-6">

@@ -299,7 +299,7 @@
 </script>
 
 <svelte:head>
-	<title>Report — Denials Tracker</title>
+	<title>Report | Denials Tracker</title>
 </svelte:head>
 
 <div class="space-y-6">

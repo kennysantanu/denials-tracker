@@ -37,7 +37,7 @@
 </script>
 
 <svelte:head>
-	<title>Manage Users — Denials Tracker</title>
+	<title>Manage Users | Denials Tracker</title>
 </svelte:head>
 
 <div class="space-y-6">

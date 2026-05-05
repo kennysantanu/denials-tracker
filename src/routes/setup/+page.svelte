@@ -12,7 +12,7 @@
 </script>
 
 <svelte:head>
-	<title>Setup — Denials Tracker</title>
+	<title>Setup | Denials Tracker</title>
 </svelte:head>
 
 <div class="flex min-h-screen items-center justify-center bg-surface-50 px-4">

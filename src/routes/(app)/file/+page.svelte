@@ -95,7 +95,7 @@
 </script>
 
 <svelte:head>
-	<title>Files — Denials Tracker</title>
+	<title>Files | Denials Tracker</title>
 </svelte:head>
 
 <div class="mx-auto max-w-5xl space-y-6 p-6">

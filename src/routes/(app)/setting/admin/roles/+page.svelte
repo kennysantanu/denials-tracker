@@ -52,7 +52,7 @@
 </script>
 
 <svelte:head>
-	<title>Manage Roles — Denials Tracker</title>
+	<title>Manage Roles | Denials Tracker</title>
 </svelte:head>
 
 <div class="space-y-6">

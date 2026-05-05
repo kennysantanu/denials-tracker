@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-	<title>Sign In — Denials Tracker</title>
+	<title>Sign In | Denials Tracker</title>
 </svelte:head>
 
 <div class="flex min-h-screen items-center justify-center bg-surface-50 px-4">

@@ -326,7 +326,7 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard — Denials Tracker</title>
+	<title>Dashboard | Denials Tracker</title>
 </svelte:head>
 
 <div class="space-y-5">

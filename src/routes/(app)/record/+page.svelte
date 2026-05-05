@@ -83,7 +83,7 @@
 </script>
 
 <svelte:head>
-	<title>Record — Denials Tracker</title>
+	<title>Record | Denials Tracker</title>
 </svelte:head>
 
 <div class="mx-auto max-w-5xl space-y-4 p-6">

@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>Error — Denials Tracker</title>
+	<title>Error | Denials Tracker</title>
 </svelte:head>
 
 <div class="flex min-h-[60vh] items-center justify-center px-4">

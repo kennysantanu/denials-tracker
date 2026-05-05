@@ -28,7 +28,7 @@
 </script>
 
 <svelte:head>
-	<title>Account Settings — Denials Tracker</title>
+	<title>Account Settings | Denials Tracker</title>
 </svelte:head>
 
 <div class="space-y-6">

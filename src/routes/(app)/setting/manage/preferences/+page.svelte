@@ -21,7 +21,7 @@
 </script>
 
 <svelte:head>
-	<title>Preferences — Denials Tracker</title>
+	<title>Preferences | Denials Tracker</title>
 </svelte:head>
 
 <div class="space-y-6">

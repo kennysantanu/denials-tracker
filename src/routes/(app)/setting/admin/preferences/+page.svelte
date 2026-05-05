@@ -36,7 +36,7 @@
 </script>
 
 <svelte:head>
-	<title>System Preferences — Denials Tracker</title>
+	<title>System Preferences | Denials Tracker</title>
 </svelte:head>
 
 <div class="space-y-6">

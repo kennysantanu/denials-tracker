@@ -58,7 +58,7 @@
 </script>
 
 <svelte:head>
-	<title>Audit Log — Denials Tracker</title>
+	<title>Audit Log | Denials Tracker</title>
 </svelte:head>
 
 <div class="space-y-6">
