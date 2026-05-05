@@ -5,7 +5,7 @@
 	import { onMount } from 'svelte';
 	import IdleTimeoutWarning from '$lib/components/IdleTimeoutWarning.svelte';
 	import AIChatDrawer from '$lib/components/ai/AIChatDrawer.svelte';
-	import { Toast } from '@skeletonlabs/skeleton-svelte';
+	import { Tabs, Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
 	import {
 		isChatDrawerOpen,
@@ -20,11 +20,11 @@
 	let userMenuOpen = $state(false);
 
 	const navItems = [
-		{ href: '/dashboard', label: 'Dashboard', icon: '📊' },
-		{ href: '/record', label: 'Record', icon: '📋' },
-		{ href: '/report', label: 'Report', icon: '📈' },
-		{ href: '/file', label: 'Files', icon: '📁' },
-		{ href: '/setting', label: 'Settings', icon: '⚙️' }
+		{ href: '/dashboard', label: 'Dashboard' },
+		{ href: '/record', label: 'Record' },
+		{ href: '/report', label: 'Report' },
+		{ href: '/file', label: 'Files' },
+		{ href: '/setting', label: 'Settings' }
 	];
 
 	const toastTypeIcons: Record<string, string> = {
@@ -52,6 +52,8 @@
 	function isActive(href: string): boolean {
 		return currentPath === href || currentPath.startsWith(href + '/');
 	}
+
+	let tabValue = $derived(navItems.find((item) => isActive(item.href))?.href ?? null);
 
 	// AI chat button visibility: only on context-providing routes
 	const aiContextRoutes = ['/dashboard', '/record', '/report'];
@@ -117,21 +119,20 @@
 			</div>
 
 			<!-- Center: Desktop nav -->
-			<nav class="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 lg:flex">
-				{#each navItems as item (item.href)}
-					<a
-						href={item.href}
-						aria-current={isActive(item.href) ? 'page' : undefined}
-						class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(
-							item.href
-						)
-							? 'bg-primary-50 text-primary-700'
-							: 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
-					>
-						<span>{item.icon}</span>
-						{item.label}
-					</a>
-				{/each}
+			<nav class="absolute top-4 left-1/2 hidden -translate-x-1/2 lg:block">
+				<Tabs value={tabValue} navigate={() => {}}>
+					<Tabs.List>
+						{#each navItems as item (item.href)}
+							<Tabs.Trigger value={item.href} class="text-sm">
+								{#snippet element(attrs)}
+									<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
+									<a href={item.href} {...attrs as any}>{item.label}</a>
+								{/snippet}
+							</Tabs.Trigger>
+						{/each}
+						<Tabs.Indicator class="bg-primary-600" />
+					</Tabs.List>
+				</Tabs>
 			</nav>
 
 			<!-- Right: User actions -->
@@ -146,7 +147,7 @@
 							: 'px-3 py-1.5 text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
 						title="AI Assistant"
 					>
-						<span class="text-sm font-medium">🤖 AI Chat</span>
+						<span class="text-sm font-medium">AI Chat</span>
 					</button>
 				{/if}
 
@@ -219,7 +220,7 @@
 									class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-surface-700 hover:bg-surface-50"
 									role="menuitem"
 								>
-									<span aria-hidden="true">🤖</span> AI Chat
+									AI Chat
 								</button>
 							{/if}
 							<form method="POST" action="/signout" use:enhance>
@@ -288,13 +289,12 @@
 							href={item.href}
 							onclick={() => (drawerOpen = false)}
 							aria-current={isActive(item.href) ? 'page' : undefined}
-							class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(
+							class="flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(
 								item.href
 							)
 								? 'bg-primary-50 text-primary-700'
 								: 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
 						>
-							<span>{item.icon}</span>
 							{item.label}
 						</a>
 					{/each}
