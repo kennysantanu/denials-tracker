@@ -77,15 +77,6 @@
 		return match ? match[1] : last;
 	}
 
-	function formatBytes(bytes: number | null): string {
-		if (!bytes) return '';
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-	}
-
 	function matchesDenial(denial: (typeof data.denials)[number]): boolean {
 		const q = searchQuery.toLowerCase().trim();
 		if (q) {
@@ -292,18 +283,15 @@
 					<span class="text-xs font-medium text-surface-500">Files:</span>
 					{#each data.patientFiles as file (file.name)}
 						<span
-							class="inline-flex items-center gap-1 rounded-full bg-surface-100 px-2.5 py-1 text-xs text-surface-700"
+							class="inline-flex items-center gap-1.5 rounded-base border border-surface-200 bg-surface-50 px-2.5 py-1 text-xs transition-colors hover:bg-surface-100"
 						>
 							<a
 								href="/file/view?name={encodeURIComponent(file.name)}"
-								class="text-primary-600 hover:underline"
-								title={formatBytes(file.size) || undefined}
+								class="text-primary-600 hover:text-primary-800"
+								title={file.name}
 							>
-								{displayFileName(file.name)}
+								<span class="max-w-37.5 truncate">{displayFileName(file.name)}</span>
 							</a>
-							{#if file.size}
-								<span class="text-surface-400">{formatBytes(file.size)}</span>
-							{/if}
 							{#if data.permissions['file_delete']}
 								{#if confirmingFile === file.name}
 									<span class="ml-0.5 inline-flex items-center gap-1">

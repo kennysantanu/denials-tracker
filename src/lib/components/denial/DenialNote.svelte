@@ -93,15 +93,6 @@
 		const match = last.match(/^\d+_(.+)$/);
 		return match ? match[1] : last;
 	}
-
-	function formatBytes(bytes: number | null): string {
-		if (!bytes) return '';
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-	}
 </script>
 
 <div class="rounded border border-surface-200 bg-white p-3">
@@ -148,26 +139,10 @@
 						{#each attachedFiles as file (file.name)}
 							<a
 								href="/file/view?name={encodeURIComponent(file.name)}"
-								class="inline-flex items-center gap-1.5 rounded-md border border-surface-200 bg-surface-50 px-2.5 py-1 text-xs text-primary-600 transition-colors hover:bg-surface-100 hover:text-primary-800"
+								class="inline-flex items-center gap-1.5 rounded-base border border-surface-200 bg-surface-50 px-2.5 py-1 text-xs text-primary-600 transition-colors hover:bg-surface-100 hover:text-primary-800"
 								title={file.name}
 							>
-								<svg
-									class="h-3.5 w-3.5 shrink-0"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-									/>
-								</svg>
 								<span class="max-w-37.5 truncate">{displayFileName(file.name)}</span>
-								{#if file.size}
-									<span class="text-surface-400">({formatBytes(file.size)})</span>
-								{/if}
 							</a>
 						{/each}
 					</div>
