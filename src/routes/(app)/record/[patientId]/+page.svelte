@@ -45,6 +45,7 @@
 
 	let noteEditor = $state<ReturnType<typeof NoteEditor>>();
 	let confirmingFile = $state<string | null>(null);
+	let patientMenuOpen = $state(false);
 
 	function autoresize(node: HTMLTextAreaElement) {
 		function resize() {
@@ -186,19 +187,18 @@
 
 	<!-- Patient Header -->
 	<div class="mb-8 rounded-lg border border-surface-200 bg-surface-50 p-6">
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+		<div class="flex items-start justify-between gap-3">
 			<div class="min-w-0 flex-1">
-				<h1 class="text-2xl font-bold">
-					{data.patient.last_name}, {data.patient.first_name}
+				<h1 class="text-2xl font-bold tracking-tight text-surface-900">
+					{data.patient.last_name}, {data.patient.first_name} ({formatDate(
+						data.patient.date_of_birth
+					)})
 				</h1>
-				<p class="mt-1 text-surface-500">
-					DOB: {formatDate(data.patient.date_of_birth)}
-				</p>
 				{#if editingNote}
 					<form
 						method="POST"
 						action="?/updatePatientNote"
-						class="mt-2"
+						class="mt-3"
 						use:enhance={() => {
 							return async ({ result, update }) => {
 								if (result.type === 'success') {
@@ -220,14 +220,10 @@
 							use:autoresize
 						></textarea>
 						<div class="mt-1.5 flex gap-2">
-							<button
-								type="submit"
-								class="rounded bg-primary-600 px-3 py-1 text-xs text-white hover:bg-primary-700"
-								>Save</button
-							>
+							<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
 							<button
 								type="button"
-								class="rounded border border-surface-300 px-3 py-1 text-xs text-surface-600 hover:bg-surface-100"
+								class="btn preset-outlined-surface-500 btn-sm"
 								onclick={() => {
 									editingNote = false;
 									noteText = data.patient.note ?? '';
@@ -235,32 +231,65 @@
 							>
 						</div>
 					</form>
-				{:else}
-					{#if data.patient.note}
-						<div class="prose prose-sm mt-2 max-w-none">{@html renderedPatientNote}</div>
-					{/if}
-					{#if data.permissions['manage_patients']}
-						<button
-							type="button"
-							class="mt-1.5 text-xs text-surface-400 hover:text-primary-600"
-							onclick={() => {
-								noteText = data.patient.note ?? '';
-								editingNote = true;
-							}}
-						>
-							{data.patient.note ? 'Edit note' : '+ Add note'}
-						</button>
-					{/if}
+				{:else if data.patient.note}
+					<div class="prose prose-sm mt-2 max-w-none">{@html renderedPatientNote}</div>
 				{/if}
 			</div>
+
+			<!-- Kebab menu -->
+			{#if data.permissions['manage_patients'] || data.permissions['file_upload']}
+				<div class="relative shrink-0">
+					<button
+						type="button"
+						class="btn preset-outlined-surface-500 btn-sm px-1.5"
+						title="Patient actions"
+						onclick={() => (patientMenuOpen = !patientMenuOpen)}
+					>
+						⋮
+					</button>
+					{#if patientMenuOpen}
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							class="absolute right-0 z-10 mt-1 min-w-36 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
+							onmouseleave={() => (patientMenuOpen = false)}
+						>
+							{#if data.permissions['manage_patients']}
+								<button
+									type="button"
+									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
+									onclick={() => {
+										noteText = data.patient.note ?? '';
+										editingNote = true;
+										patientMenuOpen = false;
+									}}
+								>
+									{data.patient.note ? 'Edit note' : 'Add note'}
+								</button>
+							{/if}
+							{#if data.permissions['file_upload']}
+								<button
+									type="button"
+									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100 disabled:opacity-50"
+									disabled={uploading}
+									onclick={() => {
+										patientMenuOpen = false;
+										fileInput?.click();
+									}}
+								>
+									{uploading ? 'Uploading…' : 'Attach file'}
+								</button>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 
-		<!-- Patient Files Panel -->
-		{#if data.patientFiles.length > 0 || data.permissions['file_upload']}
+		<!-- Patient Files Panel: only shown when files exist -->
+		{#if data.patientFiles.length > 0}
 			<div class="mt-4 border-t border-surface-200 pt-3">
 				<div class="flex flex-wrap items-center gap-1.5">
 					<span class="text-xs font-medium text-surface-500">Files:</span>
-
 					{#each data.patientFiles as file (file.name)}
 						<span
 							class="inline-flex items-center gap-1 rounded-full bg-surface-100 px-2.5 py-1 text-xs text-surface-700"
@@ -309,6 +338,7 @@
 									<button
 										type="button"
 										class="ml-0.5 text-surface-400 hover:text-red-600"
+										aria-label="Delete {displayFileName(file.name)}"
 										title="Delete"
 										onclick={() => (confirmingFile = file.name)}>✕</button
 									>
@@ -316,54 +346,46 @@
 							{/if}
 						</span>
 					{/each}
-
-					{#if data.permissions['file_upload']}
-						<form
-							method="POST"
-							action="?/uploadPatientFile"
-							enctype="multipart/form-data"
-							use:enhance={() => {
-								uploading = true;
-								return async ({ result, update }) => {
-									uploading = false;
-									if (result.type === 'success') {
-										toastSuccess('File uploaded');
-										if (fileInput) fileInput.value = '';
-										await update();
-									} else if (result.type === 'failure') {
-										toastError('Upload failed', String(result.data?.error ?? 'Unknown error'));
-									}
-								};
-							}}
-						>
-							<label
-								class="inline-flex cursor-pointer items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-600 transition-colors hover:bg-primary-100"
-							>
-								{#if uploading}
-									Uploading…
-								{:else}
-									+ Attach
-								{/if}
-								<input
-									bind:this={fileInput}
-									type="file"
-									name="files"
-									accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv"
-									multiple
-									class="hidden"
-									disabled={uploading}
-									onchange={(e) => {
-										const form = (e.target as HTMLInputElement).closest('form');
-										if (form) form.requestSubmit();
-									}}
-								/>
-							</label>
-						</form>
-					{/if}
 				</div>
 			</div>
 		{/if}
 	</div>
+
+	<!-- Hidden upload form (triggered via kebab menu) -->
+	{#if data.permissions['file_upload']}
+		<form
+			method="POST"
+			action="?/uploadPatientFile"
+			enctype="multipart/form-data"
+			class="hidden"
+			use:enhance={() => {
+				uploading = true;
+				return async ({ result, update }) => {
+					uploading = false;
+					if (result.type === 'success') {
+						toastSuccess('File uploaded');
+						if (fileInput) fileInput.value = '';
+						await update();
+					} else if (result.type === 'failure') {
+						toastError('Upload failed', String(result.data?.error ?? 'Unknown error'));
+					}
+				};
+			}}
+		>
+			<input
+				bind:this={fileInput}
+				type="file"
+				name="files"
+				accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv"
+				multiple
+				disabled={uploading}
+				onchange={(e) => {
+					const form = (e.target as HTMLInputElement).closest('form');
+					if (form) form.requestSubmit();
+				}}
+			/>
+		</form>
+	{/if}
 
 	<!-- Filters -->
 	<div class="mb-4 flex flex-wrap items-center gap-2">
