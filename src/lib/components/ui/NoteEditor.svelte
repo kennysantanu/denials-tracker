@@ -30,6 +30,8 @@
 		removeName?: string;
 		/** Field name for files to add (edit mode, default: "add_files") */
 		addName?: string;
+		/** Whether to show the "Attach Existing Files" picker (default: true) */
+		allowExistingFiles?: boolean;
 	}
 
 	let {
@@ -43,7 +45,8 @@
 		uploadName = 'files',
 		existingName = 'existing_files',
 		removeName = 'remove_files',
-		addName = 'add_files'
+		addName = 'add_files',
+		allowExistingFiles = true
 	}: Props = $props();
 
 	// File picker state
@@ -362,98 +365,100 @@
 {/if}
 
 <!-- Existing file picker toggle -->
-<div class="mt-3">
-	<button
-		type="button"
-		class="text-sm text-primary-600 hover:text-primary-800 hover:underline"
-		onclick={() => {
-			showExistingPicker = !showExistingPicker;
-			if (showExistingPicker && filesForDate.length === 0) {
-				loadFilesForDate(calendarDate);
-			}
-		}}
-	>
-		{showExistingPicker ? '− Hide' : '+ Attach'} Existing Files
-	</button>
-</div>
+{#if allowExistingFiles}
+	<div class="mt-3">
+		<button
+			type="button"
+			class="text-sm text-primary-600 hover:text-primary-800 hover:underline"
+			onclick={() => {
+				showExistingPicker = !showExistingPicker;
+				if (showExistingPicker && filesForDate.length === 0) {
+					loadFilesForDate(calendarDate);
+				}
+			}}
+		>
+			{showExistingPicker ? '− Hide' : '+ Attach'} Existing Files
+		</button>
+	</div>
 
-{#if showExistingPicker}
-	<div class="mt-2 rounded border border-surface-200 bg-surface-50 p-3">
-		<div class="flex flex-col gap-3 sm:flex-row">
-			<div class="w-full shrink-0 sm:w-56">
-				<FilesCalendar
-					selectedDate={calendarDate}
-					{dateStatuses}
-					onselect={handleCalendarSelect}
-					onmonthchange={handleMonthChange}
-				/>
-			</div>
-			<div class="min-w-0 flex-1">
-				<p class="mb-2 text-xs font-medium text-surface-600">Files for {calendarDate}</p>
-				{#if loadingFiles}
-					<p class="text-xs text-surface-500">Loading…</p>
-				{:else if filesForDate.length === 0}
-					<p class="text-xs text-surface-500">No files for this date.</p>
-				{:else}
-					<div class="max-h-48 space-y-1 overflow-y-auto">
-						{#each filesForDate as file (file.name)}
-							{@const alreadyAttached =
-								isEditMode && attachedFiles.some((f) => f.name === file.name)}
-							{@const isSelected = selectedExistingFiles.some((f) => f.name === file.name)}
-							<button
-								type="button"
-								class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors {isSelected
-									? 'bg-primary-100 text-primary-800'
-									: alreadyAttached
-										? 'cursor-default bg-surface-100 text-surface-400'
-										: 'hover:bg-surface-100'}"
-								onclick={() => {
-									if (!alreadyAttached) toggleExistingFile(file);
-								}}
-								disabled={alreadyAttached}
-							>
-								<span class="shrink-0">
-									{#if alreadyAttached}
-										<svg class="h-4 w-4 text-surface-300" fill="currentColor" viewBox="0 0 20 20">
-											<path
-												fill-rule="evenodd"
-												d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-												clip-rule="evenodd"
-											/>
-										</svg>
-									{:else if isSelected}
-										<svg class="h-4 w-4 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
-											<path
-												fill-rule="evenodd"
-												d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-												clip-rule="evenodd"
-											/>
-										</svg>
-									{:else}
-										<svg
-											class="h-4 w-4 text-surface-400"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-											/>
-										</svg>
+	{#if showExistingPicker}
+		<div class="mt-2 rounded border border-surface-200 bg-surface-50 p-3">
+			<div class="flex flex-col gap-3 sm:flex-row">
+				<div class="w-full shrink-0 sm:w-56">
+					<FilesCalendar
+						selectedDate={calendarDate}
+						{dateStatuses}
+						onselect={handleCalendarSelect}
+						onmonthchange={handleMonthChange}
+					/>
+				</div>
+				<div class="min-w-0 flex-1">
+					<p class="mb-2 text-xs font-medium text-surface-600">Files for {calendarDate}</p>
+					{#if loadingFiles}
+						<p class="text-xs text-surface-500">Loading…</p>
+					{:else if filesForDate.length === 0}
+						<p class="text-xs text-surface-500">No files for this date.</p>
+					{:else}
+						<div class="max-h-48 space-y-1 overflow-y-auto">
+							{#each filesForDate as file (file.name)}
+								{@const alreadyAttached =
+									isEditMode && attachedFiles.some((f) => f.name === file.name)}
+								{@const isSelected = selectedExistingFiles.some((f) => f.name === file.name)}
+								<button
+									type="button"
+									class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors {isSelected
+										? 'bg-primary-100 text-primary-800'
+										: alreadyAttached
+											? 'cursor-default bg-surface-100 text-surface-400'
+											: 'hover:bg-surface-100'}"
+									onclick={() => {
+										if (!alreadyAttached) toggleExistingFile(file);
+									}}
+									disabled={alreadyAttached}
+								>
+									<span class="shrink-0">
+										{#if alreadyAttached}
+											<svg class="h-4 w-4 text-surface-300" fill="currentColor" viewBox="0 0 20 20">
+												<path
+													fill-rule="evenodd"
+													d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+													clip-rule="evenodd"
+												/>
+											</svg>
+										{:else if isSelected}
+											<svg class="h-4 w-4 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
+												<path
+													fill-rule="evenodd"
+													d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+													clip-rule="evenodd"
+												/>
+											</svg>
+										{:else}
+											<svg
+												class="h-4 w-4 text-surface-400"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+												/>
+											</svg>
+										{/if}
+									</span>
+									<span class="min-w-0 flex-1 truncate">{displayFileName(file.name)}</span>
+									{#if file.size}
+										<span class="shrink-0 text-xs text-surface-400">{formatBytes(file.size)}</span>
 									{/if}
-								</span>
-								<span class="min-w-0 flex-1 truncate">{displayFileName(file.name)}</span>
-								{#if file.size}
-									<span class="shrink-0 text-xs text-surface-400">{formatBytes(file.size)}</span>
-								{/if}
-							</button>
-						{/each}
-					</div>
-				{/if}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
 			</div>
 		</div>
-	</div>
+	{/if}
 {/if}

@@ -803,11 +803,68 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const note = (formData.get('note') as string)?.trim() || null;
+		const filesToRemove = formData.getAll('remove_files').map(String).filter(Boolean);
+		const newFiles = formData.getAll('files') as File[];
 
-		const { error: updateError } = await updatePatient(locals.supabase, patientId, { note });
+		const supabase = locals.supabase;
 
+		const { error: updateError } = await updatePatient(supabase, patientId, { note });
 		if (updateError) {
 			return fail(400, { error: updateError.message });
+		}
+
+		// Remove files marked for deletion (verify they belong to this patient first)
+		for (const fileName of filesToRemove) {
+			const { data: pf } = await supabase
+				.from('patients_files')
+				.select('file_name')
+				.eq('patient_id', patientId)
+				.eq('file_name', fileName)
+				.maybeSingle();
+			if (!pf) continue;
+
+			await supabase.storage.from('files').remove([fileName]);
+			await supabase
+				.from('patients_files')
+				.delete()
+				.eq('patient_id', patientId)
+				.eq('file_name', fileName);
+			await supabase.from('files').delete().eq('name', fileName);
+		}
+
+		// Upload new files and link existing library files
+		const uploadedFilePaths: string[] = [];
+		try {
+			for (const file of newFiles) {
+				if (!file.size || !file.name) continue;
+
+				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+				const storagePath = await getPatientFilePath(supabase, patientId, safeName);
+
+				const { error: uploadError } = await uploadFile(supabase, storagePath, file, {
+					contentType: file.type
+				});
+				if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+
+				uploadedFilePaths.push(storagePath);
+
+				await supabase
+					.from('files')
+					.insert({ name: storagePath, size: file.size, mimetype: file.type || null });
+				await supabase
+					.from('patients_files')
+					.insert({ patient_id: patientId, file_name: storagePath });
+			}
+		} catch (err) {
+			if (uploadedFilePaths.length > 0) {
+				await supabase.storage.from('files').remove(uploadedFilePaths);
+				for (const fp of uploadedFilePaths) {
+					await supabase.from('files').delete().eq('name', fp);
+					await supabase.from('patients_files').delete().eq('file_name', fp);
+				}
+			}
+			const message = err instanceof Error ? err.message : 'Failed to save files';
+			return fail(400, { error: message });
 		}
 
 		logAudit(

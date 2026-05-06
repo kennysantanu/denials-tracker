@@ -31,8 +31,6 @@
 		d.setDate(d.getDate() + days);
 		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 	}
-	let uploading = $state(false);
-	let fileInput = $state<HTMLInputElement>();
 	let editingNote = $state(false);
 	let noteText = $state('');
 	$effect(() => {
@@ -44,7 +42,7 @@
 	let filterServiceDates = $state<string[]>([]);
 
 	let noteEditor = $state<ReturnType<typeof NoteEditor>>();
-	let confirmingFile = $state<string | null>(null);
+	let patientNoteEditor = $state<ReturnType<typeof NoteEditor>>();
 	let patientMenuOpen = $state(false);
 
 	function autoresize(node: HTMLTextAreaElement) {
@@ -189,28 +187,31 @@
 					<form
 						method="POST"
 						action="?/updatePatientNote"
-						class="mt-3"
+						enctype="multipart/form-data"
+						class="mt-3 space-y-3"
 						use:enhance={() => {
 							return async ({ result, update }) => {
 								if (result.type === 'success') {
-									toastSuccess('Note updated');
+									toastSuccess('Patient updated');
 									editingNote = false;
+									patientNoteEditor?.reset();
 									await update();
 								} else if (result.type === 'failure') {
 									toastError('Error', String(result.data?.error ?? 'Failed to update'));
+									await update({ reset: false });
 								}
 							};
 						}}
 					>
-						<textarea
-							name="note"
-							rows="1"
-							class="w-full resize-none overflow-hidden rounded border border-surface-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-							placeholder="Patient note…"
+						<NoteEditor
+							bind:this={patientNoteEditor}
 							bind:value={noteText}
-							use:autoresize
-						></textarea>
-						<div class="mt-1.5 flex gap-2">
+							placeholder="Patient note…"
+							attachedFiles={data.patientFiles as any}
+							showUpload={data.permissions['file_upload']}
+							allowExistingFiles={false}
+						/>
+						<div class="flex gap-2">
 							<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
 							<button
 								type="button"
@@ -218,6 +219,7 @@
 								onclick={() => {
 									editingNote = false;
 									noteText = data.patient.note ?? '';
+									patientNoteEditor?.reset();
 								}}>Cancel</button
 							>
 						</div>
@@ -228,7 +230,7 @@
 			</div>
 
 			<!-- Kebab menu -->
-			{#if data.permissions['manage_patients'] || data.permissions['file_upload']}
+			{#if data.permissions['manage_patients'] || data.permissions['file_upload'] || data.permissions['file_delete']}
 				<div class="relative shrink-0">
 					<button
 						type="button"
@@ -244,32 +246,17 @@
 							class="absolute right-0 z-10 mt-1 min-w-36 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
 							onmouseleave={() => (patientMenuOpen = false)}
 						>
-							{#if data.permissions['manage_patients']}
-								<button
-									type="button"
-									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
-									onclick={() => {
-										noteText = data.patient.note ?? '';
-										editingNote = true;
-										patientMenuOpen = false;
-									}}
-								>
-									{data.patient.note ? 'Edit note' : 'Add note'}
-								</button>
-							{/if}
-							{#if data.permissions['file_upload']}
-								<button
-									type="button"
-									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100 disabled:opacity-50"
-									disabled={uploading}
-									onclick={() => {
-										patientMenuOpen = false;
-										fileInput?.click();
-									}}
-								>
-									{uploading ? 'Uploading…' : 'Attach file'}
-								</button>
-							{/if}
+							<button
+								type="button"
+								class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
+								onclick={() => {
+									noteText = data.patient.note ?? '';
+									editingNote = true;
+									patientMenuOpen = false;
+								}}
+							>
+								Edit
+							</button>
 						</div>
 					{/if}
 				</div>
@@ -282,98 +269,18 @@
 				<div class="flex flex-wrap items-center gap-1.5">
 					<span class="text-xs font-medium text-surface-500">Files:</span>
 					{#each data.patientFiles as file (file.name)}
-						<span
-							class="inline-flex items-center gap-1.5 rounded-base border border-surface-200 bg-surface-50 px-2.5 py-1 text-xs transition-colors hover:bg-surface-100"
+						<a
+							href="/file/view?name={encodeURIComponent(file.name)}"
+							class="inline-flex items-center gap-1.5 rounded-base border border-surface-200 bg-surface-50 px-2.5 py-1 text-xs text-primary-600 transition-colors hover:bg-surface-100 hover:text-primary-800"
+							title={file.name}
 						>
-							<a
-								href="/file/view?name={encodeURIComponent(file.name)}"
-								class="text-primary-600 hover:text-primary-800"
-								title={file.name}
-							>
-								<span class="max-w-37.5 truncate">{displayFileName(file.name)}</span>
-							</a>
-							{#if data.permissions['file_delete']}
-								{#if confirmingFile === file.name}
-									<span class="ml-0.5 inline-flex items-center gap-1">
-										<span class="text-surface-500">Delete?</span>
-										<form
-											method="POST"
-											action="?/removePatientFile"
-											use:enhance={() => {
-												return async ({ result, update }) => {
-													confirmingFile = null;
-													if (result.type === 'success') {
-														toastSuccess('File deleted');
-														await update();
-													} else if (result.type === 'failure') {
-														toastError('Error', String(result.data?.error ?? 'Failed to delete'));
-													}
-												};
-											}}
-										>
-											<input type="hidden" name="file_name" value={file.name} />
-											<button type="submit" class="font-medium text-red-600 hover:text-red-800"
-												>Yes</button
-											>
-										</form>
-										<button
-											type="button"
-											class="text-surface-500 hover:text-surface-700"
-											onclick={() => (confirmingFile = null)}>No</button
-										>
-									</span>
-								{:else}
-									<button
-										type="button"
-										class="ml-0.5 text-surface-400 hover:text-red-600"
-										aria-label="Delete {displayFileName(file.name)}"
-										title="Delete"
-										onclick={() => (confirmingFile = file.name)}>✕</button
-									>
-								{/if}
-							{/if}
-						</span>
+							<span class="max-w-37.5 truncate">{displayFileName(file.name)}</span>
+						</a>
 					{/each}
 				</div>
 			</div>
 		{/if}
 	</div>
-
-	<!-- Hidden upload form (triggered via kebab menu) -->
-	{#if data.permissions['file_upload']}
-		<form
-			method="POST"
-			action="?/uploadPatientFile"
-			enctype="multipart/form-data"
-			class="hidden"
-			use:enhance={() => {
-				uploading = true;
-				return async ({ result, update }) => {
-					uploading = false;
-					if (result.type === 'success') {
-						toastSuccess('File uploaded');
-						if (fileInput) fileInput.value = '';
-						await update();
-					} else if (result.type === 'failure') {
-						toastError('Upload failed', String(result.data?.error ?? 'Unknown error'));
-					}
-				};
-			}}
-		>
-			<input
-				bind:this={fileInput}
-				type="file"
-				name="files"
-				accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv"
-				multiple
-				disabled={uploading}
-				onchange={(e) => {
-					const form = (e.target as HTMLInputElement).closest('form');
-					if (form) form.requestSubmit();
-				}}
-			/>
-		</form>
-	{/if}
 
 	<!-- Filters -->
 	<div class="mb-4 flex flex-wrap items-center gap-2">
