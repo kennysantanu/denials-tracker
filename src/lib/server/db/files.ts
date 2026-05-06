@@ -1,20 +1,106 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/supabase';
 
 type FilesRow = Database['public']['Tables']['files']['Row'];
 
 const BUCKET = 'files';
 
+async function getPatientLinkedFileNamesInternal(
+	supabase: SupabaseClient<Database>,
+	fileNames: string[]
+): Promise<{ data: string[]; error: PostgrestError | null }> {
+	const uniqueNames = Array.from(new Set(fileNames.filter(Boolean)));
+
+	if (uniqueNames.length === 0) {
+		return { data: [], error: null };
+	}
+
+	const { data, error } = await supabase
+		.from('patients_files')
+		.select('file_name')
+		.in('file_name', uniqueNames);
+
+	if (error) {
+		return { data: [], error };
+	}
+
+	return {
+		data: (data ?? []).map((row) => row.file_name),
+		error: null
+	};
+}
+
+async function excludePatientLinkedFiles<T extends { name: string }>(
+	supabase: SupabaseClient<Database>,
+	files: T[]
+): Promise<{ data: T[]; error: PostgrestError | null }> {
+	if (files.length === 0) {
+		return { data: files, error: null };
+	}
+
+	const patientFileNamesResult = await getPatientLinkedFileNamesInternal(
+		supabase,
+		files.map((file) => file.name)
+	);
+
+	if (patientFileNamesResult.error) {
+		return { data: [], error: patientFileNamesResult.error };
+	}
+
+	const patientFileNames = new Set(patientFileNamesResult.data);
+
+	return {
+		data: files.filter((file) => !patientFileNames.has(file.name)),
+		error: null
+	};
+}
+
+async function getVersionedPathInFolder(
+	supabase: SupabaseClient<Database>,
+	folderPath: string,
+	fileName: string
+): Promise<string> {
+	const dot = fileName.lastIndexOf('.');
+	const base = dot >= 0 ? fileName.slice(0, dot) : fileName;
+	const ext = dot >= 0 ? fileName.slice(dot) : '';
+
+	let candidate = `${folderPath}/${fileName}`;
+	let version = 2;
+
+	while (true) {
+		const { data } = await supabase
+			.from('files')
+			.select('name')
+			.eq('name', candidate)
+			.maybeSingle();
+		if (!data) return candidate;
+		candidate = `${folderPath}/${base}(${version})${ext}`;
+		version++;
+	}
+}
+
 export async function getFilesByDate(supabase: SupabaseClient<Database>, date: string) {
 	const start = `${date}T00:00:00.000Z`;
 	const end = `${date}T23:59:59.999Z`;
 
-	return supabase
+	const { data, error } = await supabase
 		.from('files')
 		.select('*')
 		.gte('created_at', start)
 		.lt('created_at', end)
 		.order('created_at', { ascending: false });
+
+	if (error || !data) {
+		return { data: null, error };
+	}
+
+	const filteredFilesResult = await excludePatientLinkedFiles(supabase, data);
+
+	if (filteredFilesResult.error) {
+		return { data: null, error: filteredFilesResult.error };
+	}
+
+	return { data: filteredFilesResult.data, error: null };
 }
 
 export async function createSignedUrl(
@@ -41,23 +127,22 @@ export async function getVersionedPath(
 	dateFolder: string,
 	fileName: string
 ): Promise<string> {
-	const dot = fileName.lastIndexOf('.');
-	const base = dot >= 0 ? fileName.slice(0, dot) : fileName;
-	const ext = dot >= 0 ? fileName.slice(dot) : '';
+	return getVersionedPathInFolder(supabase, dateFolder, fileName);
+}
 
-	let candidate = `${dateFolder}/${fileName}`;
-	let version = 2;
+export async function getPatientFilePath(
+	supabase: SupabaseClient<Database>,
+	patientId: number,
+	fileName: string
+): Promise<string> {
+	return getVersionedPathInFolder(supabase, `patients/${patientId}`, fileName);
+}
 
-	while (true) {
-		const { data } = await supabase
-			.from('files')
-			.select('name')
-			.eq('name', candidate)
-			.maybeSingle();
-		if (!data) return candidate;
-		candidate = `${dateFolder}/${base}(${version})${ext}`;
-		version++;
-	}
+export async function getPatientLinkedFileNames(
+	supabase: SupabaseClient<Database>,
+	fileNames: string[]
+): Promise<{ data: string[]; error: PostgrestError | null }> {
+	return getPatientLinkedFileNamesInternal(supabase, fileNames);
 }
 
 export async function getFileByName(supabase: SupabaseClient<Database>, name: string) {
@@ -132,7 +217,7 @@ export async function getFileDateStatusesInMonth(
 
 	const { data, error } = await supabase
 		.from('files')
-		.select('created_at, metadata')
+		.select('name, created_at, metadata')
 		.gte('created_at', startDate)
 		.lte('created_at', endDate)
 		.order('created_at', { ascending: true });
@@ -141,9 +226,15 @@ export async function getFileDateStatusesInMonth(
 		return { data: [], error };
 	}
 
+	const filteredFilesResult = await excludePatientLinkedFiles(supabase, data ?? []);
+
+	if (filteredFilesResult.error) {
+		return { data: [], error: filteredFilesResult.error };
+	}
+
 	// Group by date, tracking worst status per day
 	const dateStatuses = new Map<string, DateStatus>();
-	for (const file of data ?? []) {
+	for (const file of filteredFilesResult.data) {
 		const day = file.created_at.split('T')[0];
 		const meta = file.metadata as Record<string, unknown> | null;
 		const rawStatus = (meta?.status as string) ?? 'New';

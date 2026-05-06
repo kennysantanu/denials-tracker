@@ -11,7 +11,12 @@ import {
 import { createNote, deleteNote, updateNote } from '$lib/server/db/notes';
 import { getInsurances, updateInsurance } from '$lib/server/db/insurances';
 import { getLabels } from '$lib/server/db/labels';
-import { uploadFile, getVersionedPath } from '$lib/server/db/files';
+import {
+	getPatientFilePath,
+	getPatientLinkedFileNames,
+	uploadFile,
+	getVersionedPath
+} from '$lib/server/db/files';
 import { logAudit } from '$lib/server/audit';
 
 export const load: PageServerLoad = async ({ locals, params, parent, request }) => {
@@ -172,6 +177,27 @@ export const actions: Actions = {
 			.getAll('label_ids')
 			.map(Number)
 			.filter((n) => !isNaN(n));
+		const initialNote = (formData.get('initial_note') as string)?.trim();
+		if (!initialNote) {
+			return fail(400, { error: 'Note is required' });
+		}
+
+		const files = formData.getAll('files') as File[];
+		const existingFileNames = formData.getAll('existing_files').map(String).filter(Boolean);
+		const patientLinkedFilesResult = await getPatientLinkedFileNames(
+			locals.supabase,
+			existingFileNames
+		);
+
+		if (patientLinkedFilesResult.error) {
+			return fail(400, { error: patientLinkedFilesResult.error.message });
+		}
+
+		if (patientLinkedFilesResult.data.length > 0) {
+			return fail(400, {
+				error: 'Patient attachments can only be managed from the patient record header.'
+			});
+		}
 
 		const { data: denial, error: createError } = await createDenial(
 			locals.supabase,
@@ -190,14 +216,6 @@ export const actions: Actions = {
 		if (createError || !denial) {
 			return fail(400, { error: createError?.message ?? 'Failed to create denial' });
 		}
-
-		const initialNote = (formData.get('initial_note') as string)?.trim();
-		if (!initialNote) {
-			return fail(400, { error: 'Note is required' });
-		}
-
-		const files = formData.getAll('files') as File[];
-		const existingFileNames = formData.getAll('existing_files').map(String).filter(Boolean);
 		const supabase = locals.supabase;
 		const uploadedFilePaths: string[] = [];
 
@@ -369,6 +387,20 @@ export const actions: Actions = {
 		const denialId = parseInt(formData.get('denial_id') as string, 10);
 		const files = formData.getAll('files') as File[];
 		const existingFileNames = formData.getAll('existing_files').map(String).filter(Boolean);
+		const patientLinkedFilesResult = await getPatientLinkedFileNames(
+			locals.supabase,
+			existingFileNames
+		);
+
+		if (patientLinkedFilesResult.error) {
+			return fail(400, { error: patientLinkedFilesResult.error.message });
+		}
+
+		if (patientLinkedFilesResult.data.length > 0) {
+			return fail(400, {
+				error: 'Patient attachments can only be managed from the patient record header.'
+			});
+		}
 
 		if (!noteText) return fail(400, { error: 'Note text is required' });
 		if (isNaN(denialId)) return fail(400, { error: 'Invalid denial ID' });
@@ -500,6 +532,21 @@ export const actions: Actions = {
 			.getAll('remove_files')
 			.map((v) => v.toString())
 			.filter(Boolean);
+		const filesToAssociate = [...addFiles, ...existingFiles];
+		const patientLinkedFilesResult = await getPatientLinkedFileNames(
+			locals.supabase,
+			filesToAssociate
+		);
+
+		if (patientLinkedFilesResult.error) {
+			return fail(400, { error: patientLinkedFilesResult.error.message });
+		}
+
+		if (patientLinkedFilesResult.data.length > 0) {
+			return fail(400, {
+				error: 'Patient attachments can only be managed from the patient record header.'
+			});
+		}
 
 		if (isNaN(noteId)) return fail(400, { error: 'Invalid note ID' });
 		if (!noteText) return fail(400, { error: 'Note text is required' });
@@ -564,7 +611,6 @@ export const actions: Actions = {
 			}
 
 			// Associate existing files (add_files from edit mode, existing_files from notes with no prior attachments)
-			const filesToAssociate = [...addFiles, ...existingFiles];
 			if (filesToAssociate.length > 0) {
 				const rows = filesToAssociate.map((fileName) => ({ note_id: noteId, file_name: fileName }));
 				await supabase.from('notes_files').upsert(rows, { onConflict: 'note_id,file_name' });
@@ -640,9 +686,7 @@ export const actions: Actions = {
 				if (!file.size || !file.name) continue;
 
 				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-				const now = new Date();
-				const dateFolder = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
-				const storagePath = await getVersionedPath(supabase, dateFolder, safeName);
+				const storagePath = await getPatientFilePath(supabase, patientId, safeName);
 
 				const { error: uploadError } = await uploadFile(supabase, storagePath, file, {
 					contentType: file.type
@@ -707,6 +751,26 @@ export const actions: Actions = {
 		if (!fileName) return fail(400, { error: 'File name is required' });
 
 		const supabase = locals.supabase;
+		const { data: patientFile, error: patientFileError } = await supabase
+			.from('patients_files')
+			.select('file_name')
+			.eq('patient_id', patientId)
+			.eq('file_name', fileName)
+			.maybeSingle();
+
+		if (patientFileError) {
+			return fail(400, { error: patientFileError.message });
+		}
+
+		if (!patientFile) {
+			return fail(404, { error: 'Patient file not found' });
+		}
+
+		const { error: storageDeleteError } = await supabase.storage.from('files').remove([fileName]);
+
+		if (storageDeleteError) {
+			return fail(400, { error: storageDeleteError.message });
+		}
 
 		// Remove the patient-file link
 		const { error: unlinkError } = await supabase
@@ -717,6 +781,12 @@ export const actions: Actions = {
 
 		if (unlinkError) {
 			return fail(400, { error: unlinkError.message });
+		}
+
+		const { error: fileDeleteError } = await supabase.from('files').delete().eq('name', fileName);
+
+		if (fileDeleteError) {
+			return fail(400, { error: fileDeleteError.message });
 		}
 
 		logAudit(supabase, user.id, 'delete', 'patient_file', String(patientId), { fileName }, request);

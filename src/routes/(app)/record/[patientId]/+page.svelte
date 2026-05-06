@@ -70,7 +70,7 @@
 	let renderedPatientNote = $derived(data.patient.note ? renderPatientNote(data.patient.note) : '');
 
 	function displayFileName(fileName: string): string {
-		// Path format: patients/{ptid}/{timestamp}_{originalName}
+		// Path format: patients/{patientId}/{filename}
 		const last = fileName.split('/').pop() ?? fileName;
 		const match = last.match(/^\d+_(.+)$/);
 		return match ? match[1] : last;
@@ -278,7 +278,7 @@
 							{#if data.permissions['file_delete']}
 								{#if confirmingFile === file.name}
 									<span class="ml-0.5 inline-flex items-center gap-1">
-										<span class="text-surface-500">Remove?</span>
+										<span class="text-surface-500">Delete?</span>
 										<form
 											method="POST"
 											action="?/removePatientFile"
@@ -286,10 +286,10 @@
 												return async ({ result, update }) => {
 													confirmingFile = null;
 													if (result.type === 'success') {
-														toastSuccess('File removed');
+														toastSuccess('File deleted');
 														await update();
 													} else if (result.type === 'failure') {
-														toastError('Error', String(result.data?.error ?? 'Failed to remove'));
+														toastError('Error', String(result.data?.error ?? 'Failed to delete'));
 													}
 												};
 											}}
@@ -309,7 +309,7 @@
 									<button
 										type="button"
 										class="ml-0.5 text-surface-400 hover:text-red-600"
-										title="Remove"
+										title="Delete"
 										onclick={() => (confirmingFile = file.name)}>✕</button
 									>
 								{/if}
