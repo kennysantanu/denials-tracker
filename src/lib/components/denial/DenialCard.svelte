@@ -43,6 +43,13 @@
 	let copying = $state(false);
 	let selectedInsurance = $state<InsuranceRow | null>(null);
 	let menuOpen = $state(false);
+	let canSummarize = $derived(aiEnabled && permissions['generate_summary']);
+	let canShowMenu = $derived(
+		canSummarize ||
+			permissions['update_denial'] ||
+			permissions['delete_denial'] ||
+			permissions['create_denial']
+	);
 
 	let billedDisplay = $derived(
 		denial.billed_amount != null ? `$${denial.billed_amount.toFixed(2)}` : '—'
@@ -52,6 +59,7 @@
 	);
 
 	function handleSummarize() {
+		menuOpen = false;
 		updateChatContext({ denialId: denial.id, patientId });
 		openChatDrawer('Summarize this denial and its notes.');
 	}
@@ -61,183 +69,189 @@
 	{#if editing}
 		<DenialEditForm {denial} {insurances} {labels} {patientId} oncancel={() => (editing = false)} />
 	{:else}
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-			<div class="min-w-0 flex-1 space-y-2">
-				<!-- Service dates -->
-				<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-					<span class="font-medium text-surface-700">
-						Service: {formatDate(denial.service_start_date)}
-						{#if denial.service_end_date}
-							– {formatDate(denial.service_end_date)}
-						{/if}
-					</span>
-					{#if denial.follow_up_date}
-						{@const today = new Date()}
-						{@const followUp = new Date(denial.follow_up_date + 'T00:00:00')}
-						{@const isOverdue = followUp < today && !denial.is_closed}
-						{@const diffDays = Math.ceil(
-							(followUp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-						)}
-						<span
-							class={isOverdue
-								? 'font-medium text-red-600'
-								: diffDays <= 7 && !denial.is_closed
-									? 'font-medium text-warning-600'
-									: 'text-warning-600'}
-						>
-							{isOverdue
-								? '⚠ Overdue · '
-								: diffDays <= 7 && !denial.is_closed
-									? '⚠ '
-									: ''}Follow-up: {formatDate(denial.follow_up_date)}
-						</span>
-					{/if}
-				</div>
-
-				<!-- Amounts -->
-				<div class="flex gap-4 text-sm">
-					<span>Billed: <strong>{billedDisplay}</strong></span>
-					<span>Paid: <strong>{paidDisplay}</strong></span>
-				</div>
-
-				<!-- Status badge -->
-				<div class="flex flex-wrap items-center gap-2">
-					{#if denial.is_closed}
-						<span
-							class="rounded-full bg-surface-300 px-2 py-0.5 text-xs font-medium text-surface-700"
-						>
-							Closed
-						</span>
-					{:else}
-						<span
-							class="rounded-full bg-success-200 px-2 py-0.5 text-xs font-medium text-success-800"
-						>
-							Open
-						</span>
-					{/if}
-
-					<!-- Labels -->
-					{#if denial.labels?.length}
-						{#each denial.labels as label (label.id)}
-							<span
-								class="rounded-full px-2 py-0.5 text-xs font-medium"
-								style="background-color: {label.bg_color}; color: {label.txt_color};"
-							>
-								{label.label_name}
-							</span>
-						{/each}
-					{/if}
-				</div>
-
-				<!-- Insurances -->
-				{#if denial.insurances?.length}
-					<div class="text-sm text-surface-600">
-						Insurance:
-						{#each denial.insurances as ins, i (ins.id)}
-							{#if i > 0},
+		<div class="flex items-start justify-between gap-3">
+			<div class="min-w-0 flex-1 space-y-3">
+				<!-- Primary details -->
+				<div class="grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] sm:gap-4">
+					<div class="min-w-0">
+						<p class="text-sm text-surface-600">Service date</p>
+						<p class="font-bold text-surface-700">
+							{formatDate(denial.service_start_date)}
+							{#if denial.service_end_date}
+								- {formatDate(denial.service_end_date)}
 							{/if}
-							<button
-								type="button"
-								class="text-primary-600 underline hover:text-primary-800"
-								onclick={() => (selectedInsurance = ins)}
-							>
-								{ins.name}
-							</button>
-						{/each}
+						</p>
 					</div>
+
+					<div class="grid grid-cols-2 gap-2 sm:contents">
+						<div>
+							<p class="text-sm text-surface-600">Billed</p>
+							<p class="font-bold text-surface-900">{billedDisplay}</p>
+						</div>
+						<div>
+							<p class="text-sm text-surface-600">Paid</p>
+							<p class="font-bold text-surface-900">{paidDisplay}</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] sm:gap-4">
+					<!-- Status badge -->
+					<div class="flex flex-wrap items-center gap-2">
+						{#if denial.is_closed}
+							<span
+								class="rounded-full bg-surface-300 px-2 py-0.5 text-xs font-medium text-surface-700"
+							>
+								Closed
+							</span>
+						{:else}
+							<span
+								class="rounded-full bg-success-200 px-2 py-0.5 text-xs font-medium text-success-800"
+							>
+								Open
+							</span>
+						{/if}
+
+						<!-- Labels -->
+						{#if denial.labels?.length}
+							{#each denial.labels as label (label.id)}
+								<span
+									class="rounded-full px-2 py-0.5 text-xs font-medium"
+									style="background-color: {label.bg_color}; color: {label.txt_color};"
+								>
+									{label.label_name}
+								</span>
+							{/each}
+						{/if}
+					</div>
+
+					<!-- Insurances -->
+					{#if denial.insurances?.length}
+						<div class="col-span-2 text-sm text-surface-600">
+							Insurance:
+							{#each denial.insurances as ins, i (ins.id)}
+								{#if i > 0},
+								{/if}
+								<button
+									type="button"
+									class="text-primary-600 underline hover:text-primary-800"
+									onclick={() => (selectedInsurance = ins)}
+								>
+									{ins.name}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+				{#if denial.follow_up_date}
+					{@const today = new Date()}
+					{@const followUp = new Date(denial.follow_up_date + 'T00:00:00')}
+					{@const isOverdue = followUp < today && !denial.is_closed}
+					{@const diffDays = Math.ceil(
+						(followUp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+					)}
+					<span
+						class={isOverdue
+							? 'font-medium text-red-600'
+							: diffDays <= 7 && !denial.is_closed
+								? 'font-medium text-warning-600'
+								: 'text-warning-600'}
+					>
+						{isOverdue ? '⚠ Overdue · ' : diffDays <= 7 && !denial.is_closed ? '⚠ ' : ''}Follow-up: {formatDate(
+							denial.follow_up_date
+						)}
+					</span>
 				{/if}
 			</div>
 
-			<!-- Action buttons -->
-			<div class="flex flex-wrap items-start gap-2 sm:shrink-0">
-				{#if aiEnabled && permissions['generate_summary']}
+			{#if canShowMenu}
+				<div class="relative shrink-0">
 					<button
 						type="button"
-						class="btn preset-outlined-primary-500 btn-sm"
-						onclick={handleSummarize}
+						class="btn preset-outlined-surface-500 btn-sm px-1.5"
+						title="Actions"
+						onclick={() => (menuOpen = !menuOpen)}
 					>
-						🤖 Summarize
+						⋮
 					</button>
-				{/if}
-				{#if permissions['update_denial'] || permissions['delete_denial'] || permissions['create_denial']}
-					<div class="relative">
-						<button
-							type="button"
-							class="btn preset-outlined-surface-500 btn-sm px-1.5"
-							title="Actions"
-							onclick={() => (menuOpen = !menuOpen)}
+					{#if menuOpen}
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							class="absolute right-0 z-10 mt-1 min-w-32 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
+							onmouseleave={() => (menuOpen = false)}
 						>
-							⋮
-						</button>
-						{#if menuOpen}
-							<!-- svelte-ignore a11y_no_static_element_interactions -->
-							<div
-								class="absolute right-0 z-10 mt-1 min-w-32 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
-								onmouseleave={() => (menuOpen = false)}
-							>
-								{#if permissions['update_denial']}
+							{#if permissions['update_denial']}
+								<button
+									type="button"
+									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
+									onclick={() => {
+										editing = true;
+										menuOpen = false;
+									}}
+								>
+									Edit
+								</button>
+							{/if}
+							{#if permissions['create_denial']}
+								<button
+									type="button"
+									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
+									onclick={() => {
+										copying = true;
+										menuOpen = false;
+									}}
+								>
+									Copy
+								</button>
+							{/if}
+							{#if canSummarize}
+								<button
+									type="button"
+									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
+									onclick={handleSummarize}
+								>
+									Summary
+								</button>
+							{/if}
+							{#if permissions['delete_denial']}
+								<form
+									method="POST"
+									action="?/deleteDenial"
+									use:enhance={() => {
+										menuOpen = false;
+										return async ({ result }) => {
+											if (result.type === 'success') {
+												toastSuccess('Denial deleted');
+												await invalidateAll();
+											} else if (result.type === 'failure') {
+												toastError(
+													(result.data as Record<string, string>)?.error || 'Delete failed'
+												);
+											} else if (result.type === 'error') {
+												toastError('Something went wrong');
+											}
+										};
+									}}
+								>
+									<input type="hidden" name="id" value={denial.id} />
+									<input type="hidden" name="patientId" value={patientId} />
 									<button
-										type="button"
-										class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
-										onclick={() => {
-											editing = true;
-											menuOpen = false;
+										type="submit"
+										class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-surface-100"
+										onclick={(e) => {
+											if (!confirm('Delete this denial? This cannot be undone.'))
+												e.preventDefault();
 										}}
 									>
-										Edit
+										Delete
 									</button>
-								{/if}
-								{#if permissions['create_denial']}
-									<button
-										type="button"
-										class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
-										onclick={() => {
-											copying = true;
-											menuOpen = false;
-										}}
-									>
-										Copy
-									</button>
-								{/if}
-								{#if permissions['delete_denial']}
-									<form
-										method="POST"
-										action="?/deleteDenial"
-										use:enhance={() => {
-											menuOpen = false;
-											return async ({ result }) => {
-												if (result.type === 'success') {
-													toastSuccess('Denial deleted');
-													await invalidateAll();
-												} else if (result.type === 'failure') {
-													toastError(
-														(result.data as Record<string, string>)?.error || 'Delete failed'
-													);
-												} else if (result.type === 'error') {
-													toastError('Something went wrong');
-												}
-											};
-										}}
-									>
-										<input type="hidden" name="id" value={denial.id} />
-										<input type="hidden" name="patientId" value={patientId} />
-										<button
-											type="submit"
-											class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-surface-100"
-											onclick={(e) => {
-												if (!confirm('Delete this denial? This cannot be undone.'))
-													e.preventDefault();
-											}}
-										>
-											Delete
-										</button>
-									</form>
-								{/if}
-							</div>
-						{/if}
-					</div>
-				{/if}
-			</div>
+								</form>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	{/if}
 
