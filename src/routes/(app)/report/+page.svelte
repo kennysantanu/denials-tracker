@@ -68,13 +68,13 @@
 	let dateMode = $state<'service' | 'lastNote'>(seed.dateMode);
 
 	function generateReport() {
-		const params = new URLSearchParams({
-			startDate,
-			endDate,
-			includeClosed: String(includeClosed),
-			dateMode
-		});
-		goto(`/report?${params.toString()}`);
+		const url = new URL('/report', page.url);
+		url.searchParams.set('startDate', startDate);
+		url.searchParams.set('endDate', endDate);
+		url.searchParams.set('includeClosed', String(includeClosed));
+		url.searchParams.set('dateMode', dateMode);
+		applyClientQueryState(url);
+		goto(url);
 	}
 
 	function formatCurrency(value: number | null | undefined): string {
@@ -124,6 +124,8 @@
 		noteFilter = '';
 		insuranceFilter = [];
 		labelFilter = [];
+		insSearchInput = '';
+		lblSearchInput = '';
 	}
 
 	const availableInsurances = $derived.by(() => {
@@ -259,16 +261,12 @@
 	const showStatusColumn = $derived(includeClosed);
 	const colSpan = $derived(showStatusColumn ? 7 : 6);
 
-	// Sync client-side filter/sort state into URL for shareability & refresh persistence.
-	$effect(() => {
-		const url = new URL(page.url);
+	function applyClientQueryState(url: URL) {
 		const sp = url.searchParams;
 
-		// Sort
 		sp.set('sortKey', sortKey);
 		sp.set('sortDir', sortDir);
 
-		// Filters
 		if (patientFilter.trim()) sp.set('pf', patientFilter.trim());
 		else sp.delete('pf');
 		if (noteFilter.trim()) sp.set('nf', noteFilter.trim());
@@ -279,8 +277,21 @@
 		else sp.delete('lbl');
 		if (showFilters) sp.set('sf', '1');
 		else sp.delete('sf');
+	}
 
-		replaceState(url, {});
+	// Sync client-side filter/sort state into URL for shareability & refresh persistence.
+	$effect(() => {
+		const url = untrack(() => new URL(page.url));
+		applyClientQueryState(url);
+
+		const nextUrl = url.toString();
+		const currentUrl = untrack(() => page.url.toString());
+		if (nextUrl === currentUrl) return;
+
+		replaceState(
+			url,
+			untrack(() => page.state)
+		);
 	});
 
 	$effect(() => {
