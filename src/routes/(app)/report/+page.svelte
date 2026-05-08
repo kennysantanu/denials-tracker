@@ -753,7 +753,10 @@
 						{#if visibleCols.includes('patient')}
 							<td class="px-3 py-2">
 								{#if row.patient}
-									<a href="/record/{row.id}" class="font-medium text-primary-700 hover:underline">
+									<a
+										href="/record/{row.patient.id}"
+										class="font-medium text-primary-700 hover:underline"
+									>
 										{row.patient.last_name}, {row.patient.first_name}
 									</a>
 									<span class="block text-xs text-surface-500"
