@@ -32,6 +32,7 @@ export interface ReportInsurance {
 export interface ReportRow {
 	id: number;
 	service_start_date: string;
+	follow_up_date: string | null;
 	billed_amount: number | null;
 	paid_amount: number | null;
 	is_closed: boolean;
@@ -56,6 +57,7 @@ export async function getReportData(
 		`
 			id,
 			service_start_date,
+			follow_up_date,
 			billed_amount,
 			paid_amount,
 			is_closed,
@@ -126,6 +128,7 @@ export async function getReportData(
 		return {
 			id: d.id,
 			service_start_date: d.service_start_date,
+			follow_up_date: d.follow_up_date ?? null,
 			billed_amount: d.billed_amount,
 			paid_amount: d.paid_amount,
 			is_closed: d.is_closed,

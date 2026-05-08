@@ -1,6 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getReportData } from '$lib/server/db/reports';
+import { getOpenFollowUps, getNoFollowUpDenials, groupFollowUps } from '$lib/server/db/followups';
+import type { FollowUpDenial } from '$lib/server/db/followups';
 import { logAudit } from '$lib/server/audit';
 
 export const load: PageServerLoad = async ({ locals, parent, url, request }) => {
@@ -22,14 +24,16 @@ export const load: PageServerLoad = async ({ locals, parent, url, request }) => 
 	const dateModeParam = url.searchParams.get('dateMode');
 	const dateMode: 'service' | 'lastNote' = dateModeParam === 'lastNote' ? 'lastNote' : 'service';
 
-	const { data: reportData, error: dbError } = await getReportData(locals.supabase, {
-		startDate,
-		endDate,
-		includeClosed,
-		dateMode
-	});
+	const [reportResult, followUpsResult, noDateResult] = await Promise.all([
+		getReportData(locals.supabase, { startDate, endDate, includeClosed, dateMode }),
+		getOpenFollowUps(locals.supabase),
+		getNoFollowUpDenials(locals.supabase)
+	]);
 
-	if (dbError) error(500, 'Failed to load report data');
+	if (reportResult.error) error(500, 'Failed to load report data');
+
+	const grouped = groupFollowUps((followUpsResult.data ?? []) as unknown as FollowUpDenial[]);
+	grouped.noDate = (noDateResult.data ?? []) as unknown as FollowUpDenial[];
 
 	logAudit(
 		locals.supabase,
@@ -42,10 +46,11 @@ export const load: PageServerLoad = async ({ locals, parent, url, request }) => 
 	);
 
 	return {
-		reportData: reportData ?? [],
+		reportData: reportResult.data ?? [],
 		startDate,
 		endDate,
 		includeClosed,
-		dateMode
+		dateMode,
+		grouped
 	};
 };

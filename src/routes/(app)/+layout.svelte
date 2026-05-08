@@ -20,7 +20,6 @@
 	let userMenuOpen = $state(false);
 
 	const navItems = [
-		{ href: '/dashboard', label: 'Dashboard' },
 		{ href: '/record', label: 'Record' },
 		{ href: '/report', label: 'Report' },
 		{ href: '/file', label: 'Files' },
@@ -56,7 +55,7 @@
 	let tabValue = $derived(navItems.find((item) => isActive(item.href))?.href ?? null);
 
 	// AI chat button visibility: only on context-providing routes
-	const aiContextRoutes = ['/dashboard', '/record', '/report'];
+	const aiContextRoutes = ['/record', '/report'];
 	let showAiButton = $derived(
 		data.aiEnabled && aiContextRoutes.some((r) => currentPath === r || currentPath.startsWith(r))
 	);
