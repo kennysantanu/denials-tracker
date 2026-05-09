@@ -13,16 +13,18 @@ export const load: PageServerLoad = async ({ locals, parent, url, request }) => 
 	if (!permissions['view_reports']) error(403, 'Forbidden');
 
 	const today = new Date();
-	const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-		.toISOString()
-		.split('T')[0];
+	today.setHours(0, 0, 0, 0);
 	const todayStr = today.toISOString().split('T')[0];
+	const last30Start = new Date(today);
+	last30Start.setDate(last30Start.getDate() - 29);
+	const last30StartStr = last30Start.toISOString().split('T')[0];
 
-	const startDate = url.searchParams.get('startDate') || startOfMonth;
-	const endDate = url.searchParams.get('endDate') || todayStr;
+	const showAll = url.searchParams.get('all') === '1';
+	const startDate = showAll ? '' : url.searchParams.get('startDate') || last30StartStr;
+	const endDate = showAll ? '' : url.searchParams.get('endDate') || todayStr;
 	const includeClosed = url.searchParams.get('includeClosed') === 'true';
 	const dateModeParam = url.searchParams.get('dateMode');
-	const dateMode: 'service' | 'lastNote' = dateModeParam === 'lastNote' ? 'lastNote' : 'service';
+	const dateMode: 'service' | 'lastNote' = dateModeParam === 'service' ? 'service' : 'lastNote';
 
 	const [reportResult, followUpsResult, noDateResult] = await Promise.all([
 		getReportData(locals.supabase, { startDate, endDate, includeClosed, dateMode }),

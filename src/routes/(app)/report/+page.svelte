@@ -33,19 +33,11 @@
 		{ key: 'status', label: 'Status' }
 	];
 
-	type Preset = 'billing' | 'followup' | 'full';
+	type Preset = 'all' | 'followup' | 'billing' | 'activity';
 
 	const PRESETS: Record<Preset, { label: string; cols: ColKey[] }> = {
-		billing: {
-			label: 'Billing Report',
-			cols: ['patient', 'service_date', 'billed', 'insurances', 'labels', 'last_note', 'status']
-		},
-		followup: {
-			label: 'Follow-up',
-			cols: ['patient', 'insurances', 'labels', 'follow_up_date', 'last_note']
-		},
-		full: {
-			label: 'Full',
+		all: {
+			label: 'All',
 			cols: [
 				'patient',
 				'service_date',
@@ -53,13 +45,93 @@
 				'billed',
 				'insurances',
 				'labels',
-				'last_note',
-				'status'
+				'last_note'
 			]
+		},
+		followup: {
+			label: 'Follow-up',
+			cols: ['patient', 'follow_up_date', 'insurances', 'labels']
+		},
+		billing: {
+			label: 'Billing',
+			cols: ['patient', 'service_date', 'billed', 'insurances']
+		},
+		activity: {
+			label: 'Activity',
+			cols: ['patient', 'service_date', 'insurances', 'last_note']
 		}
 	};
 
 	const STORAGE_KEY = 'report_visible_cols';
+
+	// -- date range presets ---------------------------------------------------
+
+	type DatePresetKey = 'last_30' | 'last_90' | 'this_year' | 'last_year';
+
+	function toDateStr(d: Date): string {
+		return d.toISOString().slice(0, 10);
+	}
+
+	const DATE_PRESETS: {
+		key: DatePresetKey;
+		label: string;
+		getDates: () => { start: string; end: string };
+	}[] = [
+		{
+			key: 'last_30',
+			label: 'Last 30 Days',
+			getDates: () => {
+				const end = new Date();
+				end.setHours(0, 0, 0, 0);
+				const start = new Date(end);
+				start.setDate(start.getDate() - 29);
+				return { start: toDateStr(start), end: toDateStr(end) };
+			}
+		},
+		{
+			key: 'last_90',
+			label: 'Last 90 Days',
+			getDates: () => {
+				const end = new Date();
+				end.setHours(0, 0, 0, 0);
+				const start = new Date(end);
+				start.setDate(start.getDate() - 89);
+				return { start: toDateStr(start), end: toDateStr(end) };
+			}
+		},
+		{
+			key: 'this_year',
+			label: 'This Year',
+			getDates: () => {
+				const y = new Date().getFullYear();
+				return { start: `${y}-01-01`, end: `${y}-12-31` };
+			}
+		},
+		{
+			key: 'last_year',
+			label: 'Last Year',
+			getDates: () => {
+				const y = new Date().getFullYear() - 1;
+				return { start: `${y}-01-01`, end: `${y}-12-31` };
+			}
+		}
+	];
+
+	function applyDatePreset(key: DatePresetKey) {
+		const preset = DATE_PRESETS.find((p) => p.key === key);
+		if (!preset) return;
+		const { start, end } = preset.getDates();
+		startDate = start;
+		endDate = end;
+	}
+
+	let activeDatePreset = $derived.by<DatePresetKey | null>(() => {
+		const match = DATE_PRESETS.find((p) => {
+			const { start, end } = p.getDates();
+			return start === startDate && end === endDate;
+		});
+		return match?.key ?? null;
+	});
 
 	function loadStoredCols(): ColKey[] | null {
 		if (typeof localStorage === 'undefined') return null;
@@ -111,12 +183,14 @@
 					.map(Number)
 					.filter((n) => !isNaN(n) && n > 0) ?? [],
 			showFilters: sp.get('sf') === '1',
-			preset: (presetParam && presetParam in PRESETS ? presetParam : 'billing') as Preset
+			preset: (presetParam && presetParam in PRESETS ? presetParam : 'all') as Preset,
+			showAll: sp.get('all') === '1'
 		};
 	});
 
 	let startDate = $state(seed.startDate);
 	let endDate = $state(seed.endDate);
+	let showAll = $state(seed.showAll);
 	let includeClosed = $state(seed.includeClosed);
 	let dateMode = $state<'service' | 'lastNote'>(seed.dateMode);
 	let activePreset = $state<Preset>(seed.preset);
@@ -147,13 +221,17 @@
 				PRESETS[p].cols.length === visibleCols.length &&
 				PRESETS[p].cols.every((k, i) => visibleCols[i] === k)
 		);
-		activePreset = match ?? 'billing';
+		activePreset = match ?? 'all';
 	}
 
 	function generateReport() {
 		const url = new URL('/report', page.url);
-		url.searchParams.set('startDate', startDate);
-		url.searchParams.set('endDate', endDate);
+		if (showAll) {
+			url.searchParams.set('all', '1');
+		} else {
+			url.searchParams.set('startDate', startDate);
+			url.searchParams.set('endDate', endDate);
+		}
 		url.searchParams.set('includeClosed', String(includeClosed));
 		url.searchParams.set('dateMode', dateMode);
 		applyClientQueryState(url);
@@ -364,6 +442,8 @@
 		sp.set('sortKey', sortKey);
 		sp.set('sortDir', sortDir);
 		sp.set('preset', activePreset);
+		if (showAll) sp.set('all', '1');
+		else sp.delete('all');
 		if (patientFilter.trim()) sp.set('pf', patientFilter.trim());
 		else sp.delete('pf');
 		if (noteFilter.trim()) sp.set('nf', noteFilter.trim());
@@ -429,11 +509,42 @@
 		</div>
 
 		<div class="flex flex-col gap-1">
+			<span class="text-sm font-medium text-surface-700">Quick Range</span>
+			<div class="flex flex-wrap gap-1">
+				<button
+					onclick={() => {
+						showAll = true;
+					}}
+					class="rounded-full border px-2.5 py-1 text-xs font-medium transition-colors {showAll
+						? 'border-primary-500 bg-primary-50 text-primary-700'
+						: 'border-surface-300 text-surface-600 hover:bg-surface-100'}"
+				>
+					All
+				</button>
+				{#each DATE_PRESETS as p (p.key)}
+					<button
+						onclick={() => {
+							showAll = false;
+							applyDatePreset(p.key);
+						}}
+						class="rounded-full border px-2.5 py-1 text-xs font-medium transition-colors {!showAll &&
+						activeDatePreset === p.key
+							? 'border-primary-500 bg-primary-50 text-primary-700'
+							: 'border-surface-300 text-surface-600 hover:bg-surface-100'}"
+					>
+						{p.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<div class="flex flex-col gap-1">
 			<label for="startDate" class="text-sm font-medium text-surface-700">Start Date</label>
 			<input
 				id="startDate"
 				type="date"
 				bind:value={startDate}
+				oninput={() => (showAll = false)}
 				class="rounded border border-surface-300 px-3 py-2 text-sm"
 			/>
 		</div>
@@ -443,6 +554,7 @@
 				id="endDate"
 				type="date"
 				bind:value={endDate}
+				oninput={() => (showAll = false)}
 				class="rounded border border-surface-300 px-3 py-2 text-sm"
 			/>
 		</div>
