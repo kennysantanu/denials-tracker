@@ -153,10 +153,21 @@
 	type SortKey = ColKey;
 	const VALID_SORT_KEYS: SortKey[] = ALL_COLS.map((c) => c.key);
 
+	type FollowUpUrgency = 'all' | 'overdue' | 'today' | 'this_week' | 'upcoming' | 'none';
+	const VALID_FOLLOW_UP_URGENCIES: FollowUpUrgency[] = [
+		'all',
+		'overdue',
+		'today',
+		'this_week',
+		'upcoming',
+		'none'
+	];
+
 	const seed = untrack(() => {
 		const sp = new URL(page.url).searchParams;
 		const sk = sp.get('sortKey');
 		const presetParam = sp.get('preset') as Preset | null;
+		const fuu = sp.get('fuu') as FollowUpUrgency | null;
 		return {
 			startDate: data.startDate,
 			endDate: data.endDate,
@@ -184,7 +195,10 @@
 					.filter((n) => !isNaN(n) && n > 0) ?? [],
 			showFilters: sp.get('sf') === '1',
 			preset: (presetParam && presetParam in PRESETS ? presetParam : 'all') as Preset,
-			showAll: sp.get('all') === '1'
+			showAll: sp.get('all') === '1',
+			followUpUrgency: fuu && VALID_FOLLOW_UP_URGENCIES.includes(fuu) ? fuu : 'all',
+			followUpStart: sp.get('fus') ?? '',
+			followUpEnd: sp.get('fue') ?? ''
 		};
 	});
 
@@ -297,6 +311,9 @@
 	let insuranceFilter = $state<number[]>(seed.insuranceFilter);
 	let labelFilter = $state<number[]>(seed.labelFilter);
 	let showFilters = $state(seed.showFilters);
+	let followUpUrgency = $state<FollowUpUrgency>(seed.followUpUrgency);
+	let followUpStart = $state(seed.followUpStart);
+	let followUpEnd = $state(seed.followUpEnd);
 
 	function clearFilters() {
 		patientFilter = '';
@@ -305,6 +322,9 @@
 		labelFilter = [];
 		insSearchInput = '';
 		lblSearchInput = '';
+		followUpUrgency = 'all';
+		followUpStart = '';
+		followUpEnd = '';
 	}
 
 	const availableInsurances = $derived.by(() => {
@@ -403,6 +423,23 @@
 				const ids = new Set(r.labels.map((l) => l.id));
 				if (!labelFilter.some((id) => ids.has(id))) return false;
 			}
+			if (followUpUrgency !== 'all') {
+				if (followUpUrgency === 'none') {
+					if (r.follow_up_date) return false;
+				} else {
+					if (!r.follow_up_date) return false;
+					const diff = daysFromToday(r.follow_up_date);
+					if (followUpUrgency === 'overdue' && diff >= 0) return false;
+					if (followUpUrgency === 'today' && diff !== 0) return false;
+					if (followUpUrgency === 'this_week' && (diff < 0 || diff > 7)) return false;
+					if (followUpUrgency === 'upcoming' && diff <= 7) return false;
+				}
+			}
+			if (followUpStart || followUpEnd) {
+				if (!r.follow_up_date) return false;
+				if (followUpStart && r.follow_up_date < followUpStart) return false;
+				if (followUpEnd && r.follow_up_date > followUpEnd) return false;
+			}
 			return true;
 		});
 	});
@@ -416,8 +453,14 @@
 					return patientDisplay(a).localeCompare(patientDisplay(b)) * dir;
 				case 'service_date':
 					return (a.service_start_date ?? '').localeCompare(b.service_start_date ?? '') * dir;
-				case 'follow_up_date':
-					return (a.follow_up_date ?? '').localeCompare(b.follow_up_date ?? '') * dir;
+				case 'follow_up_date': {
+					const aDate = a.follow_up_date ?? null;
+					const bDate = b.follow_up_date ?? null;
+					if (!aDate && !bDate) return 0;
+					if (!aDate) return 1;
+					if (!bDate) return -1;
+					return aDate.localeCompare(bDate) * dir;
+				}
 				case 'billed':
 					return ((a.billed_amount ?? 0) - (b.billed_amount ?? 0)) * dir;
 				case 'insurances':
@@ -454,6 +497,12 @@
 		else sp.delete('lbl');
 		if (showFilters) sp.set('sf', '1');
 		else sp.delete('sf');
+		if (followUpUrgency !== 'all') sp.set('fuu', followUpUrgency);
+		else sp.delete('fuu');
+		if (followUpStart) sp.set('fus', followUpStart);
+		else sp.delete('fus');
+		if (followUpEnd) sp.set('fue', followUpEnd);
+		else sp.delete('fue');
 	}
 
 	$effect(() => {
@@ -721,7 +770,35 @@
 							</th>
 						{/if}
 						{#if visibleCols.includes('service_date')}<th class="px-3 py-2"></th>{/if}
-						{#if visibleCols.includes('follow_up_date')}<th class="px-3 py-2"></th>{/if}
+						{#if visibleCols.includes('follow_up_date')}
+							<th class="px-3 py-2">
+								<select
+									bind:value={followUpUrgency}
+									class="w-full rounded border border-surface-300 px-2 py-1 text-xs font-normal"
+								>
+									<option value="all">All urgency</option>
+									<option value="overdue">Overdue</option>
+									<option value="today">Due Today</option>
+									<option value="this_week">Due This Week</option>
+									<option value="upcoming">Upcoming (&gt;7d)</option>
+									<option value="none">No Date Set</option>
+								</select>
+								<div class="mt-1 flex gap-1">
+									<input
+										type="date"
+										bind:value={followUpStart}
+										title="Follow-up from"
+										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
+									/>
+									<input
+										type="date"
+										bind:value={followUpEnd}
+										title="Follow-up to"
+										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
+									/>
+								</div>
+							</th>
+						{/if}
 						{#if visibleCols.includes('billed')}<th class="px-3 py-2"></th>{/if}
 						{#if visibleCols.includes('insurances')}
 							<th class="px-3 py-2">
