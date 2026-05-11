@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
@@ -168,6 +168,8 @@
 		const sk = sp.get('sortKey');
 		const presetParam = sp.get('preset') as Preset | null;
 		const fuu = sp.get('fuu') as FollowUpUrgency | null;
+		const bminRaw = sp.get('bmin');
+		const bmaxRaw = sp.get('bmax');
 		return {
 			startDate: data.startDate,
 			endDate: data.endDate,
@@ -198,7 +200,18 @@
 			showAll: sp.get('all') === '1',
 			followUpUrgency: fuu && VALID_FOLLOW_UP_URGENCIES.includes(fuu) ? fuu : 'all',
 			followUpStart: sp.get('fus') ?? '',
-			followUpEnd: sp.get('fue') ?? ''
+			followUpEnd: sp.get('fue') ?? '',
+			serviceDateStart: sp.get('sds') ?? '',
+			serviceDateEnd: sp.get('sde') ?? '',
+			billedMin: bminRaw !== null ? parseFloat(bminRaw) : NaN,
+			billedMax: bmaxRaw !== null ? parseFloat(bmaxRaw) : NaN,
+			noteStart: sp.get('lns') ?? '',
+			noteEnd: sp.get('lne') ?? '',
+			statusFilter: (sp.get('st') === 'open'
+				? 'open'
+				: sp.get('st') === 'closed'
+					? 'closed'
+					: 'all') as 'all' | 'open' | 'closed'
 		};
 	});
 
@@ -314,6 +327,13 @@
 	let followUpUrgency = $state<FollowUpUrgency>(seed.followUpUrgency);
 	let followUpStart = $state(seed.followUpStart);
 	let followUpEnd = $state(seed.followUpEnd);
+	let serviceDateStart = $state(seed.serviceDateStart);
+	let serviceDateEnd = $state(seed.serviceDateEnd);
+	let billedMin = $state<number>(seed.billedMin);
+	let billedMax = $state<number>(seed.billedMax);
+	let noteStart = $state(seed.noteStart);
+	let noteEnd = $state(seed.noteEnd);
+	let statusFilter = $state<'all' | 'open' | 'closed'>(seed.statusFilter);
 
 	function clearFilters() {
 		patientFilter = '';
@@ -325,6 +345,13 @@
 		followUpUrgency = 'all';
 		followUpStart = '';
 		followUpEnd = '';
+		serviceDateStart = '';
+		serviceDateEnd = '';
+		billedMin = NaN;
+		billedMax = NaN;
+		noteStart = '';
+		noteEnd = '';
+		statusFilter = 'all';
 	}
 
 	const availableInsurances = $derived.by(() => {
@@ -440,6 +467,20 @@
 				if (followUpStart && r.follow_up_date < followUpStart) return false;
 				if (followUpEnd && r.follow_up_date > followUpEnd) return false;
 			}
+			if (serviceDateStart && (r.service_start_date ?? '') < serviceDateStart) return false;
+			if (serviceDateEnd && (r.service_start_date ?? '') > serviceDateEnd) return false;
+			if (!isNaN(billedMin) && (r.billed_amount ?? 0) < billedMin) return false;
+			if (!isNaN(billedMax) && (r.billed_amount ?? 0) > billedMax) return false;
+			if (noteStart || noteEnd) {
+				const noteDate = r.last_note?.created_at?.slice(0, 10) ?? '';
+				if (!noteDate) return false;
+				if (noteStart && noteDate < noteStart) return false;
+				if (noteEnd && noteDate > noteEnd) return false;
+			}
+			if (statusFilter !== 'all') {
+				if (statusFilter === 'open' && r.is_closed) return false;
+				if (statusFilter === 'closed' && !r.is_closed) return false;
+			}
 			return true;
 		});
 	});
@@ -503,6 +544,20 @@
 		else sp.delete('fus');
 		if (followUpEnd) sp.set('fue', followUpEnd);
 		else sp.delete('fue');
+		if (serviceDateStart) sp.set('sds', serviceDateStart);
+		else sp.delete('sds');
+		if (serviceDateEnd) sp.set('sde', serviceDateEnd);
+		else sp.delete('sde');
+		if (!isNaN(billedMin)) sp.set('bmin', String(billedMin));
+		else sp.delete('bmin');
+		if (!isNaN(billedMax)) sp.set('bmax', String(billedMax));
+		else sp.delete('bmax');
+		if (noteStart) sp.set('lns', noteStart);
+		else sp.delete('lns');
+		if (noteEnd) sp.set('lne', noteEnd);
+		else sp.delete('lne');
+		if (statusFilter !== 'all') sp.set('st', statusFilter);
+		else sp.delete('st');
 	}
 
 	$effect(() => {
@@ -769,7 +824,24 @@
 								/>
 							</th>
 						{/if}
-						{#if visibleCols.includes('service_date')}<th class="px-3 py-2"></th>{/if}
+						{#if visibleCols.includes('service_date')}
+							<th class="px-3 py-2">
+								<div class="flex gap-1">
+									<input
+										type="date"
+										bind:value={serviceDateStart}
+										title="Service date from"
+										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
+									/>
+									<input
+										type="date"
+										bind:value={serviceDateEnd}
+										title="Service date to"
+										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
+									/>
+								</div>
+							</th>
+						{/if}
 						{#if visibleCols.includes('follow_up_date')}
 							<th class="px-3 py-2">
 								<select
@@ -799,7 +871,28 @@
 								</div>
 							</th>
 						{/if}
-						{#if visibleCols.includes('billed')}<th class="px-3 py-2"></th>{/if}
+						{#if visibleCols.includes('billed')}
+							<th class="px-3 py-2">
+								<div class="flex gap-1">
+									<input
+										type="number"
+										bind:value={billedMin}
+										placeholder="Min $"
+										min="0"
+										step="0.01"
+										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
+									/>
+									<input
+										type="number"
+										bind:value={billedMax}
+										placeholder="Max $"
+										min="0"
+										step="0.01"
+										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
+									/>
+								</div>
+							</th>
+						{/if}
 						{#if visibleCols.includes('insurances')}
 							<th class="px-3 py-2">
 								<Combobox
@@ -929,9 +1022,34 @@
 									placeholder="Filter note"
 									class="w-full rounded border border-surface-300 px-2 py-1 text-xs font-normal"
 								/>
+								<div class="mt-1 flex gap-1">
+									<input
+										type="date"
+										bind:value={noteStart}
+										title="Note from"
+										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
+									/>
+									<input
+										type="date"
+										bind:value={noteEnd}
+										title="Note to"
+										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
+									/>
+								</div>
 							</th>
 						{/if}
-						{#if visibleCols.includes('status')}<th class="px-3 py-2"></th>{/if}
+						{#if visibleCols.includes('status')}
+							<th class="px-3 py-2">
+								<select
+									bind:value={statusFilter}
+									class="w-full rounded border border-surface-300 px-2 py-1 text-xs font-normal"
+								>
+									<option value="all">All</option>
+									<option value="open">Open</option>
+									<option value="closed">Closed</option>
+								</select>
+							</th>
+						{/if}
 					</tr>
 				{/if}
 			</thead>
