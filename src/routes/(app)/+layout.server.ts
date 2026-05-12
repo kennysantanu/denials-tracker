@@ -10,12 +10,19 @@ export const load: LayoutServerLoad = async ({ locals, depends, url }) => {
 		redirect(303, '/signin');
 	}
 
-	// Load user record with role + permissions
-	const { data: userData } = await locals.supabase
-		.from('users')
-		.select('*, roles(*)')
-		.eq('id', user.id)
-		.single();
+	// Run user+role fetch and preferences queries in parallel — preferences don't
+	// depend on the user ID, so there's no reason to wait for the first query.
+	const [{ data: userData }, [{ data: aiPref }, { data: timeoutPref }]] = await Promise.all([
+		locals.supabase.from('users').select('*, roles(*)').eq('id', user.id).single(),
+		Promise.all([
+			locals.supabase.from('preferences').select('value').eq('name', 'ai_enabled').single(),
+			locals.supabase
+				.from('preferences')
+				.select('value')
+				.eq('name', 'idle_timeout_minutes')
+				.single()
+		])
+	]);
 
 	const permissions =
 		(userData?.roles as { permissions?: Record<string, boolean> } | null)?.permissions ?? {};
@@ -30,12 +37,6 @@ export const load: LayoutServerLoad = async ({ locals, depends, url }) => {
 			redirect(302, '/setting/manage/account?expired=1');
 		}
 	}
-
-	// Check if AI is enabled via system preferences
-	const [{ data: aiPref }, { data: timeoutPref }] = await Promise.all([
-		locals.supabase.from('preferences').select('value').eq('name', 'ai_enabled').single(),
-		locals.supabase.from('preferences').select('value').eq('name', 'idle_timeout_minutes').single()
-	]);
 
 	const aiEnabled = aiPref?.value === 'true';
 

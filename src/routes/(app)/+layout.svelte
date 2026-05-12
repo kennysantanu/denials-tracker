@@ -86,8 +86,13 @@
 	onMount(() => {
 		const {
 			data: { subscription }
-		} = data.supabase.auth.onAuthStateChange((_event: string, _session: unknown) => {
-			invalidate('supabase:auth');
+		} = data.supabase.auth.onAuthStateChange((event: string, _session: unknown) => {
+			// TOKEN_REFRESHED is handled server-side via cookies; invalidating here would
+			// trigger 3+ unnecessary DB round-trips on every silent token refresh, causing
+			// the UI to freeze briefly during navigation.
+			if (event !== 'TOKEN_REFRESHED') {
+				invalidate('supabase:auth');
+			}
 		});
 
 		return () => subscription.unsubscribe();
