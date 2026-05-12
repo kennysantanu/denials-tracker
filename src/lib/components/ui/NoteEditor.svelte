@@ -126,6 +126,48 @@
 		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 	}
 
+	function getFileType(name: string): string {
+		const ext = name.split('.').pop();
+		return ext ? ext.toUpperCase() : '—';
+	}
+
+	function getFileStatus(file: FileRow): string {
+		return ((file.metadata as Record<string, unknown> | null)?.status as string) ?? 'New';
+	}
+
+	const sortedFilesForDate = $derived(
+		[...filesForDate].sort((a, b) => displayFileName(a.name).localeCompare(displayFileName(b.name)))
+	);
+
+	// Preview state
+	const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
+	const pdfExtensions = ['.pdf'];
+
+	function getExt(fileName: string): string {
+		const dot = fileName.lastIndexOf('.');
+		return dot >= 0 ? fileName.slice(dot).toLowerCase() : '';
+	}
+
+	let previewFile = $state<{ name: string; url: string; ext: string } | null>(null);
+	let previewLoading = $state(false);
+	let previewError = $state('');
+
+	async function openPreview(fileName: string) {
+		previewLoading = true;
+		previewError = '';
+		previewFile = null;
+		try {
+			const res = await fetch(`/api/file-preview?name=${encodeURIComponent(fileName)}`);
+			if (!res.ok) throw new Error('Failed to load preview');
+			const json = await res.json();
+			previewFile = { name: fileName, url: json.signedUrl, ext: getExt(fileName) };
+		} catch {
+			previewError = 'Could not load file preview.';
+		} finally {
+			previewLoading = false;
+		}
+	}
+
 	// AI rewrite state
 	let aiAvailable = $state(false);
 	let rewriting = $state(false);
@@ -399,66 +441,213 @@
 					{:else if filesForDate.length === 0}
 						<p class="text-xs text-surface-500">No files for this date.</p>
 					{:else}
-						<div class="max-h-48 space-y-1 overflow-y-auto">
-							{#each filesForDate as file (file.name)}
-								{@const alreadyAttached =
-									isEditMode && attachedFiles.some((f) => f.name === file.name)}
-								{@const isSelected = selectedExistingFiles.some((f) => f.name === file.name)}
-								<button
-									type="button"
-									class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors {isSelected
-										? 'bg-primary-100 text-primary-800'
-										: alreadyAttached
-											? 'cursor-default bg-surface-100 text-surface-400'
-											: 'hover:bg-surface-100'}"
-									onclick={() => {
-										if (!alreadyAttached) toggleExistingFile(file);
-									}}
-									disabled={alreadyAttached}
-								>
-									<span class="shrink-0">
-										{#if alreadyAttached}
-											<svg class="h-4 w-4 text-surface-300" fill="currentColor" viewBox="0 0 20 20">
-												<path
-													fill-rule="evenodd"
-													d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-													clip-rule="evenodd"
-												/>
-											</svg>
-										{:else if isSelected}
-											<svg class="h-4 w-4 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
-												<path
-													fill-rule="evenodd"
-													d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-													clip-rule="evenodd"
-												/>
-											</svg>
-										{:else}
-											<svg
-												class="h-4 w-4 text-surface-400"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
-											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-												/>
-											</svg>
-										{/if}
-									</span>
-									<span class="min-w-0 flex-1 truncate">{displayFileName(file.name)}</span>
-									{#if file.size}
-										<span class="shrink-0 text-xs text-surface-400">{formatBytes(file.size)}</span>
-									{/if}
-								</button>
-							{/each}
+						<div class="overflow-x-auto rounded border border-surface-200">
+							<table class="w-full text-left text-xs">
+								<thead class="border-b border-surface-200 bg-surface-100">
+									<tr>
+										<th class="px-2 py-2 font-medium text-surface-600">Name</th>
+										<th class="px-2 py-2 font-medium text-surface-600">Type</th>
+										<th class="px-2 py-2 font-medium text-surface-600">Status</th>
+									</tr>
+								</thead>
+								<tbody class="max-h-48 divide-y divide-surface-100 overflow-y-auto">
+									{#each sortedFilesForDate as file (file.name)}
+										{@const alreadyAttached =
+											isEditMode && attachedFiles.some((f) => f.name === file.name)}
+										{@const isSelected = selectedExistingFiles.some((f) => f.name === file.name)}
+										{@const fileStatus = getFileStatus(file)}
+										<tr
+											class="cursor-pointer transition-colors {isSelected
+												? 'bg-primary-100'
+												: alreadyAttached
+													? 'cursor-default bg-surface-100 opacity-50'
+													: 'hover:bg-surface-50'}"
+											onclick={() => {
+												if (!alreadyAttached) toggleExistingFile(file);
+											}}
+										>
+											<td class="px-2 py-2">
+												<div class="flex items-center gap-1.5">
+													<span class="shrink-0">
+														{#if alreadyAttached || isSelected}
+															<svg
+																class="h-3.5 w-3.5 {alreadyAttached
+																	? 'text-surface-400'
+																	: 'text-primary-600'}"
+																fill="currentColor"
+																viewBox="0 0 20 20"
+															>
+																<path
+																	fill-rule="evenodd"
+																	d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+																	clip-rule="evenodd"
+																/>
+															</svg>
+														{:else}
+															<span class="block h-3.5 w-3.5"></span>
+														{/if}
+													</span>
+													<span
+														class="min-w-0 truncate {isSelected
+															? 'font-medium text-primary-800'
+															: 'text-surface-800'}"
+													>
+														{displayFileName(file.name)}
+													</span>
+													<button
+														type="button"
+														title="Preview"
+														onclick={(e) => {
+															e.stopPropagation();
+															openPreview(file.name);
+														}}
+														class="shrink-0 rounded p-0.5 text-surface-400 hover:bg-surface-200 hover:text-surface-700"
+													>
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															class="h-3.5 w-3.5"
+															fill="none"
+															viewBox="0 0 24 24"
+															stroke="currentColor"
+															stroke-width="2"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+															/>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+															/>
+														</svg>
+													</button>
+												</div>
+											</td>
+											<td class="px-2 py-2 text-surface-500">
+												{getFileType(file.name)}
+											</td>
+											<td class="px-2 py-2">
+												<span
+													class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+														{fileStatus === 'New'
+														? 'bg-red-100 text-red-800'
+														: fileStatus === 'In Progress'
+															? 'bg-amber-100 text-amber-800'
+															: 'bg-blue-100 text-blue-800'}"
+												>
+													{fileStatus}
+												</span>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
 						</div>
 					{/if}
 				</div>
 			</div>
 		</div>
 	{/if}
+{/if}
+
+<!-- Preview Dialog -->
+{#if previewLoading || previewError || previewFile}
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div
+		role="dialog"
+		aria-modal="true"
+		aria-label="File preview"
+		tabindex="-1"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+		onclick={(e) => {
+			if (e.target === e.currentTarget) {
+				previewFile = null;
+				previewError = '';
+			}
+		}}
+		onkeydown={(e) => {
+			if (e.key === 'Escape') {
+				previewFile = null;
+				previewError = '';
+			}
+		}}
+	>
+		<div
+			class="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+		>
+			<!-- Dialog header -->
+			<div class="flex items-center justify-between border-b border-surface-200 px-4 py-3">
+				<span class="truncate text-sm font-medium text-surface-800">
+					{previewFile?.name ? displayFileName(previewFile.name) : 'Loading…'}
+				</span>
+				<div class="flex items-center gap-2">
+					{#if previewFile}
+						<a
+							href="/file/view?name={encodeURIComponent(previewFile.name)}"
+							class="rounded-md border border-surface-300 px-3 py-1.5 text-xs font-medium text-surface-700 hover:bg-surface-50"
+						>
+							Open Full View
+						</a>
+					{/if}
+					<button
+						type="button"
+						aria-label="Close preview"
+						onclick={() => {
+							previewFile = null;
+							previewError = '';
+						}}
+						class="rounded p-1 text-surface-400 hover:bg-surface-100 hover:text-surface-700"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="h-5 w-5"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+			</div>
+			<!-- Dialog body -->
+			<div class="flex-1 overflow-auto">
+				{#if previewLoading}
+					<div class="flex h-64 items-center justify-center text-surface-500">Loading preview…</div>
+				{:else if previewError}
+					<div class="flex h-64 items-center justify-center text-error-600">
+						{previewError}
+					</div>
+				{:else if previewFile}
+					{#if imageExtensions.includes(previewFile.ext)}
+						<img
+							src={previewFile.url}
+							alt={displayFileName(previewFile.name)}
+							class="max-h-[75vh] w-full object-contain"
+						/>
+					{:else if pdfExtensions.includes(previewFile.ext)}
+						<iframe
+							src={previewFile.url}
+							title={displayFileName(previewFile.name)}
+							class="h-[75vh] w-full"
+						></iframe>
+					{:else}
+						<div class="flex h-64 flex-col items-center justify-center gap-4 text-surface-600">
+							<p>Preview not available for this file type.</p>
+							<a
+								href={previewFile.url}
+								download={displayFileName(previewFile.name)}
+								class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+							>
+								Download File
+							</a>
+						</div>
+					{/if}
+				{/if}
+			</div>
+		</div>
+	</div>
 {/if}

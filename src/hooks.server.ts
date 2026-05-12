@@ -118,13 +118,16 @@ const securityHeadersHandle: Handle = async ({ event, resolve }) => {
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
-	// Allow iframes for file pages (PDF viewer in full view + preview dialog), deny everywhere else
+	// Allow Supabase-hosted PDFs to be embedded in iframes on all pages
+	// (NoteEditor picker preview can appear on any route, not just /file)
+	response.headers.set(
+		'Content-Security-Policy',
+		`frame-src 'self' ${publicEnv.PUBLIC_SUPABASE_URL};`
+	);
+
+	// X-Frame-Options: prevent THIS page from being embedded elsewhere
 	if (path.startsWith('/file')) {
 		response.headers.set('X-Frame-Options', 'SAMEORIGIN');
-		response.headers.set(
-			'Content-Security-Policy',
-			`frame-src 'self' ${publicEnv.PUBLIC_SUPABASE_URL};`
-		);
 	} else {
 		response.headers.set('X-Frame-Options', 'DENY');
 	}
