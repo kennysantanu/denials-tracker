@@ -1,8 +1,8 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
-	import { Combobox } from '@skeletonlabs/skeleton-svelte';
+	import { Combobox, Popover } from '@skeletonlabs/skeleton-svelte';
 	import { ListCollection } from '@zag-js/collection';
 	import { formatDate } from '$lib/utils';
 	import { setChatContext } from '$lib/stores/chatContext.svelte';
@@ -66,7 +66,7 @@
 
 	// -- date range presets ---------------------------------------------------
 
-	type DatePresetKey = 'last_30' | 'last_90' | 'this_year' | 'last_year';
+	type DatePresetKey = 'today' | 'last_30' | 'last_90' | 'this_year' | 'last_year';
 
 	function toDateStr(d: Date): string {
 		return d.toISOString().slice(0, 10);
@@ -77,6 +77,14 @@
 		label: string;
 		getDates: () => { start: string; end: string };
 	}[] = [
+		{
+			key: 'today',
+			label: 'Today',
+			getDates: () => {
+				const today = toDateStr(new Date());
+				return { start: today, end: today };
+			}
+		},
 		{
 			key: 'last_30',
 			label: 'Last 30 Days',
@@ -222,7 +230,6 @@
 	let dateMode = $state<'service' | 'lastNote'>(seed.dateMode);
 	let activePreset = $state<Preset>(seed.preset);
 	let visibleCols = $state<ColKey[]>(loadStoredCols() ?? PRESETS[seed.preset].cols);
-	let showColPicker = $state(false);
 
 	function applyPreset(p: Preset) {
 		activePreset = p;
@@ -294,7 +301,7 @@
 		if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, cls: 'badge preset-tonal-error' };
 		if (diff === 0) return { label: 'Today', cls: 'badge preset-tonal-warning' };
 		if (diff <= 7) return { label: `${diff}d`, cls: 'badge preset-tonal-warning' };
-		return { label: `${diff}d`, cls: 'badge preset-tonal-surface' };
+		return null;
 	}
 
 	// -- sort ------------------------------------------------------------------
@@ -312,18 +319,26 @@
 		}
 	}
 
+	function sortAriaSort(key: SortKey): 'ascending' | 'descending' | 'none' {
+		if (sortKey !== key) return 'none';
+		return sortDir === 'asc' ? 'ascending' : 'descending';
+	}
+
 	function sortIndicator(key: SortKey): string {
 		if (sortKey !== key) return '';
-		return sortDir === 'asc' ? '▲' : '▼';
+		return sortDir === 'asc' ? '↑' : '↓';
 	}
 
 	// -- client filters --------------------------------------------------------
 
 	let patientFilter = $state(seed.patientFilter);
+	let patientFilterRaw = $state(seed.patientFilter);
 	let noteFilter = $state(seed.noteFilter);
+	let noteFilterRaw = $state(seed.noteFilter);
 	let insuranceFilter = $state<number[]>(seed.insuranceFilter);
 	let labelFilter = $state<number[]>(seed.labelFilter);
 	let showFilters = $state(seed.showFilters);
+	let showMoreFilters = $state(false);
 	let followUpUrgency = $state<FollowUpUrgency>(seed.followUpUrgency);
 	let followUpStart = $state(seed.followUpStart);
 	let followUpEnd = $state(seed.followUpEnd);
@@ -335,9 +350,27 @@
 	let noteEnd = $state(seed.noteEnd);
 	let statusFilter = $state<'all' | 'open' | 'closed'>(seed.statusFilter);
 
+	// debounce text filter inputs
+	$effect(() => {
+		const v = patientFilterRaw;
+		const t = setTimeout(() => {
+			patientFilter = v;
+		}, 150);
+		return () => clearTimeout(t);
+	});
+	$effect(() => {
+		const v = noteFilterRaw;
+		const t = setTimeout(() => {
+			noteFilter = v;
+		}, 150);
+		return () => clearTimeout(t);
+	});
+
 	function clearFilters() {
 		patientFilter = '';
+		patientFilterRaw = '';
 		noteFilter = '';
+		noteFilterRaw = '';
 		insuranceFilter = [];
 		labelFilter = [];
 		insSearchInput = '';
@@ -352,6 +385,155 @@
 		noteStart = '';
 		noteEnd = '';
 		statusFilter = 'all';
+	}
+
+	type FilterChip = { key: string; label: string; clear: () => void };
+
+	const activeFilterChips = $derived.by<FilterChip[]>(() => {
+		const chips: FilterChip[] = [];
+		if (patientFilter.trim())
+			chips.push({
+				key: 'patient',
+				label: `Patient: "${patientFilter.trim()}"`,
+				clear: () => {
+					patientFilter = '';
+					patientFilterRaw = '';
+				}
+			});
+		if (noteFilter.trim())
+			chips.push({
+				key: 'note',
+				label: `Note: "${noteFilter.trim()}"`,
+				clear: () => {
+					noteFilter = '';
+					noteFilterRaw = '';
+				}
+			});
+		if (statusFilter !== 'all')
+			chips.push({
+				key: 'status',
+				label: `Status: ${statusFilter === 'open' ? 'Open' : 'Closed'}`,
+				clear: () => {
+					statusFilter = 'all';
+				}
+			});
+		if (followUpUrgency !== 'all') {
+			const urgencyLabels: Record<FollowUpUrgency, string> = {
+				all: 'All',
+				overdue: 'Overdue',
+				today: 'Due Today',
+				this_week: 'Due This Week',
+				upcoming: 'Upcoming',
+				none: 'No Date'
+			};
+			chips.push({
+				key: 'fuu',
+				label: `Follow-up: ${urgencyLabels[followUpUrgency]}`,
+				clear: () => {
+					followUpUrgency = 'all';
+				}
+			});
+		}
+		if (followUpStart || followUpEnd)
+			chips.push({
+				key: 'fud',
+				label: `Follow-up: ${followUpStart || '...'} to ${followUpEnd || '...'}`,
+				clear: () => {
+					followUpStart = '';
+					followUpEnd = '';
+				}
+			});
+		if (serviceDateStart || serviceDateEnd)
+			chips.push({
+				key: 'sd',
+				label: `Service: ${serviceDateStart || '...'} to ${serviceDateEnd || '...'}`,
+				clear: () => {
+					serviceDateStart = '';
+					serviceDateEnd = '';
+				}
+			});
+		if (!isNaN(billedMin) || !isNaN(billedMax)) {
+			const min = isNaN(billedMin) ? '$0' : `$${billedMin}`;
+			const max = isNaN(billedMax) ? 'no limit' : `$${billedMax}`;
+			chips.push({
+				key: 'billed',
+				label: `Billed: ${min} to ${max}`,
+				clear: () => {
+					billedMin = NaN;
+					billedMax = NaN;
+				}
+			});
+		}
+		if (noteStart || noteEnd)
+			chips.push({
+				key: 'nd',
+				label: `Note date: ${noteStart || '...'} to ${noteEnd || '...'}`,
+				clear: () => {
+					noteStart = '';
+					noteEnd = '';
+				}
+			});
+		for (const id of insuranceFilter) {
+			const ins = availableInsurances.find((i) => i.id === id);
+			chips.push({
+				key: `ins_${id}`,
+				label: `Insurance: ${ins?.name ?? id}`,
+				clear: () => {
+					insuranceFilter = insuranceFilter.filter((i) => i !== id);
+				}
+			});
+		}
+		for (const id of labelFilter) {
+			const lbl = availableLabels.find((l) => l.id === id);
+			chips.push({
+				key: `lbl_${id}`,
+				label: `Label: ${lbl?.name ?? id}`,
+				clear: () => {
+					labelFilter = labelFilter.filter((l) => l !== id);
+				}
+			});
+		}
+		return chips;
+	});
+
+	const hasActiveFilters = $derived(activeFilterChips.length > 0);
+
+	function exportCsv() {
+		const headers = ALL_COLS.filter((c) => visibleCols.includes(c.key)).map((c) => c.label);
+		const rows = sortedRows.map((r) =>
+			visibleCols
+				.map((col) => {
+					switch (col) {
+						case 'patient':
+							return r.patient ? `"${r.patient.last_name}, ${r.patient.first_name}"` : '';
+						case 'service_date':
+							return r.service_start_date ? formatDate(r.service_start_date) : '';
+						case 'follow_up_date':
+							return r.follow_up_date ? formatDate(r.follow_up_date) : '';
+						case 'billed':
+							return r.billed_amount != null ? r.billed_amount.toFixed(2) : '0.00';
+						case 'insurances':
+							return `"${r.insurances.map((i) => i.name).join('; ')}"`;
+						case 'labels':
+							return `"${r.labels.map((l) => l.label_name).join('; ')}"`;
+						case 'last_note':
+							return r.last_note ? `"${r.last_note.note.replace(/"/g, '""')}"` : '';
+						case 'status':
+							return r.is_closed ? 'Closed' : 'Open';
+						default:
+							return '';
+					}
+				})
+				.join(',')
+		);
+		const csv = [headers.join(','), ...rows].join('\n');
+		const blob = new Blob([csv], { type: 'text/csv' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `denials-tracker-report-${new Date().toISOString().slice(0, 10)}.csv`;
+		a.click();
+		URL.revokeObjectURL(url);
 	}
 
 	const availableInsurances = $derived.by(() => {
@@ -592,473 +774,558 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<h1 class="text-2xl font-bold text-surface-900">Report</h1>
-
-	<!-- Toolbar -->
-	<div
-		class="no-print flex flex-wrap items-end gap-4 rounded-lg border border-surface-300 bg-surface-50 p-4"
-	>
-		<div class="flex flex-col gap-1">
-			<span class="text-sm font-medium text-surface-700">Date Mode</span>
-			<div class="flex items-center gap-3 text-sm text-surface-700">
-				<label class="flex items-center gap-1">
-					<input type="radio" bind:group={dateMode} value="service" />
-					Service Date
-				</label>
-				<label class="flex items-center gap-1">
-					<input type="radio" bind:group={dateMode} value="lastNote" />
-					Last Note Date
-				</label>
-			</div>
+	<!-- Page header -->
+	<header class="flex items-end justify-between gap-4">
+		<div>
+			<h1 class="text-2xl font-bold tracking-tight text-surface-900">Report</h1>
+			<p class="text-sm text-surface-500">Denial records for the selected date range.</p>
 		</div>
-
-		<div class="flex flex-col gap-1">
-			<span class="text-sm font-medium text-surface-700">Quick Range</span>
-			<div class="flex flex-wrap gap-1">
-				<button
-					onclick={() => {
-						showAll = true;
-					}}
-					class="rounded-full border px-2.5 py-1 text-xs font-medium transition-colors {showAll
-						? 'border-primary-500 bg-primary-50 text-primary-700'
-						: 'border-surface-300 text-surface-600 hover:bg-surface-100'}"
-				>
-					All
-				</button>
-				{#each DATE_PRESETS as p (p.key)}
-					<button
-						onclick={() => {
-							showAll = false;
-							applyDatePreset(p.key);
-						}}
-						class="rounded-full border px-2.5 py-1 text-xs font-medium transition-colors {!showAll &&
-						activeDatePreset === p.key
-							? 'border-primary-500 bg-primary-50 text-primary-700'
-							: 'border-surface-300 text-surface-600 hover:bg-surface-100'}"
-					>
-						{p.label}
-					</button>
-				{/each}
-			</div>
+		<div class="no-print flex gap-2">
+			<button class="btn preset-tonal btn-sm" onclick={exportCsv}>Export CSV</button>
+			<button class="btn preset-tonal btn-sm" onclick={() => window.print()}>Print</button>
 		</div>
+	</header>
 
-		<div class="flex flex-col gap-1">
-			<label for="startDate" class="text-sm font-medium text-surface-700">Start Date</label>
-			<input
-				id="startDate"
-				type="date"
-				bind:value={startDate}
-				oninput={() => (showAll = false)}
-				class="rounded border border-surface-300 px-3 py-2 text-sm"
-			/>
-		</div>
-		<div class="flex flex-col gap-1">
-			<label for="endDate" class="text-sm font-medium text-surface-700">End Date</label>
-			<input
-				id="endDate"
-				type="date"
-				bind:value={endDate}
-				oninput={() => (showAll = false)}
-				class="rounded border border-surface-300 px-3 py-2 text-sm"
-			/>
-		</div>
-		<label class="flex items-center gap-2 text-sm text-surface-700">
-			<input type="checkbox" bind:checked={includeClosed} class="rounded" />
-			Include Closed
-		</label>
-
-		<button
-			onclick={generateReport}
-			class="rounded bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600"
-		>
-			Generate Report
-		</button>
-		<button
-			onclick={() => (showFilters = !showFilters)}
-			class="rounded border border-surface-300 px-4 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100"
-		>
-			{showFilters ? 'Hide Filters' : 'Show Filters'}
-		</button>
-		<button
-			onclick={clearFilters}
-			class="rounded border border-surface-300 px-4 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100"
-		>
-			Clear Filters
-		</button>
-		<button
-			onclick={() => window.print()}
-			class="rounded border border-surface-300 px-4 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100"
-		>
-			Print
-		</button>
-
-		<div class="ml-auto text-sm text-surface-600">
-			Showing {sortedRows.length} of {data.reportData.length} records
-		</div>
-	</div>
-
-	<!-- Preset + Column picker bar -->
-	<div class="no-print flex flex-wrap items-center gap-2">
-		<span class="text-xs font-semibold tracking-wide text-surface-500 uppercase">Preset:</span>
-		{#each Object.entries(PRESETS) as [key, preset] (key)}
-			<button
-				onclick={() => applyPreset(key as Preset)}
-				class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {activePreset ===
-				key
-					? 'border-primary-500 bg-primary-50 text-primary-700'
-					: 'border-surface-300 text-surface-600 hover:bg-surface-100'}"
-			>
-				{preset.label}
-			</button>
-		{/each}
-
-		<div class="relative ml-2">
-			<button
-				onclick={() => (showColPicker = !showColPicker)}
-				class="flex items-center gap-1 rounded border border-surface-300 px-3 py-1 text-xs font-medium text-surface-700 hover:bg-surface-100"
-			>
-				Columns ({visibleCols.length})
-				<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-					<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-				</svg>
-			</button>
-			{#if showColPicker}
-				<div
-					role="presentation"
-					class="fixed inset-0 z-10"
-					onclick={() => (showColPicker = false)}
-				></div>
-				<div
-					class="absolute left-0 z-20 mt-1 w-48 rounded-lg border border-surface-200 bg-white py-2 shadow-lg"
-				>
-					{#each ALL_COLS as col (col.key)}
-						<label
-							class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-surface-50"
+	<!-- â”€â”€ Data Source card (server-side, requires Generate) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+	<div class="no-print space-y-3 card border border-surface-200 bg-white p-4 shadow-sm">
+		<h2 class="text-xs font-semibold tracking-wide text-surface-500 uppercase">Data Source</h2>
+		<div class="flex flex-wrap items-end gap-4">
+			<!-- Date Mode -->
+			<div class="flex flex-col gap-1">
+				<span class="text-xs font-medium text-surface-600">Date Mode</span>
+				<div class="flex gap-1">
+					{#each [{ v: 'service', l: 'Service Date' }, { v: 'lastNote', l: 'Last Note' }] as item (item.v)}
+						<button
+							type="button"
+							onclick={() => {
+								dateMode = item.v as 'service' | 'lastNote';
+							}}
+							class="rounded-base border px-3 py-1 text-xs font-medium transition-colors {dateMode ===
+							item.v
+								? 'border-primary-500 bg-primary-50 text-primary-700'
+								: 'border-surface-300 text-surface-600 hover:bg-surface-100'}">{item.l}</button
 						>
-							<input
-								type="checkbox"
-								checked={visibleCols.includes(col.key)}
-								onchange={() => toggleCol(col.key)}
-								class="rounded"
-							/>
-							{col.label}
-						</label>
 					{/each}
 				</div>
-			{/if}
+			</div>
+
+			<!-- Quick Range -->
+			<div class="flex flex-col gap-1">
+				<span class="text-xs font-medium text-surface-600">Quick Range</span>
+				<div class="flex flex-wrap gap-1">
+					<button
+						onclick={() => {
+							showAll = true;
+						}}
+						class="rounded-base border px-2.5 py-1 text-xs font-medium transition-colors {showAll
+							? 'border-primary-500 bg-primary-50 text-primary-700'
+							: 'border-surface-300 text-surface-600 hover:bg-surface-100'}">All</button
+					>
+					{#each DATE_PRESETS as p (p.key)}
+						<button
+							onclick={() => {
+								showAll = false;
+								applyDatePreset(p.key);
+							}}
+							class="rounded-base border px-2.5 py-1 text-xs font-medium transition-colors {!showAll &&
+							activeDatePreset === p.key
+								? 'border-primary-500 bg-primary-50 text-primary-700'
+								: 'border-surface-300 text-surface-600 hover:bg-surface-100'}">{p.label}</button
+						>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Start / End dates -->
+			<div class="flex gap-3 {showAll ? 'pointer-events-none opacity-40' : ''}">
+				<label class="label">
+					<span class="label-text text-xs">Start Date</span>
+					<input
+						id="startDate"
+						type="date"
+						bind:value={startDate}
+						disabled={showAll}
+						oninput={() => (showAll = false)}
+						class="input text-sm"
+					/>
+				</label>
+				<label class="label">
+					<span class="label-text text-xs">End Date</span>
+					<input
+						id="endDate"
+						type="date"
+						bind:value={endDate}
+						disabled={showAll}
+						oninput={() => (showAll = false)}
+						class="input text-sm"
+					/>
+				</label>
+			</div>
+
+			<!-- Include Closed -->
+			<label class="flex items-center gap-2 pb-1.5 text-sm text-surface-700">
+				<input type="checkbox" bind:checked={includeClosed} class="rounded-base" />
+				Include Closed
+			</label>
+
+			<!-- Generate -->
+			<button onclick={generateReport} class="mb-0.5 btn self-end preset-filled-primary-500 btn-sm">
+				Generate Report
+			</button>
 		</div>
 	</div>
 
-	<!-- Table -->
-	<div class="overflow-x-auto">
-		<table class="w-full text-left text-sm">
-			<thead>
-				<tr class="border-b border-surface-300 text-surface-600">
+	<!-- â”€â”€ Filters & View card (client-side, instant) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+	<div
+		class="no-print relative z-20 space-y-3 card border border-surface-200 bg-white p-4 shadow-sm"
+	>
+		<div class="flex items-center justify-between gap-2">
+			<h2 class="text-xs font-semibold tracking-wide text-surface-500 uppercase">Filters & View</h2>
+			<div class="flex items-center gap-2">
+				<span class="text-sm text-surface-500">
+					Showing <strong class="text-surface-700">{sortedRows.length}</strong> of
+					<strong class="text-surface-700">{data.reportData.length}</strong>
+				</span>
+				{#if hasActiveFilters}
+					<button class="btn preset-tonal-error btn-sm" onclick={clearFilters}>Clear all</button>
+				{/if}
+				<button class="btn preset-tonal btn-sm" onclick={() => (showFilters = !showFilters)}>
+					{showFilters ? 'Hide Filters' : 'Filters'}
+				</button>
+			</div>
+		</div>
+
+		{#if showFilters}
+			<div class="space-y-3 border-t border-surface-100 pt-3">
+				<!-- Row 1: Search + Status -->
+				<div class="flex flex-wrap gap-3">
+					<label class="label min-w-40 flex-1">
+						<span class="label-text text-xs">Patient</span>
+						<input
+							type="text"
+							bind:value={patientFilterRaw}
+							placeholder="Search by name..."
+							class="input text-sm"
+						/>
+					</label>
+					<label class="label min-w-40 flex-1">
+						<span class="label-text text-xs">Note</span>
+						<input
+							type="text"
+							bind:value={noteFilterRaw}
+							placeholder="Search notes..."
+							class="input text-sm"
+						/>
+					</label>
+					<div class="flex flex-col gap-1">
+						<span class="text-xs font-medium text-surface-600">Status</span>
+						<div class="flex gap-1">
+							{#each [{ v: 'all', l: 'All' }, { v: 'open', l: 'Open' }, { v: 'closed', l: 'Closed' }] as item (item.v)}
+								<button
+									type="button"
+									onclick={() => {
+										statusFilter = item.v as 'all' | 'open' | 'closed';
+									}}
+									class="rounded-base border px-3 py-1 text-xs font-medium transition-colors {statusFilter ===
+									item.v
+										? 'border-primary-500 bg-primary-50 text-primary-700'
+										: 'border-surface-300 text-surface-600 hover:bg-surface-100'}">{item.l}</button
+								>
+							{/each}
+						</div>
+					</div>
+				</div>
+
+				<!-- Row 2: Insurance + Labels + Follow-up urgency -->
+				<div class="flex flex-wrap gap-3">
+					<div class="flex min-w-48 flex-1 flex-col gap-1">
+						<span class="text-xs font-medium text-surface-600">
+							Insurance{insuranceFilter.length > 0 ? ` (${insuranceFilter.length})` : ''}
+						</span>
+						<Combobox
+							collection={insCollection}
+							multiple={true}
+							value={insSelectedValues}
+							onValueChange={(details) => {
+								insuranceFilter = details.value.map(Number);
+							}}
+							inputValue={insSearchInput}
+							onInputValueChange={(details) => {
+								insSearchInput = details.inputValue;
+							}}
+							openOnClick={true}
+							selectionBehavior="clear"
+							placeholder="Filter by insurance..."
+							closeOnSelect={false}
+						>
+							<Combobox.Control>
+								<Combobox.Input
+									class="input w-full bg-white text-sm placeholder:text-surface-400 focus:outline-none"
+								/>
+							</Combobox.Control>
+							<Combobox.Positioner>
+								<Combobox.Content
+									class="z-50 max-h-48 overflow-auto rounded-container border border-surface-200 bg-white shadow-lg"
+								>
+									{#each filteredInsItems as ins (ins.id)}
+										<Combobox.Item
+											item={ins}
+											class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-surface-100 data-highlighted:bg-surface-100"
+										>
+											<Combobox.ItemIndicator>
+												<svg
+													class="h-3.5 w-3.5 text-primary-600"
+													fill="none"
+													viewBox="0 0 24 24"
+													stroke="currentColor"
+													stroke-width="2.5"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														d="M5 13l4 4L19 7"
+													/></svg
+												>
+											</Combobox.ItemIndicator>
+											<Combobox.ItemText>{ins.name}</Combobox.ItemText>
+										</Combobox.Item>
+									{/each}
+									{#if filteredInsItems.length === 0}
+										<div class="px-3 py-2 text-sm text-surface-400">No insurances found</div>
+									{/if}
+								</Combobox.Content>
+							</Combobox.Positioner>
+						</Combobox>
+					</div>
+
+					<div class="flex min-w-48 flex-1 flex-col gap-1">
+						<span class="text-xs font-medium text-surface-600">
+							Labels{labelFilter.length > 0 ? ` (${labelFilter.length})` : ''}
+						</span>
+						<Combobox
+							collection={lblCollection}
+							multiple={true}
+							value={lblSelectedValues}
+							onValueChange={(details) => {
+								labelFilter = details.value.map(Number);
+							}}
+							inputValue={lblSearchInput}
+							onInputValueChange={(details) => {
+								lblSearchInput = details.inputValue;
+							}}
+							openOnClick={true}
+							selectionBehavior="clear"
+							placeholder="Filter by label..."
+							closeOnSelect={false}
+						>
+							<Combobox.Control>
+								<Combobox.Input
+									class="input w-full bg-white text-sm placeholder:text-surface-400 focus:outline-none"
+								/>
+							</Combobox.Control>
+							<Combobox.Positioner>
+								<Combobox.Content
+									class="z-50 max-h-48 overflow-auto rounded-container border border-surface-200 bg-white shadow-lg"
+								>
+									{#each filteredLblItems as lbl (lbl.id)}
+										<Combobox.Item
+											item={lbl}
+											class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-surface-100 data-highlighted:bg-surface-100"
+										>
+											<Combobox.ItemIndicator>
+												<svg
+													class="h-3.5 w-3.5 text-primary-600"
+													fill="none"
+													viewBox="0 0 24 24"
+													stroke="currentColor"
+													stroke-width="2.5"
+													><path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														d="M5 13l4 4L19 7"
+													/></svg
+												>
+											</Combobox.ItemIndicator>
+											<Combobox.ItemText>
+												<span
+													class="rounded-base px-2 py-0.5 text-xs"
+													style="background-color: {lbl.bg}; color: {lbl.txt};">{lbl.name}</span
+												>
+											</Combobox.ItemText>
+										</Combobox.Item>
+									{/each}
+									{#if filteredLblItems.length === 0}
+										<div class="px-3 py-2 text-sm text-surface-400">No labels found</div>
+									{/if}
+								</Combobox.Content>
+							</Combobox.Positioner>
+						</Combobox>
+					</div>
+
+					<label class="label min-w-40 flex-1">
+						<span class="label-text text-xs">Follow-up Urgency</span>
+						<select class="select text-sm" bind:value={followUpUrgency}>
+							<option value="all">All urgency</option>
+							<option value="overdue">Overdue</option>
+							<option value="today">Due Today</option>
+							<option value="this_week">Due This Week</option>
+							<option value="upcoming">Upcoming (&gt;7d)</option>
+							<option value="none">No Date Set</option>
+						</select>
+					</label>
+				</div>
+
+				<!-- More filters toggle -->
+				<button
+					type="button"
+					class="-ml-1 btn btn-sm text-surface-500 hover:preset-tonal"
+					onclick={() => (showMoreFilters = !showMoreFilters)}
+				>
+					{#if showMoreFilters}
+						<svg
+							class="h-3 w-3"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="2"
+							><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg
+						>
+						Fewer filters
+					{:else}
+						<svg
+							class="h-3 w-3"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="2"
+							><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg
+						>
+						More filters
+					{/if}
+				</button>
+
+				{#if showMoreFilters}
+					<div
+						class="grid grid-cols-2 gap-3 rounded-base border border-surface-100 bg-surface-50 p-3 sm:grid-cols-4"
+					>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium text-surface-600">Service Date From</span>
+							<input type="date" bind:value={serviceDateStart} class="input text-xs" />
+						</div>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium text-surface-600">Service Date To</span>
+							<input type="date" bind:value={serviceDateEnd} class="input text-xs" />
+						</div>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium text-surface-600">Billed Min ($)</span>
+							<input
+								type="number"
+								bind:value={billedMin}
+								placeholder="0.00"
+								min="0"
+								step="0.01"
+								class="input text-xs"
+							/>
+						</div>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium text-surface-600">Billed Max ($)</span>
+							<input
+								type="number"
+								bind:value={billedMax}
+								placeholder="no limit"
+								min="0"
+								step="0.01"
+								class="input text-xs"
+							/>
+						</div>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium text-surface-600">Follow-up From</span>
+							<input type="date" bind:value={followUpStart} class="input text-xs" />
+						</div>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium text-surface-600">Follow-up To</span>
+							<input type="date" bind:value={followUpEnd} class="input text-xs" />
+						</div>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium text-surface-600">Note Date From</span>
+							<input type="date" bind:value={noteStart} class="input text-xs" />
+						</div>
+						<div class="flex flex-col gap-1">
+							<span class="text-xs font-medium text-surface-600">Note Date To</span>
+							<input type="date" bind:value={noteEnd} class="input text-xs" />
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Preset + Column picker bar -->
+		<div
+			class="flex flex-wrap items-center gap-2 {showFilters
+				? 'border-t border-surface-100 pt-3'
+				: ''}"
+		>
+			<span class="text-xs font-semibold tracking-wide text-surface-500 uppercase">Preset:</span>
+			{#each Object.entries(PRESETS) as [key, preset] (key)}
+				<button
+					onclick={() => applyPreset(key as Preset)}
+					class="rounded-base border px-3 py-1 text-xs font-medium transition-colors {activePreset ===
+					key
+						? 'border-primary-500 bg-primary-50 text-primary-700'
+						: 'border-surface-300 text-surface-600 hover:bg-surface-100'}">{preset.label}</button
+				>
+			{/each}
+			<Popover>
+				<Popover.Trigger class="ml-1 btn preset-tonal btn-sm">
+					Columns ({visibleCols.length})
+					<svg
+						class="ml-1 h-3 w-3 shrink-0"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+						stroke-width="2"
+						><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg
+					>
+				</Popover.Trigger>
+				<Popover.Positioner class="z-50">
+					<Popover.Content
+						class="w-48 rounded-container border border-surface-200 bg-white py-2 shadow-lg"
+					>
+						{#each ALL_COLS as col (col.key)}
+							<label
+								class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-surface-50"
+							>
+								<input
+									type="checkbox"
+									checked={visibleCols.includes(col.key)}
+									onchange={() => toggleCol(col.key)}
+									class="rounded-base"
+								/>
+								{col.label}
+							</label>
+						{/each}
+					</Popover.Content>
+				</Popover.Positioner>
+			</Popover>
+		</div>
+
+		<!-- Active filter chips -->
+		{#if hasActiveFilters}
+			<div class="flex flex-wrap gap-1.5">
+				{#each activeFilterChips as chip (chip.key)}
+					<span class="badge flex items-center gap-0.5 preset-tonal-primary text-xs">
+						{chip.label}
+						<button
+							type="button"
+							onclick={chip.clear}
+							class="ml-0.5 rounded-full px-0.5 hover:bg-primary-200 focus:outline-none"
+							aria-label="Remove filter">&times;</button
+						>
+					</span>
+				{/each}
+			</div>
+		{/if}
+	</div>
+
+	<!-- â”€â”€ Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+	<div class="table-wrap">
+		<table class="table caption-bottom">
+			<thead class="sticky top-0 z-10 bg-white">
+				<tr class="border-b border-surface-200">
 					{#if visibleCols.includes('patient')}
-						<th class="px-3 py-2">
+						<th
+							aria-sort={sortAriaSort('patient')}
+							class="px-3 py-2.5 text-left text-xs font-semibold tracking-wide text-surface-600 uppercase"
+						>
 							<button class="sort-btn" onclick={() => toggleSort('patient')}>
-								Patient <span class="text-xs">{sortIndicator('patient')}</span>
+								Patient{#if sortKey === 'patient'}
+									<span class="text-primary-500">{sortIndicator('patient')}</span>{/if}
 							</button>
 						</th>
 					{/if}
 					{#if visibleCols.includes('service_date')}
-						<th class="px-3 py-2">
+						<th
+							aria-sort={sortAriaSort('service_date')}
+							class="px-3 py-2.5 text-left text-xs font-semibold tracking-wide text-surface-600 uppercase"
+						>
 							<button class="sort-btn" onclick={() => toggleSort('service_date')}>
-								Service Date <span class="text-xs">{sortIndicator('service_date')}</span>
+								Service Date{#if sortKey === 'service_date'}
+									<span class="text-primary-500">{sortIndicator('service_date')}</span>{/if}
 							</button>
 						</th>
 					{/if}
 					{#if visibleCols.includes('follow_up_date')}
-						<th class="px-3 py-2">
+						<th
+							aria-sort={sortAriaSort('follow_up_date')}
+							class="px-3 py-2.5 text-left text-xs font-semibold tracking-wide text-surface-600 uppercase"
+						>
 							<button class="sort-btn" onclick={() => toggleSort('follow_up_date')}>
-								Follow-up Date <span class="text-xs">{sortIndicator('follow_up_date')}</span>
+								Follow-up{#if sortKey === 'follow_up_date'}
+									<span class="text-primary-500">{sortIndicator('follow_up_date')}</span>{/if}
 							</button>
 						</th>
 					{/if}
 					{#if visibleCols.includes('billed')}
-						<th class="px-3 py-2 text-right">
+						<th
+							aria-sort={sortAriaSort('billed')}
+							class="px-3 py-2.5 text-right text-xs font-semibold tracking-wide text-surface-600 uppercase"
+						>
 							<button class="sort-btn" onclick={() => toggleSort('billed')}>
-								Billed <span class="text-xs">{sortIndicator('billed')}</span>
+								Billed{#if sortKey === 'billed'}
+									<span class="text-primary-500">{sortIndicator('billed')}</span>{/if}
 							</button>
 						</th>
 					{/if}
 					{#if visibleCols.includes('insurances')}
-						<th class="px-3 py-2">
+						<th
+							aria-sort={sortAriaSort('insurances')}
+							class="px-3 py-2.5 text-left text-xs font-semibold tracking-wide text-surface-600 uppercase"
+						>
 							<button class="sort-btn" onclick={() => toggleSort('insurances')}>
-								Insurance <span class="text-xs">{sortIndicator('insurances')}</span>
+								Insurance{#if sortKey === 'insurances'}
+									<span class="text-primary-500">{sortIndicator('insurances')}</span>{/if}
 							</button>
 						</th>
 					{/if}
 					{#if visibleCols.includes('labels')}
-						<th class="px-3 py-2">
+						<th
+							aria-sort={sortAriaSort('labels')}
+							class="px-3 py-2.5 text-left text-xs font-semibold tracking-wide text-surface-600 uppercase"
+						>
 							<button class="sort-btn" onclick={() => toggleSort('labels')}>
-								Labels <span class="text-xs">{sortIndicator('labels')}</span>
+								Labels{#if sortKey === 'labels'}
+									<span class="text-primary-500">{sortIndicator('labels')}</span>{/if}
 							</button>
 						</th>
 					{/if}
 					{#if visibleCols.includes('last_note')}
-						<th class="px-3 py-2">
+						<th
+							aria-sort={sortAriaSort('last_note')}
+							class="px-3 py-2.5 text-left text-xs font-semibold tracking-wide text-surface-600 uppercase"
+						>
 							<button class="sort-btn" onclick={() => toggleSort('last_note')}>
-								Last Note <span class="text-xs">{sortIndicator('last_note')}</span>
+								Last Note{#if sortKey === 'last_note'}
+									<span class="text-primary-500">{sortIndicator('last_note')}</span>{/if}
 							</button>
 						</th>
 					{/if}
 					{#if visibleCols.includes('status')}
-						<th class="px-3 py-2">
+						<th
+							aria-sort={sortAriaSort('status')}
+							class="px-3 py-2.5 text-left text-xs font-semibold tracking-wide text-surface-600 uppercase"
+						>
 							<button class="sort-btn" onclick={() => toggleSort('status')}>
-								Status <span class="text-xs">{sortIndicator('status')}</span>
+								Status{#if sortKey === 'status'}
+									<span class="text-primary-500">{sortIndicator('status')}</span>{/if}
 							</button>
 						</th>
 					{/if}
 				</tr>
-
-				{#if showFilters}
-					<tr class="no-print border-b border-surface-200 bg-surface-50 align-top">
-						{#if visibleCols.includes('patient')}
-							<th class="px-3 py-2">
-								<input
-									type="text"
-									bind:value={patientFilter}
-									placeholder="Filter name"
-									class="w-full rounded border border-surface-300 px-2 py-1 text-xs font-normal"
-								/>
-							</th>
-						{/if}
-						{#if visibleCols.includes('service_date')}
-							<th class="px-3 py-2">
-								<div class="flex gap-1">
-									<input
-										type="date"
-										bind:value={serviceDateStart}
-										title="Service date from"
-										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
-									/>
-									<input
-										type="date"
-										bind:value={serviceDateEnd}
-										title="Service date to"
-										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
-									/>
-								</div>
-							</th>
-						{/if}
-						{#if visibleCols.includes('follow_up_date')}
-							<th class="px-3 py-2">
-								<select
-									bind:value={followUpUrgency}
-									class="w-full rounded border border-surface-300 px-2 py-1 text-xs font-normal"
-								>
-									<option value="all">All urgency</option>
-									<option value="overdue">Overdue</option>
-									<option value="today">Due Today</option>
-									<option value="this_week">Due This Week</option>
-									<option value="upcoming">Upcoming (&gt;7d)</option>
-									<option value="none">No Date Set</option>
-								</select>
-								<div class="mt-1 flex gap-1">
-									<input
-										type="date"
-										bind:value={followUpStart}
-										title="Follow-up from"
-										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
-									/>
-									<input
-										type="date"
-										bind:value={followUpEnd}
-										title="Follow-up to"
-										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
-									/>
-								</div>
-							</th>
-						{/if}
-						{#if visibleCols.includes('billed')}
-							<th class="px-3 py-2">
-								<div class="flex gap-1">
-									<input
-										type="number"
-										bind:value={billedMin}
-										placeholder="Min $"
-										min="0"
-										step="0.01"
-										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
-									/>
-									<input
-										type="number"
-										bind:value={billedMax}
-										placeholder="Max $"
-										min="0"
-										step="0.01"
-										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
-									/>
-								</div>
-							</th>
-						{/if}
-						{#if visibleCols.includes('insurances')}
-							<th class="px-3 py-2">
-								<Combobox
-									collection={insCollection}
-									multiple={true}
-									value={insSelectedValues}
-									onValueChange={(details) => {
-										insuranceFilter = details.value.map(Number);
-									}}
-									inputValue={insSearchInput}
-									onInputValueChange={(details) => {
-										insSearchInput = details.inputValue;
-									}}
-									openOnClick={true}
-									selectionBehavior="clear"
-									placeholder="Ins ({insuranceFilter.length})"
-									closeOnSelect={false}
-								>
-									<Combobox.Control>
-										<Combobox.Input
-											class="w-full rounded border border-surface-300 bg-white px-2 py-1 text-xs font-normal placeholder:text-surface-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
-										/>
-									</Combobox.Control>
-									<Combobox.Positioner>
-										<Combobox.Content
-											class="z-50 max-h-48 overflow-auto rounded-lg border border-surface-200 bg-white shadow-lg"
-										>
-											{#each filteredInsItems as ins (ins.id)}
-												<Combobox.Item
-													item={ins}
-													class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-surface-100 data-highlighted:bg-surface-100"
-												>
-													<Combobox.ItemIndicator>
-														<svg
-															class="h-3 w-3 text-primary-600"
-															fill="none"
-															viewBox="0 0 24 24"
-															stroke="currentColor"
-															stroke-width="2"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																d="M5 13l4 4L19 7"
-															/>
-														</svg>
-													</Combobox.ItemIndicator>
-													<Combobox.ItemText>{ins.name}</Combobox.ItemText>
-												</Combobox.Item>
-											{/each}
-											{#if filteredInsItems.length === 0}
-												<div class="px-3 py-2 text-xs text-surface-400">No insurances found</div>
-											{/if}
-										</Combobox.Content>
-									</Combobox.Positioner>
-								</Combobox>
-							</th>
-						{/if}
-						{#if visibleCols.includes('labels')}
-							<th class="px-3 py-2">
-								<Combobox
-									collection={lblCollection}
-									multiple={true}
-									value={lblSelectedValues}
-									onValueChange={(details) => {
-										labelFilter = details.value.map(Number);
-									}}
-									inputValue={lblSearchInput}
-									onInputValueChange={(details) => {
-										lblSearchInput = details.inputValue;
-									}}
-									openOnClick={true}
-									selectionBehavior="clear"
-									placeholder="Labels ({labelFilter.length})"
-									closeOnSelect={false}
-								>
-									<Combobox.Control>
-										<Combobox.Input
-											class="w-full rounded border border-surface-300 bg-white px-2 py-1 text-xs font-normal placeholder:text-surface-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
-										/>
-									</Combobox.Control>
-									<Combobox.Positioner>
-										<Combobox.Content
-											class="z-50 max-h-48 overflow-auto rounded-lg border border-surface-200 bg-white shadow-lg"
-										>
-											{#each filteredLblItems as lbl (lbl.id)}
-												<Combobox.Item
-													item={lbl}
-													class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-surface-100 data-highlighted:bg-surface-100"
-												>
-													<Combobox.ItemIndicator>
-														<svg
-															class="h-3 w-3 text-primary-600"
-															fill="none"
-															viewBox="0 0 24 24"
-															stroke="currentColor"
-															stroke-width="2"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																d="M5 13l4 4L19 7"
-															/>
-														</svg>
-													</Combobox.ItemIndicator>
-													<Combobox.ItemText>
-														<span
-															class="rounded px-2 py-0.5 text-xs"
-															style="background-color: {lbl.bg}; color: {lbl.txt};">{lbl.name}</span
-														>
-													</Combobox.ItemText>
-												</Combobox.Item>
-											{/each}
-											{#if filteredLblItems.length === 0}
-												<div class="px-3 py-2 text-xs text-surface-400">No labels found</div>
-											{/if}
-										</Combobox.Content>
-									</Combobox.Positioner>
-								</Combobox>
-							</th>
-						{/if}
-						{#if visibleCols.includes('last_note')}
-							<th class="px-3 py-2">
-								<input
-									type="text"
-									bind:value={noteFilter}
-									placeholder="Filter note"
-									class="w-full rounded border border-surface-300 px-2 py-1 text-xs font-normal"
-								/>
-								<div class="mt-1 flex gap-1">
-									<input
-										type="date"
-										bind:value={noteStart}
-										title="Note from"
-										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
-									/>
-									<input
-										type="date"
-										bind:value={noteEnd}
-										title="Note to"
-										class="w-full min-w-0 rounded border border-surface-300 px-1 py-0.5 text-xs font-normal"
-									/>
-								</div>
-							</th>
-						{/if}
-						{#if visibleCols.includes('status')}
-							<th class="px-3 py-2">
-								<select
-									bind:value={statusFilter}
-									class="w-full rounded border border-surface-300 px-2 py-1 text-xs font-normal"
-								>
-									<option value="all">All</option>
-									<option value="open">Open</option>
-									<option value="closed">Closed</option>
-								</select>
-							</th>
-						{/if}
-					</tr>
-				{/if}
 			</thead>
-
-			<tbody>
+			<tbody class="[&>tr]:hover:preset-tonal-primary">
 				{#each sortedRows as row (row.id)}
-					<tr class="border-b border-surface-200 align-top hover:bg-surface-50">
+					<tr class="border-b border-surface-100 align-top">
 						{#if visibleCols.includes('patient')}
-							<td class="px-3 py-2">
+							<td class="px-3 py-2.5">
 								{#if row.patient}
 									<a
 										href="/record/{row.patient.id}"
@@ -1066,47 +1333,49 @@
 									>
 										{row.patient.last_name}, {row.patient.first_name}
 									</a>
-									<span class="block text-xs text-surface-500"
+									<span class="block text-xs text-surface-400"
 										>{formatDate(row.patient.date_of_birth)}</span
 									>
 								{/if}
 							</td>
 						{/if}
 						{#if visibleCols.includes('service_date')}
-							<td class="px-3 py-2 whitespace-nowrap">{formatDate(row.service_start_date)}</td>
+							<td class="px-3 py-2.5 text-sm whitespace-nowrap"
+								>{formatDate(row.service_start_date)}</td
+							>
 						{/if}
 						{#if visibleCols.includes('follow_up_date')}
-							<td class="px-3 py-2 whitespace-nowrap">
+							<td class="px-3 py-2.5 whitespace-nowrap">
 								{#if row.follow_up_date}
 									{@const badge = followUpBadge(row.follow_up_date)}
-									<div class="flex items-center gap-2">
-										<span class="text-xs">{formatDate(row.follow_up_date)}</span>
+									<div class="flex flex-col gap-0.5">
+										<span class="text-sm">{formatDate(row.follow_up_date)}</span>
 										{#if badge}
-											<span class="{badge.cls} text-xs">{badge.label}</span>
+											<span class="{badge.cls} w-fit text-xs">{badge.label}</span>
 										{/if}
 									</div>
 								{/if}
 							</td>
 						{/if}
 						{#if visibleCols.includes('billed')}
-							<td class="px-3 py-2 text-right whitespace-nowrap"
+							<td class="px-3 py-2.5 text-right text-sm whitespace-nowrap tabular-nums"
 								>{formatCurrency(row.billed_amount)}</td
 							>
 						{/if}
 						{#if visibleCols.includes('insurances')}
-							<td class="px-3 py-2">
+							<td class="px-3 py-2.5 text-sm">
 								{#if row.insurances.length}
 									{row.insurances.map((i) => i.name).join(', ')}
 								{/if}
 							</td>
 						{/if}
 						{#if visibleCols.includes('labels')}
-							<td class="px-3 py-2">
+							<td class="px-3 py-2.5">
 								{#if row.labels.length}
 									<div class="flex flex-wrap gap-1">
 										{#each row.labels as lbl}
 											<span
-												class="rounded px-2 py-0.5 text-xs"
+												class="rounded-base px-2 py-0.5 text-xs"
 												style="background-color: {lbl.bg_color}; color: {lbl.txt_color};"
 												>{lbl.label_name}</span
 											>
@@ -1116,20 +1385,22 @@
 							</td>
 						{/if}
 						{#if visibleCols.includes('last_note')}
-							<td class="px-3 py-2">
+							<td class="max-w-xs px-3 py-2.5">
 								{#if row.last_note}
-									<span class="text-xs whitespace-nowrap text-surface-500">
-										{formatNoteTimestamp(row.last_note.created_at)}
-										<span class="font-medium text-surface-700"
+									<p class="line-clamp-2 text-xs text-surface-700">
+										<span class="whitespace-nowrap text-surface-400"
+											>{formatNoteTimestamp(row.last_note.created_at)}</span
+										>
+										<span class="font-medium text-surface-600"
 											>{row.last_note.username ?? 'unknown'}:</span
 										>
-									</span>
-									<span class="block text-xs">{row.last_note.note}</span>
+										{row.last_note.note}
+									</p>
 								{/if}
 							</td>
 						{/if}
 						{#if visibleCols.includes('status')}
-							<td class="px-3 py-2 whitespace-nowrap">
+							<td class="px-3 py-2.5 whitespace-nowrap">
 								{#if row.is_closed}
 									<span class="badge preset-tonal-surface text-xs">Closed</span>
 								{:else}
@@ -1140,14 +1411,20 @@
 					</tr>
 				{:else}
 					<tr>
-						<td colspan={colSpan} class="px-3 py-8 text-center text-surface-400">
-							{#if data.reportData.length === 0 && data.dateMode === 'lastNote'}
-								No denials with notes found in this date range.
-							{:else if data.reportData.length === 0}
-								No denials found in this date range.
-							{:else}
-								No records match the selected filters.
-							{/if}
+						<td colspan={colSpan}>
+							<div
+								class="rounded-container border-2 border-dashed border-surface-200 p-8 text-center"
+							>
+								<p class="text-sm text-surface-500">
+									{#if data.reportData.length === 0 && data.dateMode === 'lastNote'}
+										No denials with notes found in this date range.
+									{:else if data.reportData.length === 0}
+										No denials found in this date range.
+									{:else}
+										No records match the selected filters.
+									{/if}
+								</p>
+							</div>
 						</td>
 					</tr>
 				{/each}
