@@ -23,7 +23,7 @@
 	);
 
 	let showClosed = $state(false);
-	let showNewDenialModal = $state(false);
+	let showNewDenialForm = $state(false);
 	let newDenialFollowUpDate = $state('');
 
 	function dateFromToday(days: number): string {
@@ -335,7 +335,197 @@
 	<!-- Open Denials -->
 	<section class="mb-8">
 		<div class="mb-4 flex items-center justify-between">
-			<h2 class="text-xl font-semibold">
+			{#if !showNewDenialForm}
+				<h2 class="text-xl font-semibold">
+					Open Claims
+					{#if isFiltering}
+						<span class="text-base font-normal text-surface-400"
+							>({filteredOpenDenials.length} of {openDenials.length})</span
+						>
+					{:else}
+						<span class="text-base font-normal text-surface-400">({openDenials.length})</span>
+					{/if}
+				</h2>
+			{:else}
+				<span></span>
+			{/if}
+			{#if data.permissions['create_denial']}
+				<button
+					type="button"
+					class="rounded-lg px-4 py-2 text-sm font-medium transition-colors {showNewDenialForm
+						? 'border border-surface-300 text-surface-600 hover:bg-surface-100'
+						: 'bg-primary-600 text-white hover:bg-primary-700'}"
+					onclick={() => {
+						showNewDenialForm = !showNewDenialForm;
+						if (showNewDenialForm) newDenialFollowUpDate = '';
+					}}
+				>
+					{showNewDenialForm ? '✕ Cancel' : '+ New Denial'}
+				</button>
+			{/if}
+		</div>
+
+		{#if showNewDenialForm}
+			<div class="mb-4 rounded-lg border border-surface-200 bg-white p-6 shadow-sm">
+				<form
+					method="POST"
+					action="?/createDenial"
+					enctype="multipart/form-data"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							if (result.type === 'success') {
+								toastSuccess('Denial created');
+								showNewDenialForm = false;
+								noteEditor?.reset();
+								await update();
+							} else if (result.type === 'failure') {
+								toastError('Error', String(result.data?.error ?? 'Failed to create denial'));
+							}
+						};
+					}}
+				>
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<div>
+							<label for="inline_service_start_date" class="mb-1 block text-sm font-medium">
+								Service Start Date <span class="text-error-500">*</span>
+							</label>
+							<input
+								type="date"
+								id="inline_service_start_date"
+								name="service_start_date"
+								required
+								class="input"
+							/>
+						</div>
+						<div>
+							<label for="inline_service_end_date" class="mb-1 block text-sm font-medium">
+								Service End Date
+							</label>
+							<input
+								type="date"
+								id="inline_service_end_date"
+								name="service_end_date"
+								class="input"
+							/>
+						</div>
+						<div>
+							<label for="inline_billed_amount" class="mb-1 block text-sm font-medium">
+								Billed Amount
+							</label>
+							<div class="relative">
+								<span
+									class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-surface-400"
+									>$</span
+								>
+								<input
+									type="number"
+									id="inline_billed_amount"
+									name="billed_amount"
+									step="0.01"
+									min="0"
+									placeholder="0.00"
+									class="input pl-7"
+								/>
+							</div>
+						</div>
+						<div>
+							<label for="inline_paid_amount" class="mb-1 block text-sm font-medium">
+								Paid Amount
+							</label>
+							<div class="relative">
+								<span
+									class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-surface-400"
+									>$</span
+								>
+								<input
+									type="number"
+									id="inline_paid_amount"
+									name="paid_amount"
+									step="0.01"
+									min="0"
+									placeholder="0.00"
+									class="input pl-7"
+								/>
+							</div>
+						</div>
+						<div>
+							<label for="inline_follow_up_date" class="mb-1 block text-sm font-medium">
+								Follow-up Date
+							</label>
+							<input
+								type="date"
+								id="inline_follow_up_date"
+								name="follow_up_date"
+								bind:value={newDenialFollowUpDate}
+								class="input"
+							/>
+							<div class="mt-1.5 flex flex-wrap gap-1">
+								{#each [{ label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
+									<button
+										type="button"
+										onclick={() => (newDenialFollowUpDate = dateFromToday(preset.days))}
+										class="rounded-full border border-surface-300 px-2.5 py-0.5 text-xs font-medium text-surface-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 {newDenialFollowUpDate ===
+										dateFromToday(preset.days)
+											? 'border-primary-500 bg-primary-50 text-primary-700'
+											: ''}"
+									>
+										{preset.label}
+									</button>
+								{/each}
+							</div>
+						</div>
+						<div class="flex items-center gap-2 self-end py-2">
+							<input
+								type="checkbox"
+								id="inline_is_closed"
+								name="is_closed"
+								value="true"
+								class="rounded border-surface-300"
+							/>
+							<label for="inline_is_closed" class="text-sm font-medium">Closed</label>
+						</div>
+					</div>
+
+					<!-- Insurance Combobox -->
+					{#if data.allInsurances.length > 0}
+						<div class="mt-4">
+							<InsuranceCombobox insurances={data.allInsurances} />
+						</div>
+					{/if}
+
+					<!-- Label Pills -->
+					{#if data.allLabels.length > 0}
+						<div class="mt-4">
+							<LabelPillSelect labels={data.allLabels} />
+						</div>
+					{/if}
+
+					<!-- Initial Note + Attachments -->
+					<div class="mt-4">
+						<NoteEditor
+							bind:this={noteEditor}
+							name="initial_note"
+							required
+							placeholder="Enter denial reason or initial notes…"
+						/>
+					</div>
+
+					<div class="mt-6 flex gap-2">
+						<button type="submit" class="btn preset-filled-primary-500"> Create Denial </button>
+						<button
+							type="button"
+							class="btn preset-outlined-surface-500"
+							onclick={() => (showNewDenialForm = false)}
+						>
+							Cancel
+						</button>
+					</div>
+				</form>
+			</div>
+		{/if}
+
+		{#if showNewDenialForm}
+			<h2 class="mb-4 text-xl font-semibold">
 				Open Claims
 				{#if isFiltering}
 					<span class="text-base font-normal text-surface-400"
@@ -345,19 +535,7 @@
 					<span class="text-base font-normal text-surface-400">({openDenials.length})</span>
 				{/if}
 			</h2>
-			{#if data.permissions['create_denial']}
-				<button
-					type="button"
-					class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-					onclick={() => {
-						showNewDenialModal = true;
-						newDenialFollowUpDate = '';
-					}}
-				>
-					+ New Denial
-				</button>
-			{/if}
-		</div>
+		{/if}
 
 		{#if filteredOpenDenials.length > 0}
 			<div class="space-y-4">
@@ -417,195 +595,3 @@
 		{/if}
 	</section>
 </div>
-
-<!-- New Denial Modal -->
-{#if showNewDenialModal}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4"
-		onkeydown={(e) => e.key === 'Escape' && (showNewDenialModal = false)}
-		onclick={(e) => {
-			if (e.target === e.currentTarget) showNewDenialModal = false;
-		}}
-	>
-		<div
-			class="my-8 w-full max-w-2xl rounded-lg bg-white shadow-xl"
-			role="dialog"
-			aria-modal="true"
-			aria-label="New Denial"
-		>
-			<div class="flex items-center justify-between border-b border-surface-200 px-6 py-4">
-				<h3 class="text-lg font-semibold">New Denial</h3>
-				<button
-					type="button"
-					class="text-surface-400 hover:text-surface-700"
-					onclick={() => (showNewDenialModal = false)}
-					aria-label="Close"
-				>
-					✕
-				</button>
-			</div>
-			<div class="px-6 py-5">
-				<form
-					method="POST"
-					action="?/createDenial"
-					enctype="multipart/form-data"
-					use:enhance={() => {
-						return async ({ result, update }) => {
-							if (result.type === 'success') {
-								toastSuccess('Denial created');
-								showNewDenialModal = false;
-								noteEditor?.reset();
-								await update();
-							} else if (result.type === 'failure') {
-								toastError('Error', String(result.data?.error ?? 'Failed to create denial'));
-							}
-						};
-					}}
-				>
-					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-						<div>
-							<label for="modal_service_start_date" class="mb-1 block text-sm font-medium">
-								Service Start Date <span class="text-red-500">*</span>
-							</label>
-							<input
-								type="date"
-								id="modal_service_start_date"
-								name="service_start_date"
-								required
-								class="w-full rounded border border-surface-300 px-3 py-2"
-							/>
-						</div>
-						<div>
-							<label for="modal_service_end_date" class="mb-1 block text-sm font-medium">
-								Service End Date
-							</label>
-							<input
-								type="date"
-								id="modal_service_end_date"
-								name="service_end_date"
-								class="w-full rounded border border-surface-300 px-3 py-2"
-							/>
-						</div>
-						<div>
-							<label for="modal_billed_amount" class="mb-1 block text-sm font-medium">
-								Billed Amount
-							</label>
-							<div class="relative">
-								<span
-									class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-surface-400"
-									>$</span
-								>
-								<input
-									type="number"
-									id="modal_billed_amount"
-									name="billed_amount"
-									step="0.01"
-									min="0"
-									placeholder="0.00"
-									class="w-full rounded border border-surface-300 py-2 pr-3 pl-7"
-								/>
-							</div>
-						</div>
-						<div>
-							<label for="modal_paid_amount" class="mb-1 block text-sm font-medium">
-								Paid Amount
-							</label>
-							<div class="relative">
-								<span
-									class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-surface-400"
-									>$</span
-								>
-								<input
-									type="number"
-									id="modal_paid_amount"
-									name="paid_amount"
-									step="0.01"
-									min="0"
-									placeholder="0.00"
-									class="w-full rounded border border-surface-300 py-2 pr-3 pl-7"
-								/>
-							</div>
-						</div>
-						<div>
-							<label for="modal_follow_up_date" class="mb-1 block text-sm font-medium">
-								Follow-up Date
-							</label>
-							<input
-								type="date"
-								id="modal_follow_up_date"
-								name="follow_up_date"
-								bind:value={newDenialFollowUpDate}
-								class="w-full rounded border border-surface-300 px-3 py-2"
-							/>
-							<div class="mt-1.5 flex flex-wrap gap-1">
-								{#each [{ label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
-									<button
-										type="button"
-										onclick={() => (newDenialFollowUpDate = dateFromToday(preset.days))}
-										class="rounded-full border border-surface-300 px-2.5 py-0.5 text-xs font-medium text-surface-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 {newDenialFollowUpDate ===
-										dateFromToday(preset.days)
-											? 'border-primary-500 bg-primary-50 text-primary-700'
-											: ''}"
-									>
-										{preset.label}
-									</button>
-								{/each}
-							</div>
-						</div>
-						<div class="flex items-center gap-2 self-end py-2">
-							<input
-								type="checkbox"
-								id="modal_is_closed"
-								name="is_closed"
-								value="true"
-								class="rounded border-surface-300"
-							/>
-							<label for="modal_is_closed" class="text-sm font-medium">Closed</label>
-						</div>
-					</div>
-
-					<!-- Insurance Combobox -->
-					{#if data.allInsurances.length > 0}
-						<div class="mt-4">
-							<InsuranceCombobox insurances={data.allInsurances} />
-						</div>
-					{/if}
-
-					<!-- Label Pills -->
-					{#if data.allLabels.length > 0}
-						<div class="mt-4">
-							<LabelPillSelect labels={data.allLabels} />
-						</div>
-					{/if}
-
-					<!-- Initial Note + Attachments -->
-					<div class="mt-4">
-						<NoteEditor
-							bind:this={noteEditor}
-							name="initial_note"
-							required
-							placeholder="Enter denial reason or initial notes…"
-						/>
-					</div>
-
-					<div class="mt-6 flex gap-2">
-						<button
-							type="submit"
-							class="rounded-lg bg-primary-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-						>
-							Create Denial
-						</button>
-						<button
-							type="button"
-							class="rounded-lg border border-surface-300 px-6 py-2 text-sm font-medium text-surface-600 transition-colors hover:bg-surface-100"
-							onclick={() => (showNewDenialModal = false)}
-						>
-							Cancel
-						</button>
-					</div>
-				</form>
-			</div>
-		</div>
-	</div>
-{/if}
