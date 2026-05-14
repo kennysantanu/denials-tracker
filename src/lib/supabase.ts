@@ -112,6 +112,94 @@ export type Database = {
           },
         ]
       }
+      app_events: {
+        Row: {
+          actor_role_ids: number[]
+          actor_user_id: string | null
+          count: number | null
+          created_at: string
+          duration_ms: number | null
+          event_name: string
+          feature_area: string
+          id: number
+          metadata: Json
+          outcome: string
+          permission_key: string | null
+          permission_source: string
+          request_id: string | null
+          resource_id: string | null
+          resource_type: string | null
+          session_id: string | null
+          subject_denial_id: number | null
+          subject_patient_id: number | null
+        }
+        Insert: {
+          actor_role_ids?: number[]
+          actor_user_id?: string | null
+          count?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          event_name: string
+          feature_area: string
+          id?: number
+          metadata?: Json
+          outcome: string
+          permission_key?: string | null
+          permission_source?: string
+          request_id?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          session_id?: string | null
+          subject_denial_id?: number | null
+          subject_patient_id?: number | null
+        }
+        Update: {
+          actor_role_ids?: number[]
+          actor_user_id?: string | null
+          count?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          event_name?: string
+          feature_area?: string
+          id?: number
+          metadata?: Json
+          outcome?: string
+          permission_key?: string | null
+          permission_source?: string
+          request_id?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          session_id?: string | null
+          subject_denial_id?: number | null
+          subject_patient_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_events_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "app_events_permission_key_fkey"
+            columns: ["permission_key"]
+            referencedRelation: "permission_catalog"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "app_events_subject_denial_id_fkey"
+            columns: ["subject_denial_id"]
+            referencedRelation: "denials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "app_events_subject_patient_id_fkey"
+            columns: ["subject_patient_id"]
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -522,6 +610,73 @@ export type Database = {
           },
         ]
       }
+      permission_catalog: {
+        Row: {
+          category: string
+          deprecated_at: string | null
+          description: string
+          introduced_at: string
+          is_active: boolean
+          is_kpi_relevant: boolean
+          key: string
+          legacy_keys: string[]
+          risk_level: string
+        }
+        Insert: {
+          category: string
+          deprecated_at?: string | null
+          description: string
+          introduced_at?: string
+          is_active?: boolean
+          is_kpi_relevant?: boolean
+          key: string
+          legacy_keys?: string[]
+          risk_level?: string
+        }
+        Update: {
+          category?: string
+          deprecated_at?: string | null
+          description?: string
+          introduced_at?: string
+          is_active?: boolean
+          is_kpi_relevant?: boolean
+          key?: string
+          legacy_keys?: string[]
+          risk_level?: string
+        }
+        Relationships: []
+      }
+      permission_compatibility_map: {
+        Row: {
+          direction: string
+          is_active: boolean
+          legacy_key: string
+          notes: string | null
+          permission_key: string
+        }
+        Insert: {
+          direction: string
+          is_active?: boolean
+          legacy_key: string
+          notes?: string | null
+          permission_key: string
+        }
+        Update: {
+          direction?: string
+          is_active?: boolean
+          legacy_key?: string
+          notes?: string | null
+          permission_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_compatibility_map_permission_key_fkey"
+            columns: ["permission_key"]
+            referencedRelation: "permission_catalog"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
       preference_users: {
         Row: {
           created_at: string
@@ -580,26 +735,155 @@ export type Database = {
         }
         Relationships: []
       }
-      roles: {
+      role_permissions: {
         Row: {
           created_at: string
-          id: number
-          permissions: Json | null
-          role_name: string
+          created_by: string | null
+          permission_key: string
+          role_id: number
         }
         Insert: {
           created_at?: string
-          id?: number
-          permissions?: Json | null
-          role_name: string
+          created_by?: string | null
+          permission_key: string
+          role_id: number
         }
         Update: {
           created_at?: string
+          created_by?: string | null
+          permission_key?: string
+          role_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            referencedRelation: "permission_catalog"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: number
+          is_default: boolean
+          is_system: boolean
+          permissions: Json | null
+          role_name: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
           id?: number
+          is_default?: boolean
+          is_system?: boolean
+          permissions?: Json | null
+          role_name: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: number
+          is_default?: boolean
+          is_system?: boolean
           permissions?: Json | null
           role_name?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "roles_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roles_updated_by_fkey"
+            columns: ["updated_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_role_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: number
+          reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          role_id: number
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: number
+          reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          role_id: number
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: number
+          reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          role_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_role_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_role_assignments_revoked_by_fkey"
+            columns: ["revoked_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_role_assignments_role_id_fkey"
+            columns: ["role_id"]
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_role_assignments_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       users: {
         Row: {
