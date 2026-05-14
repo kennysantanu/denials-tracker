@@ -16,7 +16,8 @@
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright test",
-		"setup:admin": "node --env-file=.env scripts/setup-admin.mjs"
+		"setup:admin": "node --env-file=.env scripts/setup-admin.mjs",
+		"permissions:backfill": "node --env-file=.env scripts/backfill-permissions.mjs"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.58.2",
