@@ -13,22 +13,23 @@ export const load: LayoutServerLoad = async (event) => {
 	}
 
 	// Run user+role fetch, preferences, and effective-permissions in parallel.
-	const [
-		{ data: userData },
-		[{ data: aiPref }, { data: timeoutPref }],
-		effectivePermissions
-	] = await Promise.all([
-		locals.supabase.from('users').select('*, roles(*)').eq('id', user.id).single(),
-		Promise.all([
-			locals.supabase.from('preferences').select('value').eq('name', 'ai_enabled').single(),
+	const [{ data: userData }, [{ data: aiPref }, { data: timeoutPref }], effectivePermissions] =
+		await Promise.all([
 			locals.supabase
-				.from('preferences')
-				.select('value')
-				.eq('name', 'idle_timeout_minutes')
-				.single()
-		]),
-		loadEffectivePermissions(event)
-	]);
+				.from('users')
+				.select('*, roles!public_users_role_fkey(*)')
+				.eq('id', user.id)
+				.single(),
+			Promise.all([
+				locals.supabase.from('preferences').select('value').eq('name', 'ai_enabled').single(),
+				locals.supabase
+					.from('preferences')
+					.select('value')
+					.eq('name', 'idle_timeout_minutes')
+					.single()
+			]),
+			loadEffectivePermissions(event)
+		]);
 
 	const permissions =
 		(userData?.roles as { permissions?: Record<string, boolean> } | null)?.permissions ?? {};

@@ -97,7 +97,7 @@ export async function authorize(
 	if (engine === 'legacy' || engine === 'dual') {
 		const { data: userData } = await supabase
 			.from('users')
-			.select('role, roles(permissions)')
+			.select('role, roles!public_users_role_fkey(permissions)')
 			.eq('id', user.id)
 			.maybeSingle();
 
@@ -285,7 +285,7 @@ export async function loadEffectivePermissions(
 	if (engine === 'legacy' || engine === 'dual') {
 		const { data: userData } = await supabase
 			.from('users')
-			.select('roles(permissions)')
+			.select('roles!public_users_role_fkey(permissions)')
 			.eq('id', user.id)
 			.maybeSingle();
 
