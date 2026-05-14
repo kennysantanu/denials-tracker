@@ -6,8 +6,11 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
 import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
 import { logAudit } from '$lib/server/audit';
+import { logAppEvent } from '$lib/server/appEvents';
+import { requirePermission } from '$lib/server/authz';
 import { getUsers, createUser, updateUser, deleteUser } from '$lib/server/db/users';
 import { getRoles } from '$lib/server/db/roles';
+import { setUserActiveRole } from '$lib/server/db/userRoleAssignments';
 import type { PageServerLoad, Actions } from './$types';
 
 const createUserSchema = z.object({
@@ -21,9 +24,12 @@ const updateUserSchema = z.object({
 	role_id: z.coerce.number().optional()
 });
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals } = event;
 	const user = await locals.getUser();
 	if (!user) redirect(303, '/signin');
+
+	await requirePermission(event, 'user.read', { resourceType: 'user' });
 
 	const { data: users } = await getUsers(locals.supabase);
 	const { data: roles } = await getRoles(locals.supabase);
@@ -40,9 +46,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	createUser: async ({ request, locals }) => {
+	createUser: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'user.create', { resourceType: 'user' });
 
 		const form = await superValidate(request, zod(createUserSchema));
 		if (!form.valid) return fail(400, { createForm: form });
@@ -58,13 +67,22 @@ export const actions: Actions = {
 
 		if (authError) return fail(500, { createForm: form, error: authError.message });
 
-		// handle_new_user() trigger auto-creates public.users row
-		// Just update the role if specified
+		// handle_new_user() trigger auto-creates public.users row.
+		// Set role mirror + create canonical assignment row when a role was chosen.
 		if (form.data.role_id) {
 			const { error: dbError } = await updateUser(locals.supabase, authData.user.id, {
 				role: form.data.role_id
 			});
 			if (dbError) return fail(500, { createForm: form, error: dbError.message });
+
+			const { error: assignError } = await setUserActiveRole(
+				adminClient,
+				authData.user.id,
+				form.data.role_id,
+				user.id,
+				'admin: create user'
+			);
+			if (assignError) return fail(500, { createForm: form, error: assignError.message });
 		}
 
 		logAudit(
@@ -73,32 +91,86 @@ export const actions: Actions = {
 			'create',
 			'user',
 			authData.user.id,
-			{ email: form.data.email },
+			{ email: form.data.email, role_id: form.data.role_id ?? null },
 			request
 		);
+		logAppEvent(locals.supabase, {
+			eventName: 'user.create',
+			featureArea: 'admin.users',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'user.create',
+			permissionSource: 'new',
+			resourceType: 'user',
+			resourceId: authData.user.id,
+			requestId: locals.requestId,
+			metadata: { email: form.data.email, role_id: form.data.role_id ?? null }
+		});
 
 		return message(form, 'User created successfully');
 	},
 
-	updateUser: async ({ request, locals }) => {
+	updateUser: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'user.update', { resourceType: 'user' });
 
 		const form = await superValidate(request, zod(updateUserSchema));
 		if (!form.valid) return fail(400, { updateForm: form });
 
-		const { id, ...rest } = form.data;
-		const { error } = await updateUser(locals.supabase, id, { role: rest.role_id ?? null });
+		const { id, role_id } = form.data;
+		const newRole = role_id ?? null;
+
+		// Read previous role for audit + change detection.
+		const { data: prevUser } = await locals.supabase
+			.from('users')
+			.select('role')
+			.eq('id', id)
+			.maybeSingle();
+		const prevRole = prevUser?.role ?? null;
+
+		const { error } = await updateUser(locals.supabase, id, { role: newRole });
 		if (error) return fail(500, { updateForm: form, error: error.message });
 
-		logAudit(locals.supabase, user.id, 'update', 'user', id, rest, request);
+		// Mirror to user_role_assignments only when the role actually changed.
+		if (newRole !== prevRole) {
+			const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
+			const { error: assignError } = await setUserActiveRole(
+				adminClient,
+				id,
+				newRole,
+				user.id,
+				'admin: update user role'
+			);
+			if (assignError) return fail(500, { updateForm: form, error: assignError.message });
+
+			logAppEvent(locals.supabase, {
+				eventName: 'user.role_changed',
+				featureArea: 'admin.users',
+				outcome: 'success',
+				actorUserId: user.id,
+				permissionKey: 'user.update',
+				permissionSource: 'new',
+				resourceType: 'user',
+				resourceId: id,
+				requestId: locals.requestId,
+				metadata: { from_role: prevRole, to_role: newRole }
+			});
+		}
+
+		logAudit(locals.supabase, user.id, 'update', 'user', id, { role_id: newRole }, request);
 
 		return message(form, 'User updated successfully');
 	},
 
-	deleteUser: async ({ request, locals }) => {
+	deleteUser: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'user.delete', { resourceType: 'user' });
 
 		const formData = await request.formData();
 		const id = formData.get('id') as string;
@@ -109,7 +181,7 @@ export const actions: Actions = {
 
 		const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
 
-		// Delete from public.users first
+		// Delete from public.users first (cascade revokes user_role_assignments).
 		const { error: dbError } = await deleteUser(locals.supabase, id);
 		if (dbError) return fail(500, { error: dbError.message });
 
@@ -120,6 +192,17 @@ export const actions: Actions = {
 		}
 
 		logAudit(locals.supabase, user.id, 'delete', 'user', id, undefined, request);
+		logAppEvent(locals.supabase, {
+			eventName: 'user.delete',
+			featureArea: 'admin.users',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'user.delete',
+			permissionSource: 'new',
+			resourceType: 'user',
+			resourceId: id,
+			requestId: locals.requestId
+		});
 
 		return { success: true };
 	}

@@ -27,6 +27,10 @@ function isSecureRequest(event: Parameters<Handle>[0]['event']): boolean {
 const supabaseHandle: Handle = async ({ event, resolve }) => {
 	const secure = isSecureRequest(event);
 
+	// Per-request correlation id, surfaced through event.locals so audit_log
+	// and app_events rows for the same request can be joined later.
+	event.locals.requestId = crypto.randomUUID();
+
 	event.locals.supabase = createServerClient<Database>(
 		getServerSupabaseUrl(),
 		publicEnv.PUBLIC_SUPABASE_ANON_KEY!,

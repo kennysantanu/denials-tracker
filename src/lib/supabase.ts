@@ -921,7 +921,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      replace_role_permissions: {
+        Args: { p_role_id: number; p_keys: string[]; p_actor_user_id?: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

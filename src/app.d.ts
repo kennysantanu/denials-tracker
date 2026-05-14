@@ -10,6 +10,11 @@ declare global {
 			supabase: SupabaseClient<Database>;
 			getUser(): Promise<User | null>;
 			session: Session | null;
+			/**
+			 * Per-request UUID. Set by hooks.server.ts and used to correlate
+			 * `audit_log` and `app_events` rows for a single request.
+			 */
+			requestId: string;
 		}
 		// interface PageData {}
 		// interface PageState {}

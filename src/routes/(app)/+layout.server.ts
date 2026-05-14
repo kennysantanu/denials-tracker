@@ -1,8 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
+import { loadEffectivePermissions } from '$lib/server/authz';
 import type { LayoutServerLoad } from './$types';
 
-export const load: LayoutServerLoad = async ({ locals, depends, url }) => {
+export const load: LayoutServerLoad = async (event) => {
+	const { locals, depends, url } = event;
 	depends('supabase:auth');
 
 	const user = await locals.getUser();
@@ -10,9 +12,12 @@ export const load: LayoutServerLoad = async ({ locals, depends, url }) => {
 		redirect(303, '/signin');
 	}
 
-	// Run user+role fetch and preferences queries in parallel — preferences don't
-	// depend on the user ID, so there's no reason to wait for the first query.
-	const [{ data: userData }, [{ data: aiPref }, { data: timeoutPref }]] = await Promise.all([
+	// Run user+role fetch, preferences, and effective-permissions in parallel.
+	const [
+		{ data: userData },
+		[{ data: aiPref }, { data: timeoutPref }],
+		effectivePermissions
+	] = await Promise.all([
 		locals.supabase.from('users').select('*, roles(*)').eq('id', user.id).single(),
 		Promise.all([
 			locals.supabase.from('preferences').select('value').eq('name', 'ai_enabled').single(),
@@ -21,7 +26,8 @@ export const load: LayoutServerLoad = async ({ locals, depends, url }) => {
 				.select('value')
 				.eq('name', 'idle_timeout_minutes')
 				.single()
-		])
+		]),
+		loadEffectivePermissions(event)
 	]);
 
 	const permissions =
@@ -52,6 +58,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url }) => {
 		user,
 		userData,
 		permissions,
+		effectivePermissions,
 		aiEnabled,
 		idleTimeoutMinutes
 	};

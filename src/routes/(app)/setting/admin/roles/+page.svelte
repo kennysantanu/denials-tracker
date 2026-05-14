@@ -9,16 +9,28 @@
 
 	// Add form state
 	let newRoleName = $state('');
-	let newPermissions = $state<Record<string, boolean>>({});
+	let newKeys = $state<Record<string, boolean>>({});
 
 	// Edit form state
 	let editRoleName = $state('');
-	let editPermissions = $state<Record<string, boolean>>({});
+	let editKeys = $state<Record<string, boolean>>({});
 
-	function startEdit(role: any) {
+	// Group catalog entries by category for the picker.
+	const catalogByCategory = $derived(
+		(() => {
+			const m = new Map<string, typeof data.catalog>();
+			for (const c of data.catalog) {
+				if (!m.has(c.category)) m.set(c.category, []);
+				m.get(c.category)!.push(c);
+			}
+			return [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
+		})()
+	);
+
+	function startEdit(role: (typeof data.roles)[number]) {
 		editingId = role.id;
 		editRoleName = role.role_name ?? '';
-		editPermissions = { ...((role.permissions as Record<string, boolean>) ?? {}) };
+		editKeys = Object.fromEntries(role.canonicalKeys.map((k) => [k, true]));
 	}
 
 	function cancelEdit() {
@@ -27,11 +39,18 @@
 
 	function resetAddForm() {
 		newRoleName = '';
-		newPermissions = {};
+		newKeys = {};
+	}
+
+	function selectedKeysCsv(map: Record<string, boolean>): string {
+		return Object.entries(map)
+			.filter(([, v]) => v)
+			.map(([k]) => k)
+			.join(',');
 	}
 
 	function handleResult(action: string) {
-		return ({ result }: any) => {
+		return ({ result }: { result: { type: string; data?: { error?: string } } }) => {
 			if (result.type === 'success') {
 				toastSuccess(`Role ${action} successfully`);
 				showAddForm = false;
@@ -41,13 +60,6 @@
 				toastError(result.data?.error ?? `Failed to ${action} role`);
 			}
 		};
-	}
-
-	function activePerms(perms: Record<string, boolean> | null): string[] {
-		if (!perms) return [];
-		return Object.entries(perms)
-			.filter(([, v]) => v)
-			.map(([k]) => k);
 	}
 </script>
 
@@ -60,7 +72,7 @@
 		<div>
 			<h2 class="text-xl font-semibold text-surface-900">Roles</h2>
 			<p class="text-sm text-surface-500">
-				Define roles and the permissions granted to users assigned to them.
+				Define roles and the canonical permissions granted to users assigned to them.
 			</p>
 		</div>
 		<button
@@ -86,7 +98,7 @@
 				}}
 			class="card bg-surface-50 p-4"
 		>
-			<input type="hidden" name="permissions" value={JSON.stringify(newPermissions)} />
+			<input type="hidden" name="keys" value={selectedKeysCsv(newKeys)} />
 
 			<label class="label max-w-sm">
 				<span class="label-text">Role name</span>
@@ -100,16 +112,50 @@
 				/>
 			</label>
 
-			<fieldset class="mt-4">
-				<legend class="mb-2 text-sm font-medium text-surface-700">Permissions</legend>
-				<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-					{#each data.permissionKeys as key (key)}
-						<label class="flex items-center gap-2 text-sm text-surface-700">
-							<input type="checkbox" bind:checked={newPermissions[key]} class="checkbox" />
-							<span>{key}</span>
-						</label>
-					{/each}
-				</div>
+			<fieldset class="mt-4 space-y-4">
+				<legend class="text-sm font-medium text-surface-700">Permissions</legend>
+				<p class="text-xs text-surface-500">
+					<span class="badge preset-tonal-primary text-[10px]">new</span>
+					= no v2 equivalent.
+					<span class="badge preset-tonal-warning ml-2 text-[10px]">legacy-mapped</span>
+					= dual-writes a v2 permission for transition.
+				</p>
+				{#each catalogByCategory as [category, entries] (category)}
+					<div>
+						<h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-600">
+							{category}
+						</h4>
+						<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+							{#each entries as entry (entry.key)}
+								<label class="flex items-start gap-2 text-sm text-surface-700">
+									<input
+										type="checkbox"
+										bind:checked={newKeys[entry.key]}
+										class="checkbox mt-0.5"
+									/>
+									<span>
+										<span class="flex flex-wrap items-center gap-1">
+											<code class="text-xs">{entry.key}</code>
+											<span
+												class="badge text-[10px] {entry.kind === 'legacy-mapped'
+													? 'preset-tonal-warning'
+													: 'preset-tonal-primary'}"
+												title={entry.kind === 'legacy-mapped'
+													? `Maps to legacy: ${entry.legacyKeys.join(', ')}`
+													: 'No v2 equivalent'}
+											>
+												{entry.kind}
+											</span>
+										</span>
+										{#if entry.description}
+											<span class="block text-xs text-surface-500">{entry.description}</span>
+										{/if}
+									</span>
+								</label>
+							{/each}
+						</div>
+					</div>
+				{/each}
 			</fieldset>
 
 			<div class="mt-4 flex justify-end gap-2">
@@ -154,11 +200,7 @@
 										class="space-y-4"
 									>
 										<input type="hidden" name="id" value={role.id} />
-										<input
-											type="hidden"
-											name="permissions"
-											value={JSON.stringify(editPermissions)}
-										/>
+										<input type="hidden" name="keys" value={selectedKeysCsv(editKeys)} />
 
 										<label class="label max-w-sm">
 											<span class="label-text">Role name</span>
@@ -171,50 +213,75 @@
 											/>
 										</label>
 
-										<fieldset>
-											<legend class="mb-2 text-sm font-medium text-surface-700">
-												Permissions
-											</legend>
-											<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-												{#each data.permissionKeys as key (key)}
-													<label class="flex items-center gap-2 text-sm text-surface-700">
-														<input
-															type="checkbox"
-															bind:checked={editPermissions[key]}
-															class="checkbox"
-														/>
-														<span>{key}</span>
-													</label>
-												{/each}
+										<fieldset class="space-y-4">
+											<legend class="text-sm font-medium text-surface-700">Permissions</legend>
+											{#each catalogByCategory as [category, entries] (category)}
+												<div>
+													<h4
+														class="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-600"
+													>
+														{category}
+													</h4>
+													<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+														{#each entries as entry (entry.key)}
+															<label class="flex items-start gap-2 text-sm text-surface-700">
+																<input
+																	type="checkbox"
+																	bind:checked={editKeys[entry.key]}
+																	class="checkbox mt-0.5"
+																/>
+																<span>
+																<span class="flex flex-wrap items-center gap-1">
+																	<code class="text-xs">{entry.key}</code>
+																	<span
+																		class="badge text-[10px] {entry.kind === 'legacy-mapped'
+																			? 'preset-tonal-warning'
+																			: 'preset-tonal-primary'}"
+																		title={entry.kind === 'legacy-mapped'
+																			? `Maps to legacy: ${entry.legacyKeys.join(', ')}`
+																			: 'No v2 equivalent'}
+																	>
+																		{entry.kind}
+																	</span>
+																</span>
+																{#if entry.description}
+																	<span class="block text-xs text-surface-500">
+																		{entry.description}
+																	</span>
+																{/if}
+															</span>
+														</label>
+													{/each}
+												</div>
 											</div>
-										</fieldset>
+										{/each}
+									</fieldset>
 
-										<div class="flex justify-end gap-2">
-											<button
-												type="button"
-												onclick={() => cancelEdit()}
-												class="btn preset-tonal btn-sm"
-											>
-												Cancel
-											</button>
-											<button type="submit" class="btn preset-filled-primary-500 btn-sm">
-												Save
-											</button>
-										</div>
-									</form>
-								</td>
-							</tr>
+									<div class="flex justify-end gap-2">
+										<button
+											type="button"
+											onclick={() => cancelEdit()}
+											class="btn preset-tonal btn-sm"
+										>
+											Cancel
+										</button>
+										<button type="submit" class="btn preset-filled-primary-500 btn-sm">
+											Save
+										</button>
+									</div>
+								</form>
+							</td>
+						</tr>
 						{:else}
-							{@const perms = activePerms(role.permissions as any)}
 							<tr>
 								<td class="font-medium text-surface-900">{role.role_name}</td>
 								<td>
-									{#if perms.length === 0}
+									{#if role.canonicalKeys.length === 0}
 										<span class="text-surface-400">—</span>
 									{:else}
 										<div class="flex flex-wrap gap-1">
-											{#each perms as p (p)}
-												<span class="badge preset-tonal-surface text-xs">{p}</span>
+											{#each role.canonicalKeys as p (p)}
+												<span class="badge preset-tonal-primary text-xs">{p}</span>
 											{/each}
 										</div>
 									{/if}
@@ -268,3 +335,4 @@
 		</div>
 	</div>
 </div>
+
