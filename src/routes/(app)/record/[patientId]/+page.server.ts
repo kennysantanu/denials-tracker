@@ -18,8 +18,11 @@ import {
 	getVersionedPath
 } from '$lib/server/db/files';
 import { logAudit } from '$lib/server/audit';
+import { requirePermission } from '$lib/server/authz';
+import { logAppEvent } from '$lib/server/appEvents';
 
-export const load: PageServerLoad = async ({ locals, params, parent, request }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals, params, parent, request } = event;
 	const user = await locals.getUser();
 	if (!user) {
 		redirect(303, '/signin');
@@ -29,6 +32,12 @@ export const load: PageServerLoad = async ({ locals, params, parent, request }) 
 	if (isNaN(patientId)) {
 		error(400, 'Invalid patient ID');
 	}
+
+	await requirePermission(event, 'patient.read', {
+		resourceType: 'patient',
+		resourceId: String(patientId),
+		subjectPatientId: patientId
+	});
 
 	const supabase = locals.supabase;
 
@@ -147,12 +156,18 @@ export const load: PageServerLoad = async ({ locals, params, parent, request }) 
 };
 
 export const actions: Actions = {
-	createDenial: async ({ locals, params, request }) => {
+	createDenial: async (event) => {
+		const { locals, params, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
 		const patientId = parseInt(params.patientId, 10);
 		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
+
+		await requirePermission(event, 'denial.create', {
+			resourceType: 'denial',
+			subjectPatientId: patientId
+		});
 
 		const formData = await request.formData();
 		const serviceStartDate = formData.get('service_start_date') as string;
@@ -300,13 +315,20 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	updateDenial: async ({ locals, params, request }) => {
+	updateDenial: async (event) => {
+		const { locals, params, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
 		const formData = await request.formData();
 		const denialId = parseInt(formData.get('id') as string, 10);
 		if (isNaN(denialId)) return fail(400, { error: 'Invalid denial ID' });
+
+		await requirePermission(event, 'denial.update', {
+			resourceType: 'denial',
+			resourceId: String(denialId),
+			subjectDenialId: denialId
+		});
 
 		const serviceStartDate = formData.get('service_start_date') as string;
 		if (!serviceStartDate) {
@@ -356,13 +378,20 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	deleteDenial: async ({ locals, request }) => {
+	deleteDenial: async (event) => {
+		const { locals, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
 		const formData = await request.formData();
 		const denialId = parseInt(formData.get('id') as string, 10);
 		if (isNaN(denialId)) return fail(400, { error: 'Invalid denial ID' });
+
+		await requirePermission(event, 'denial.delete', {
+			resourceType: 'denial',
+			resourceId: String(denialId),
+			subjectDenialId: denialId
+		});
 
 		const { error: deleteError } = await deleteDenial(locals.supabase, denialId);
 
@@ -375,12 +404,18 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	createNote: async ({ locals, params, request }) => {
+	createNote: async (event) => {
+		const { locals, params, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
 		const patientId = parseInt(params.patientId, 10);
 		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
+
+		await requirePermission(event, 'note.create', {
+			resourceType: 'note',
+			subjectPatientId: patientId
+		});
 
 		const formData = await request.formData();
 		const noteText = (formData.get('note') as string)?.trim();
@@ -492,13 +527,19 @@ export const actions: Actions = {
 		}
 	},
 
-	deleteNote: async ({ locals, request }) => {
+	deleteNote: async (event) => {
+		const { locals, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
 		const formData = await request.formData();
 		const noteId = parseInt(formData.get('id') as string, 10);
 		if (isNaN(noteId)) return fail(400, { error: 'Invalid note ID' });
+
+		await requirePermission(event, 'note.delete', {
+			resourceType: 'note',
+			resourceId: String(noteId)
+		});
 
 		const { error: deleteError } = await deleteNote(locals.supabase, noteId);
 
@@ -511,12 +552,18 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	updateNote: async ({ locals, request }) => {
+	updateNote: async (event) => {
+		const { locals, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
 		const formData = await request.formData();
 		const noteId = parseInt(formData.get('id') as string, 10);
+
+		await requirePermission(event, 'note.update', {
+			resourceType: 'note',
+			resourceId: String(noteId)
+		});
 		const patientId = parseInt(formData.get('patient_id') as string, 10);
 		const noteText = (formData.get('note') as string)?.trim();
 		const newFiles = formData.getAll('files') as File[];
@@ -633,7 +680,8 @@ export const actions: Actions = {
 		}
 	},
 
-	updateInsuranceNote: async ({ locals, request }) => {
+	updateInsuranceNote: async (event) => {
+		const { locals, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
@@ -642,6 +690,11 @@ export const actions: Actions = {
 		const noteText = (formData.get('note') as string)?.trim() || null;
 
 		if (isNaN(insuranceId)) return fail(400, { error: 'Invalid insurance ID' });
+
+		await requirePermission(event, 'insurance.update', {
+			resourceType: 'insurance',
+			resourceId: String(insuranceId)
+		});
 
 		const { error: updateError } = await updateInsurance(locals.supabase, insuranceId, {
 			note: noteText
@@ -664,12 +717,18 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	uploadPatientFile: async ({ locals, params, request }) => {
+	uploadPatientFile: async (event) => {
+		const { locals, params, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
 		const patientId = parseInt(params.patientId, 10);
 		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
+
+		await requirePermission(event, 'file.upload', {
+			resourceType: 'patient_file',
+			subjectPatientId: patientId
+		});
 
 		const formData = await request.formData();
 		const files = formData.getAll('files') as File[];
@@ -739,12 +798,18 @@ export const actions: Actions = {
 		}
 	},
 
-	removePatientFile: async ({ locals, params, request }) => {
+	removePatientFile: async (event) => {
+		const { locals, params, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
 		const patientId = parseInt(params.patientId, 10);
 		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
+
+		await requirePermission(event, 'file.delete', {
+			resourceType: 'patient_file',
+			subjectPatientId: patientId
+		});
 
 		const formData = await request.formData();
 		const fileName = formData.get('file_name') as string;
@@ -794,12 +859,19 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	updatePatientNote: async ({ locals, params, request }) => {
+	updatePatientNote: async (event) => {
+		const { locals, params, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
 		const patientId = parseInt(params.patientId, 10);
 		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
+
+		await requirePermission(event, 'patient.update', {
+			resourceType: 'patient',
+			resourceId: String(patientId),
+			subjectPatientId: patientId
+		});
 
 		const formData = await request.formData();
 		const note = (formData.get('note') as string)?.trim() || null;
@@ -880,12 +952,18 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	copyDenial: async ({ locals, params, request }) => {
+	copyDenial: async (event) => {
+		const { locals, params, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
 
 		const patientId = parseInt(params.patientId, 10);
 		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
+
+		await requirePermission(event, 'denial.create', {
+			resourceType: 'denial',
+			subjectPatientId: patientId
+		});
 
 		const formData = await request.formData();
 

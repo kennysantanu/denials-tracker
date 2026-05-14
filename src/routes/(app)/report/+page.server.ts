@@ -4,13 +4,14 @@ import { getReportData } from '$lib/server/db/reports';
 import { getOpenFollowUps, getNoFollowUpDenials, groupFollowUps } from '$lib/server/db/followups';
 import type { FollowUpDenial } from '$lib/server/db/followups';
 import { logAudit } from '$lib/server/audit';
+import { requirePermission } from '$lib/server/authz';
 
-export const load: PageServerLoad = async ({ locals, parent, url, request }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals, url, request } = event;
 	const user = await locals.getUser();
 	if (!user) redirect(303, '/signin');
 
-	const { permissions } = await parent();
-	if (!permissions['view_reports']) error(403, 'Forbidden');
+	await requirePermission(event, 'report.read', { resourceType: 'report' });
 
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);

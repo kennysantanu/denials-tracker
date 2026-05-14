@@ -6,11 +6,15 @@ import {
 	getSystemPreference,
 	setSystemPreference
 } from '$lib/server/db/preferences';
+import { requirePermission } from '$lib/server/authz';
 import type { PageServerLoad, Actions } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals } = event;
 	const user = await locals.getUser();
 	if (!user) redirect(303, '/signin');
+
+	await requirePermission(event, 'system_preferences.read', { resourceType: 'preference' });
 
 	const [
 		prefResult,
@@ -56,9 +60,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	saveIdleTimeout: async ({ request, locals }) => {
+	saveIdleTimeout: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'system_preferences.update', { resourceType: 'preference' });
 
 		const formData = await request.formData();
 		const rawValue = parseInt(formData.get('idle_timeout_minutes') as string, 10);
@@ -90,9 +97,12 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	saveAIConfig: async ({ request, locals }) => {
+	saveAIConfig: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'system_preferences.update', { resourceType: 'preference' });
 
 		const formData = await request.formData();
 		const aiBaseUrl = (formData.get('ai_base_url') as string)?.trim() || '';
@@ -127,9 +137,12 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	saveAIChatPrompt: async ({ request, locals }) => {
+	saveAIChatPrompt: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'system_preferences.update', { resourceType: 'preference' });
 
 		const formData = await request.formData();
 		const value = (formData.get('ai_chat_system_prompt') as string)?.trim() || null;
@@ -155,9 +168,12 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	saveAIRewritePrompt: async ({ request, locals }) => {
+	saveAIRewritePrompt: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'system_preferences.update', { resourceType: 'preference' });
 
 		const formData = await request.formData();
 		const value = (formData.get('ai_rewrite_system_prompt') as string)?.trim() || null;
@@ -183,9 +199,12 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	setPreference: async ({ request, locals }) => {
+	setPreference: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'system_preferences.update', { resourceType: 'preference' });
 
 		const formData = await request.formData();
 		const name = formData.get('name') as string;

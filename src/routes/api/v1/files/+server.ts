@@ -1,12 +1,16 @@
 import { json } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getFilesByDate, getFileDateStatusesInMonth, type DateStatus } from '$lib/server/db/files';
+import { requirePermission } from '$lib/server/authz';
 
-export async function GET({ locals, url }: RequestEvent) {
+export async function GET(event: RequestEvent) {
+	const { locals, url } = event;
 	const user = await locals.getUser();
 	if (!user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
+
+	await requirePermission(event, 'file.read', { resourceType: 'file' });
 
 	const date = url.searchParams.get('date');
 	if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {

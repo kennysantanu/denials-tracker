@@ -2,15 +2,19 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getPatientsPaginated } from '$lib/server/db/patients';
 import { logAudit } from '$lib/server/audit';
+import { requirePermission } from '$lib/server/authz';
 
 const VALID_SORT_COLUMNS = ['last_name', 'first_name', 'date_of_birth', 'created_at'] as const;
 type SortColumn = (typeof VALID_SORT_COLUMNS)[number];
 
-export const load: PageServerLoad = async ({ locals, request, url }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals, request, url } = event;
 	const user = await locals.getUser();
 	if (!user) {
 		redirect(303, '/signin');
 	}
+
+	await requirePermission(event, 'patient.read', { resourceType: 'patient' });
 
 	const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
 	const pageSize = Math.min(

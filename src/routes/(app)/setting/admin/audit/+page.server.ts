@@ -3,13 +3,14 @@ import type { PageServerLoad } from './$types';
 import { getAuditLogs } from '$lib/server/db/audit';
 import { logAudit } from '$lib/server/audit';
 import { getUsers } from '$lib/server/db/users';
+import { requirePermission } from '$lib/server/authz';
 
-export const load: PageServerLoad = async ({ locals, parent, url, request }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals, url, request } = event;
 	const user = await locals.getUser();
 	if (!user) redirect(303, '/signin');
 
-	const { permissions } = await parent();
-	if (!permissions['audit_read']) error(403, 'Forbidden: audit_read permission required');
+	await requirePermission(event, 'audit.read', { resourceType: 'audit_log' });
 
 	const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
 	const pageSize = Math.min(

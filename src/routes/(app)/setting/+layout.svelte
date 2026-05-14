@@ -3,7 +3,20 @@
 
 	let { data, children } = $props();
 	let currentPath = $derived(page.url.pathname);
-	let permissions = $derived((data as any).permissions ?? {});
+	let effectivePermissions = $derived(
+		(data as any).effectivePermissions ?? ({} as Record<string, boolean>)
+	);
+	const ADMIN_KEYS = [
+		'user.read',
+		'role.read',
+		'audit.read',
+		'label.read',
+		'insurance.read',
+		'system_preferences.read',
+		'permission.read',
+		'break_glass.admin'
+	] as const;
+	let isAdmin = $derived(ADMIN_KEYS.some((k) => effectivePermissions[k] === true));
 
 	type NavItem = { href: string; label: string; description?: string };
 
@@ -73,7 +86,7 @@
 						{item.label}
 					</a>
 				{/each}
-				{#if permissions['admin']}
+				{#if isAdmin}
 					<span class="mx-2 h-5 w-px shrink-0 bg-surface-300" aria-hidden="true"></span>
 					<span
 						class="mr-1 shrink-0 text-xs font-semibold tracking-wide text-surface-500 uppercase"
@@ -123,7 +136,7 @@
 				</ul>
 			</nav>
 
-			{#if permissions['admin']}
+			{#if isAdmin}
 				<nav aria-label="Admin settings" class="space-y-2">
 					<h2 class="px-2 text-xs font-semibold tracking-wide text-surface-500 uppercase">Admin</h2>
 					<ul class="space-y-1">

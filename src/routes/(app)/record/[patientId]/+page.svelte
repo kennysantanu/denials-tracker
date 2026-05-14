@@ -208,7 +208,7 @@
 							bind:value={noteText}
 							placeholder="Patient note…"
 							attachedFiles={data.patientFiles as any}
-							showUpload={data.permissions['file_upload']}
+							showUpload={data.effectivePermissions['file.upload']}
 							allowExistingFiles={false}
 						/>
 						<div class="flex gap-2">
@@ -230,7 +230,7 @@
 			</div>
 
 			<!-- Kebab menu -->
-			{#if data.permissions['manage_patients'] || data.permissions['file_upload'] || data.permissions['file_delete']}
+			{#if data.effectivePermissions['patient.update'] || data.effectivePermissions['file.upload'] || data.effectivePermissions['file.delete']}
 				<div class="relative shrink-0">
 					<button
 						type="button"
@@ -349,7 +349,7 @@
 			{:else}
 				<span></span>
 			{/if}
-			{#if data.permissions['create_denial']}
+			{#if data.effectivePermissions['denial.create']}
 				<button
 					type="button"
 					class="rounded-lg px-4 py-2 text-sm font-medium transition-colors {showNewDenialForm

@@ -5,6 +5,7 @@ import { callChat } from '$lib/server/ai/chat';
 import { aiToolDefinitions, toolPermissions, type ToolContext } from '$lib/server/ai/tools';
 import { logAudit } from '$lib/server/audit';
 import { getSystemPreference } from '$lib/server/db/preferences';
+import { requirePermission, loadEffectivePermissions } from '$lib/server/authz';
 import type {
 	ChatCompletionMessageParam,
 	ChatCompletionTool
@@ -47,9 +48,12 @@ if (typeof process !== 'undefined' && process.versions?.node) {
 
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.`;
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, locals } = event;
 	const user = await locals.getUser();
 	if (!user) error(401, 'Unauthorized');
+
+	await requirePermission(event, 'ai.chat', { resourceType: 'ai_interaction' });
 
 	// Check if AI is configured
 	const configured = await isAIConfigured(locals.supabase);
@@ -80,15 +84,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		error(400, 'Messages array is required');
 	}
 
-	// Load user permissions
-	const { data: userData } = await locals.supabase
-		.from('users')
-		.select('*, roles(*)')
-		.eq('id', user.id)
-		.single();
-
-	const permissions =
-		(userData?.roles as { permissions?: Record<string, boolean> } | null)?.permissions ?? {};
+	// Load user effective permissions (canonical keys, dual engine).
+	const effective = await loadEffectivePermissions(event);
 
 	// Filter tools based on user permissions
 	const allowedTools: ChatCompletionTool[] = aiToolDefinitions.filter((tool) => {
@@ -96,7 +93,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (fn.type !== 'function') return true;
 		const requiredPerm = toolPermissions[fn.function.name];
 		if (!requiredPerm) return true;
-		return permissions[requiredPerm] === true;
+		return effective[requiredPerm] === true;
 	});
 
 	const toolContext: ToolContext = {

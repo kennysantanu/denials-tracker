@@ -8,12 +8,16 @@ import {
 	type DateStatus
 } from '$lib/server/db/files';
 import { logAudit } from '$lib/server/audit';
+import { requirePermission } from '$lib/server/authz';
 
-export const load = (async ({ locals, url, request }) => {
+export const load = (async (event) => {
+	const { locals, url, request } = event;
 	const user = await locals.getUser();
 	if (!user) {
 		redirect(303, '/signin');
 	}
+
+	await requirePermission(event, 'file.read', { resourceType: 'file' });
 
 	const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
 	const [year, month] = date.split('-').map(Number);
@@ -39,9 +43,12 @@ export const load = (async ({ locals, url, request }) => {
 }) satisfies PageServerLoad;
 
 export const actions: Actions = {
-	uploadNewFile: async ({ locals, request }) => {
+	uploadNewFile: async (event) => {
+		const { locals, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'file.upload', { resourceType: 'file' });
 
 		const formData = await request.formData();
 		const files = formData.getAll('files') as File[];

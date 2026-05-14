@@ -1,7 +1,9 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { requirePermission } from '$lib/server/authz';
 
-export const PATCH: RequestHandler = async ({ params, request, locals }) => {
+export const PATCH: RequestHandler = async (event) => {
+	const { params, request, locals } = event;
 	const user = await locals.getUser();
 	if (!user) {
 		error(401, 'Unauthorized');
@@ -11,6 +13,12 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	if (isNaN(id) || id <= 0) {
 		error(400, 'Invalid denial ID');
 	}
+
+	await requirePermission(event, 'followup.update', {
+		resourceType: 'denial',
+		resourceId: String(id),
+		subjectDenialId: id
+	});
 
 	let body: unknown;
 	try {

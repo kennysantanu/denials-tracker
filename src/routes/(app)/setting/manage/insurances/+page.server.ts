@@ -3,7 +3,13 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { logAudit } from '$lib/server/audit';
-import { getInsurances, createInsurance, updateInsurance, deleteInsurance } from '$lib/server/db/insurances';
+import {
+	getInsurances,
+	createInsurance,
+	updateInsurance,
+	deleteInsurance
+} from '$lib/server/db/insurances';
+import { requirePermission } from '$lib/server/authz';
 import type { PageServerLoad, Actions } from './$types';
 
 const createInsuranceSchema = z.object({
@@ -17,15 +23,12 @@ const updateInsuranceSchema = z.object({
 	note: z.string().optional()
 });
 
-export const load: PageServerLoad = async ({ locals, parent }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals } = event;
 	const user = await locals.getUser();
 	if (!user) redirect(303, '/signin');
 
-	const parentData = await parent();
-	const permissions = (parentData as any).permissions ?? {};
-	if (!permissions['manage_insurances']) {
-		return fail(403, { error: 'Forbidden' }) as any;
-	}
+	await requirePermission(event, 'insurance.read', { resourceType: 'insurance' });
 
 	const { data: insurances } = await getInsurances(locals.supabase);
 
@@ -36,9 +39,12 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 };
 
 export const actions: Actions = {
-	createInsurance: async ({ request, locals }) => {
+	createInsurance: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'insurance.create', { resourceType: 'insurance' });
 
 		const form = await superValidate(request, zod(createInsuranceSchema));
 		if (!form.valid) return fail(400, { createForm: form });
@@ -46,14 +52,25 @@ export const actions: Actions = {
 		const { data: insurance, error } = await createInsurance(locals.supabase, form.data);
 		if (error) return fail(500, { createForm: form, error: error.message });
 
-		logAudit(locals.supabase, user.id, 'create', 'insurance', String(insurance?.id), form.data, request);
+		logAudit(
+			locals.supabase,
+			user.id,
+			'create',
+			'insurance',
+			String(insurance?.id),
+			form.data,
+			request
+		);
 
 		return message(form, 'Insurance created successfully');
 	},
 
-	updateInsurance: async ({ request, locals }) => {
+	updateInsurance: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'insurance.update', { resourceType: 'insurance' });
 
 		const form = await superValidate(request, zod(updateInsuranceSchema));
 		if (!form.valid) return fail(400, { updateForm: form });
@@ -67,9 +84,12 @@ export const actions: Actions = {
 		return message(form, 'Insurance updated successfully');
 	},
 
-	deleteInsurance: async ({ request, locals }) => {
+	deleteInsurance: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'insurance.delete', { resourceType: 'insurance' });
 
 		const formData = await request.formData();
 		const id = Number(formData.get('id'));

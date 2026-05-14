@@ -4,6 +4,7 @@ import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { logAudit } from '$lib/server/audit';
 import { getLabels, createLabel, updateLabel, deleteLabel } from '$lib/server/db/labels';
+import { requirePermission } from '$lib/server/authz';
 import type { PageServerLoad, Actions } from './$types';
 
 const createLabelSchema = z.object({
@@ -21,9 +22,12 @@ const updateLabelSchema = z.object({
 	order: z.coerce.number()
 });
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals } = event;
 	const user = await locals.getUser();
 	if (!user) redirect(303, '/signin');
+
+	await requirePermission(event, 'label.read', { resourceType: 'label' });
 
 	const { data: labels } = await getLabels(locals.supabase);
 
@@ -38,9 +42,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	createLabel: async ({ request, locals }) => {
+	createLabel: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'label.create', { resourceType: 'label' });
 
 		const form = await superValidate(request, zod(createLabelSchema));
 		if (!form.valid) return fail(400, { createForm: form });
@@ -53,9 +60,12 @@ export const actions: Actions = {
 		return message(form, 'Label created successfully');
 	},
 
-	updateLabel: async ({ request, locals }) => {
+	updateLabel: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'label.update', { resourceType: 'label' });
 
 		const form = await superValidate(request, zod(updateLabelSchema));
 		if (!form.valid) return fail(400, { updateForm: form });
@@ -69,9 +79,12 @@ export const actions: Actions = {
 		return message(form, 'Label updated successfully');
 	},
 
-	deleteLabel: async ({ request, locals }) => {
+	deleteLabel: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'label.delete', { resourceType: 'label' });
 
 		const formData = await request.formData();
 		const id = Number(formData.get('id'));

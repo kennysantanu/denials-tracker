@@ -8,12 +8,16 @@ import {
 	deleteFile
 } from '$lib/server/db/files';
 import { logAudit } from '$lib/server/audit';
+import { requirePermission } from '$lib/server/authz';
 
-export const load: PageServerLoad = async ({ locals, url, request }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals, url, request } = event;
 	const user = await locals.getUser();
 	if (!user) {
 		redirect(303, '/signin');
 	}
+
+	await requirePermission(event, 'file.read', { resourceType: 'file' });
 
 	const name = url.searchParams.get('name');
 	if (!name) {
@@ -47,9 +51,12 @@ export const load: PageServerLoad = async ({ locals, url, request }) => {
 };
 
 export const actions: Actions = {
-	updateFileInfo: async ({ locals, request }) => {
+	updateFileInfo: async (event) => {
+		const { locals, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'file.update', { resourceType: 'file' });
 
 		const formData = await request.formData();
 		const name = formData.get('name') as string;
@@ -72,9 +79,12 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
-	deleteFile: async ({ locals, request }) => {
+	deleteFile: async (event) => {
+		const { locals, request } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'file.delete', { resourceType: 'file' });
 
 		const formData = await request.formData();
 		const name = formData.get('name') as string;

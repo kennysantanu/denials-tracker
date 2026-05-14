@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { isAIConfigured, getOpenAIClient } from '$lib/server/ai/client';
 import { logAudit } from '$lib/server/audit';
 import { getSystemPreference } from '$lib/server/db/preferences';
+import { requirePermission } from '$lib/server/authz';
 
 // In-memory rate limiting (shared pattern with /api/v1/ai/chat)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -42,9 +43,12 @@ if (typeof process !== 'undefined' && process.versions?.node) {
 const DEFAULT_REWRITE_PROMPT =
 	'You are a professional medical billing assistant. Rewrite the following note to be clear, concise, and professional. Use proper medical billing terminology where appropriate. Return only the rewritten note text, with no explanations, prefixes, or surrounding quotes.';
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, locals } = event;
 	const user = await locals.getUser();
 	if (!user) error(401, 'Unauthorized');
+
+	await requirePermission(event, 'ai.rewrite', { resourceType: 'ai_interaction' });
 
 	const configured = await isAIConfigured(locals.supabase);
 	if (!configured) {

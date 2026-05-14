@@ -2,7 +2,6 @@
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { hasPermission } from '$lib/types';
 	import { formatDate } from '$lib/utils';
 	import { toastSuccess, toastError } from '$lib/toast';
 
@@ -40,13 +39,11 @@
 	const ext = $derived(getExtension(data.fileName));
 	const isImage = $derived(imageExtensions.includes(ext));
 	const isPdf = $derived(pdfExtensions.includes(ext));
-	const permissions = $derived($page.data.permissions);
-	const canEdit = $derived(
-		hasPermission(permissions, 'file_edit') || hasPermission(permissions, 'admin')
+	const effectivePermissions = $derived(
+		($page.data as any).effectivePermissions ?? ({} as Record<string, boolean>)
 	);
-	const canDelete = $derived(
-		hasPermission(permissions, 'file_delete') || hasPermission(permissions, 'admin')
-	);
+	const canEdit = $derived(effectivePermissions['file.update'] === true);
+	const canDelete = $derived(effectivePermissions['file.delete'] === true);
 	const meta = $derived(getMeta());
 	const fileStatus = $derived(meta.status ?? 'New');
 

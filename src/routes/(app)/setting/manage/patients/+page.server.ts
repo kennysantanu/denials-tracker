@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { logAudit } from '$lib/server/audit';
 import { getPatients, createPatient, updatePatient } from '$lib/server/db/patients';
 import { archivePatient } from '$lib/server/retention';
+import { requirePermission } from '$lib/server/authz';
 import type { PageServerLoad, Actions } from './$types';
 
 const createPatientSchema = z.object({
@@ -22,15 +23,12 @@ const updatePatientSchema = z.object({
 	note: z.string().optional()
 });
 
-export const load: PageServerLoad = async ({ locals, parent }) => {
+export const load: PageServerLoad = async (event) => {
+	const { locals } = event;
 	const user = await locals.getUser();
 	if (!user) redirect(303, '/signin');
 
-	const parentData = await parent();
-	const permissions = (parentData as any).permissions ?? {};
-	if (!permissions['manage_patients']) {
-		return fail(403, { error: 'Forbidden' }) as any;
-	}
+	await requirePermission(event, 'patient.read', { resourceType: 'patient' });
 
 	const { data: patients, error } = await getPatients(locals.supabase);
 
@@ -43,9 +41,12 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 };
 
 export const actions: Actions = {
-	createPatient: async ({ request, locals }) => {
+	createPatient: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'patient.create', { resourceType: 'patient' });
 
 		const form = await superValidate(request, zod(createPatientSchema));
 		if (!form.valid) return fail(400, { createForm: form });
@@ -53,14 +54,25 @@ export const actions: Actions = {
 		const { data: patient, error } = await createPatient(locals.supabase, form.data);
 		if (error) return fail(500, { createForm: form, error: error.message });
 
-		logAudit(locals.supabase, user.id, 'create', 'patient', String(patient?.id), form.data, request);
+		logAudit(
+			locals.supabase,
+			user.id,
+			'create',
+			'patient',
+			String(patient?.id),
+			form.data,
+			request
+		);
 
 		return message(form, 'Patient created successfully');
 	},
 
-	updatePatient: async ({ request, locals }) => {
+	updatePatient: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'patient.update', { resourceType: 'patient' });
 
 		const form = await superValidate(request, zod(updatePatientSchema));
 		if (!form.valid) return fail(400, { updateForm: form });
@@ -74,9 +86,12 @@ export const actions: Actions = {
 		return message(form, 'Patient updated successfully');
 	},
 
-	deletePatient: async ({ request, locals }) => {
+	deletePatient: async (event) => {
+		const { request, locals } = event;
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'patient.archive', { resourceType: 'patient' });
 
 		const formData = await request.formData();
 		const id = Number(formData.get('id'));

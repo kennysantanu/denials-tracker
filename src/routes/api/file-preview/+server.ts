@@ -1,12 +1,16 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createSignedUrl } from '$lib/server/db/files';
+import { requirePermission } from '$lib/server/authz';
 
-export const GET: RequestHandler = async ({ locals, url }) => {
+export const GET: RequestHandler = async (event) => {
+	const { locals, url } = event;
 	const user = await locals.getUser();
 	if (!user) {
 		error(401, 'Unauthorized');
 	}
+
+	await requirePermission(event, 'file.read', { resourceType: 'file' });
 
 	const name = url.searchParams.get('name');
 	if (!name) {

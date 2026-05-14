@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { formatDate } from '$lib/utils';
-	import { hasPermission } from '$lib/types';
 
 	let { data } = $props();
 
@@ -28,10 +27,10 @@
 	}
 
 	let totalPages = $derived(Math.max(1, Math.ceil(data.total / data.pageSize)));
-	const permissions = $derived(page.data.permissions);
-	const canManagePatients = $derived(
-		hasPermission(permissions, 'manage_patients') || hasPermission(permissions, 'admin')
+	const effectivePermissions = $derived(
+		(page.data as any).effectivePermissions ?? ({} as Record<string, boolean>)
 	);
+	const canManagePatients = $derived(effectivePermissions['patient.update'] === true);
 
 	function buildUrl(overrides: Record<string, string | number> = {}) {
 		const params = new URLSearchParams();

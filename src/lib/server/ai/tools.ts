@@ -76,11 +76,12 @@ export const aiToolDefinitions: ChatCompletionTool[] = [
 ];
 
 // --- Permission requirements per tool ---
-
+// Canonical permission keys (Phase 5). The chat route checks these against
+// `effectivePermissions` returned by `loadEffectivePermissions`.
 export const toolPermissions: Record<string, string> = {
-	get_denial_summary: 'generate_summary',
-	generate_appeal_letter: 'generate_appeal',
-	query_denials: 'view_denials'
+	get_denial_summary: 'ai.summary',
+	generate_appeal_letter: 'ai.appeal',
+	query_denials: 'ai.query_denials'
 };
 
 // --- Tool handlers ---
@@ -165,7 +166,9 @@ async function handleQueryDenials(
 	try {
 		let query = ctx.supabase
 			.from('denials')
-			.select('id, patient_id, service_start_date, billed_amount, paid_amount, is_closed, follow_up_date, patients(first_name, last_name)')
+			.select(
+				'id, patient_id, service_start_date, billed_amount, paid_amount, is_closed, follow_up_date, patients(first_name, last_name)'
+			)
 			.order('created_at', { ascending: false })
 			.limit(args.limit ?? 20);
 
