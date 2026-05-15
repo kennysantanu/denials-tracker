@@ -7,14 +7,39 @@
 	let showAddForm = $state(false);
 	let editingId = $state<string | null>(null);
 	let editRoleId = $state<number | undefined>(undefined);
+	let resetPasswordId = $state<string | null>(null);
+	let resetPasswordValue = $state('');
+	let changeEmailId = $state<string | null>(null);
+	let changeEmailValue = $state('');
 
 	function startEdit(user: any) {
 		editingId = user.id;
 		editRoleId = user.role ?? undefined;
+		resetPasswordId = null;
+		changeEmailId = null;
 	}
 
 	function cancelEdit() {
 		editingId = null;
+	}
+
+	function startResetPassword(user: any) {
+		resetPasswordId = user.id;
+		resetPasswordValue = '';
+		changeEmailId = null;
+		editingId = null;
+	}
+
+	function startChangeEmail(user: any) {
+		changeEmailId = user.id;
+		changeEmailValue = user.username ?? '';
+		resetPasswordId = null;
+		editingId = null;
+	}
+
+	function cancelInline() {
+		resetPasswordId = null;
+		changeEmailId = null;
 	}
 
 	function handleResult(action: string) {
@@ -23,6 +48,8 @@
 				toastSuccess(`User ${action} successfully`);
 				showAddForm = false;
 				editingId = null;
+				resetPasswordId = null;
+				changeEmailId = null;
 			} else if (result.type === 'failure') {
 				toastError(result.data?.error ?? `Failed to ${action} user`);
 			}
@@ -109,7 +136,7 @@
 						<th>Username</th>
 						<th>Role</th>
 						<th>Created</th>
-						<th class="w-32 text-right">Actions</th>
+						<th class="w-64 text-right">Actions</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -160,6 +187,89 @@
 									</div>
 								</td>
 							</tr>
+						{:else if resetPasswordId === u.id}
+							<tr>
+								<td class="font-medium text-surface-900">{u.username ?? '—'}</td>
+								<td colspan="2">
+									<form
+										method="POST"
+										action="?/resetPassword"
+										use:enhance={() =>
+											async ({ result, update }) => {
+												handleResult('password reset')({ result });
+												await update();
+											}}
+										class="flex items-center gap-2"
+										id="reset-pw-{u.id}"
+									>
+										<input type="hidden" name="id" value={u.id} />
+										<input
+											type="password"
+											name="password"
+											required
+											minlength="8"
+											placeholder="New password (min 8 chars)"
+											bind:value={resetPasswordValue}
+											class="input"
+										/>
+									</form>
+								</td>
+								<td>
+									<div class="flex justify-end gap-2">
+										<button type="button" onclick={cancelInline} class="btn preset-tonal btn-sm">
+											Cancel
+										</button>
+										<button
+											form="reset-pw-{u.id}"
+											type="submit"
+											class="btn preset-filled-warning-500 btn-sm"
+										>
+											Reset
+										</button>
+									</div>
+								</td>
+							</tr>
+						{:else if changeEmailId === u.id}
+							<tr>
+								<td class="font-medium text-surface-900">{u.username ?? '—'}</td>
+								<td colspan="2">
+									<form
+										method="POST"
+										action="?/updateEmail"
+										use:enhance={() =>
+											async ({ result, update }) => {
+												handleResult('email updated')({ result });
+												await update();
+											}}
+										class="flex items-center gap-2"
+										id="change-email-{u.id}"
+									>
+										<input type="hidden" name="id" value={u.id} />
+										<input
+											type="email"
+											name="email"
+											required
+											placeholder="New email"
+											bind:value={changeEmailValue}
+											class="input"
+										/>
+									</form>
+								</td>
+								<td>
+									<div class="flex justify-end gap-2">
+										<button type="button" onclick={cancelInline} class="btn preset-tonal btn-sm">
+											Cancel
+										</button>
+										<button
+											form="change-email-{u.id}"
+											type="submit"
+											class="btn preset-filled-primary-500 btn-sm"
+										>
+											Save
+										</button>
+									</div>
+								</td>
+							</tr>
 						{:else}
 							<tr>
 								<td class="font-medium text-surface-900">{u.username ?? '—'}</td>
@@ -181,6 +291,20 @@
 											class="btn preset-tonal-primary btn-sm"
 										>
 											Edit
+										</button>
+										<button
+											type="button"
+											onclick={() => startChangeEmail(u)}
+											class="btn preset-tonal-primary btn-sm"
+										>
+											Email
+										</button>
+										<button
+											type="button"
+											onclick={() => startResetPassword(u)}
+											class="btn preset-tonal-warning btn-sm"
+										>
+											Reset PW
 										</button>
 										<form
 											method="POST"

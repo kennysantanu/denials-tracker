@@ -24,6 +24,16 @@ const updateUserSchema = z.object({
 	role_id: z.coerce.number().optional()
 });
 
+const resetPasswordSchema = z.object({
+	id: z.string().min(1, 'User ID is required'),
+	password: z.string().min(8, 'Password must be at least 8 characters')
+});
+
+const updateEmailSchema = z.object({
+	id: z.string().min(1, 'User ID is required'),
+	email: z.string().email('Valid email is required')
+});
+
 export const load: PageServerLoad = async (event) => {
 	const { locals } = event;
 	const user = await locals.getUser();
@@ -205,5 +215,79 @@ export const actions: Actions = {
 		});
 
 		return { success: true };
+	},
+
+	resetPassword: async (event) => {
+		const { request, locals } = event;
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'user.update', { resourceType: 'user' });
+
+		const form = await superValidate(request, zod(resetPasswordSchema));
+		if (!form.valid) return fail(400, { form });
+
+		const { id, password } = form.data;
+
+		const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
+		const { error: authError } = await adminClient.auth.admin.updateUserById(id, { password });
+		if (authError) return fail(500, { form, error: authError.message });
+
+		logAudit(locals.supabase, user.id, 'update', 'user', id, { password_reset: true }, request);
+		logAppEvent(locals.supabase, {
+			eventName: 'user.password_reset',
+			featureArea: 'admin.users',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'user.update',
+			permissionSource: 'new',
+			resourceType: 'user',
+			resourceId: id,
+			requestId: locals.requestId
+		});
+
+		return message(form, 'Password reset successfully');
+	},
+
+	updateEmail: async (event) => {
+		const { request, locals } = event;
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'user.update', { resourceType: 'user' });
+
+		const form = await superValidate(request, zod(updateEmailSchema));
+		if (!form.valid) return fail(400, { form });
+
+		const { id, email } = form.data;
+
+		const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
+		const { error: authError } = await adminClient.auth.admin.updateUserById(id, {
+			email,
+			email_confirm: true
+		});
+		if (authError) return fail(500, { form, error: authError.message });
+
+		// Keep public.users.username mirrored to the email (matches handle_new_user trigger).
+		const { error: dbError } = await updateUser(locals.supabase, id, {
+			username: email.replace('@supabase', '')
+		});
+		if (dbError) return fail(500, { form, error: dbError.message });
+
+		logAudit(locals.supabase, user.id, 'update', 'user', id, { email }, request);
+		logAppEvent(locals.supabase, {
+			eventName: 'user.email_changed',
+			featureArea: 'admin.users',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'user.update',
+			permissionSource: 'new',
+			resourceType: 'user',
+			resourceId: id,
+			requestId: locals.requestId,
+			metadata: { email }
+		});
+
+		return message(form, 'Email updated successfully');
 	}
 };
