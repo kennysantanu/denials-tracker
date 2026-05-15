@@ -4,7 +4,8 @@ import { logAudit } from '$lib/server/audit';
 import {
 	getSystemPreferences,
 	getSystemPreference,
-	setSystemPreference
+	setSystemPreference,
+	MANAGED_PREFERENCE_NAMES
 } from '$lib/server/db/preferences';
 import { requirePermission } from '$lib/server/authz';
 import type { PageServerLoad, Actions } from './$types';
@@ -33,15 +34,9 @@ export const load: PageServerLoad = async (event) => {
 	]);
 
 	// Filter out managed prefs from the generic list
-	const managedPrefNames = new Set([
-		'ai_base_url',
-		'ai_model_name',
-		'ai_enabled',
-		'idle_timeout_minutes',
-		'ai_chat_system_prompt',
-		'ai_rewrite_system_prompt'
-	]);
-	const preferences = (prefResult.data ?? []).filter((p) => !managedPrefNames.has(p.name));
+	const preferences = (prefResult.data ?? []).filter(
+		(p) => !MANAGED_PREFERENCE_NAMES.has(p.name)
+	);
 
 	// Env cap for idle timeout (max allowed value, up to 1440 min / 24 h)
 	const maxIdleTimeout = Math.min(parseInt(env.SESSION_TIMEOUT_MINUTES ?? '30', 10) || 30, 1440);
@@ -107,6 +102,20 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const aiBaseUrl = (formData.get('ai_base_url') as string)?.trim() || '';
 		const aiModelName = (formData.get('ai_model_name') as string)?.trim() || '';
+
+		// Validate URL when provided. Must be a parseable http/https URL so we
+		// don't store junk that breaks fetch() later in the AI layer.
+		if (aiBaseUrl) {
+			let parsed: URL;
+			try {
+				parsed = new URL(aiBaseUrl);
+			} catch {
+				return fail(400, { error: 'AI base URL must be a valid URL' });
+			}
+			if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+				return fail(400, { error: 'AI base URL must use http or https' });
+			}
+		}
 
 		const [baseUrlResult, modelResult] = await Promise.all([
 			setSystemPreference(locals.supabase, 'ai_base_url', aiBaseUrl || null),
@@ -209,14 +218,42 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const name = formData.get('name') as string;
 		const value = formData.get('value') as string | null;
-		const dataType = (formData.get('data_type') as string) || 'string';
 
 		if (!name) return fail(400, { error: 'Preference name is required' });
 
-		const { error } = await setSystemPreference(locals.supabase, name, value, dataType);
+		// Managed preferences have dedicated forms/validation; refuse to update
+		// them through the generic action even if the name is forged.
+		if (MANAGED_PREFERENCE_NAMES.has(name)) {
+			return fail(400, { error: 'This preference must be edited from its dedicated section' });
+		}
+
+		// Only allow updating preferences that already exist; never create new
+		// rows here, and ignore any client-supplied data_type.
+		const { data: existing, error: existingError } = await getSystemPreference(
+			locals.supabase,
+			name
+		);
+		if (existingError || !existing) {
+			return fail(404, { error: 'Preference not found' });
+		}
+
+		const { error } = await setSystemPreference(
+			locals.supabase,
+			name,
+			value,
+			existing.data_type
+		);
 		if (error) return fail(500, { error: error.message });
 
-		logAudit(locals.supabase, user.id, 'update', 'preference', name, { value, dataType }, request);
+		logAudit(
+			locals.supabase,
+			user.id,
+			'update',
+			'preference',
+			name,
+			{ value, dataType: existing.data_type },
+			request
+		);
 
 		return { success: true };
 	}

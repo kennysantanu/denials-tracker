@@ -1,6 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/supabase';
 
+/**
+ * Names of system preferences that are managed by dedicated UIs
+ * (admin AI config, session timeout, etc.) and must NOT appear in:
+ *   - the admin generic "Other preferences" list
+ *   - the per-user overrides page
+ */
+export const MANAGED_PREFERENCE_NAMES: ReadonlySet<string> = new Set([
+	'ai_base_url',
+	'ai_model_name',
+	'ai_enabled',
+	'idle_timeout_minutes',
+	'ai_chat_system_prompt',
+	'ai_rewrite_system_prompt'
+]);
+
 export function getSystemPreferences(supabase: SupabaseClient<Database>) {
 	return supabase.from('preferences').select('*').order('name');
 }
@@ -9,30 +24,20 @@ export function getSystemPreference(supabase: SupabaseClient<Database>, name: st
 	return supabase.from('preferences').select('*').eq('name', name).single();
 }
 
-export async function setSystemPreference(
+/**
+ * Atomically insert-or-update a system preference by unique `name`.
+ * Uses ON CONFLICT (name) so concurrent callers cannot race between
+ * a SELECT-then-INSERT.
+ */
+export function setSystemPreference(
 	supabase: SupabaseClient<Database>,
 	name: string,
 	value: string | null,
 	dataType: string = 'string'
 ) {
-	const { data: existing } = await supabase
-		.from('preferences')
-		.select('id')
-		.eq('name', name)
-		.single();
-
-	if (existing) {
-		return supabase
-			.from('preferences')
-			.update({ value })
-			.eq('id', existing.id)
-			.select()
-			.single();
-	}
-
 	return supabase
 		.from('preferences')
-		.insert({ name, value, data_type: dataType })
+		.upsert({ name, value, data_type: dataType }, { onConflict: 'name' })
 		.select()
 		.single();
 }
