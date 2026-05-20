@@ -164,7 +164,7 @@
 	<title>{data.patient.last_name}, {data.patient.first_name} | Denials Tracker</title>
 </svelte:head>
 
-<div class="mx-auto max-w-5xl p-6">
+<div class="mx-auto max-w-5xl">
 	<!-- Breadcrumb -->
 	<nav class="mb-4 flex items-center gap-1.5 text-sm text-surface-500" aria-label="Breadcrumb">
 		<a href="/record" class="hover:text-primary-600 hover:underline">Records</a>

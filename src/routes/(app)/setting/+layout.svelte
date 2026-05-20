@@ -49,7 +49,7 @@
 	let activeSection = $derived(adminItems.some((i) => isActive(i.href)) ? 'Admin' : 'Manage');
 </script>
 
-<div class="mx-auto w-full max-w-7xl px-4 py-6">
+<div class="mx-auto w-full max-w-7xl">
 	<!-- Page header -->
 	<header class="mb-6 space-y-1">
 		<!-- Breadcrumb: full path on md+, current page only on mobile -->

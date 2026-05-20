@@ -98,7 +98,7 @@
 	<title>Files | Denials Tracker</title>
 </svelte:head>
 
-<div class="mx-auto max-w-5xl space-y-6 p-6">
+<div class="mx-auto max-w-5xl space-y-6">
 	<div class="flex items-center justify-between gap-4">
 		<h1 class="text-2xl font-bold text-surface-900">Files</h1>
 		<form

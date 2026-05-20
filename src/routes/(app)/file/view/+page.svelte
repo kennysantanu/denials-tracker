@@ -63,7 +63,7 @@
 	<title>{data.fileName} | Denials Tracker</title>
 </svelte:head>
 
-<div class="mx-auto max-w-5xl space-y-6 p-6">
+<div class="mx-auto max-w-5xl space-y-6">
 	{#if data.error}
 		<div class="rounded-md border border-error-200 bg-error-50 px-6 py-10 text-center">
 			<p class="text-error-700">{data.error}</p>

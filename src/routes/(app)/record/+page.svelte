@@ -121,7 +121,7 @@
 	<title>Record | Denials Tracker</title>
 </svelte:head>
 
-<div class="mx-auto max-w-5xl space-y-4 p-6">
+<div class="mx-auto max-w-5xl space-y-4">
 	<div class="flex flex-wrap items-center justify-between gap-4">
 		<h1 class="text-2xl font-bold">Patient Records</h1>
 		{#if canManagePatients}
