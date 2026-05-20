@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import { formatDate } from '$lib/utils';
 	import { toastError } from '$lib/toast';
+	import { Pagination } from '@skeletonlabs/skeleton-svelte';
 
 	let { data } = $props();
 
@@ -379,34 +380,50 @@
 
 		<!-- Pagination -->
 		{#if totalPages > 1}
-			<div class="flex items-center justify-center gap-2">
-				<button
-					onclick={() => goToPage(data.page - 1)}
-					disabled={data.page <= 1}
-					class="btn preset-tonal"
+			<div class="flex justify-center">
+				<Pagination
+					page={data.page}
+					count={data.total}
+					pageSize={data.pageSize}
+					onPageChange={(d) => goToPage(d.page)}
 				>
-					Previous
-				</button>
-				{#each Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-					if (totalPages <= 7) return i + 1;
-					if (data.page <= 4) return i + 1;
-					if (data.page >= totalPages - 3) return totalPages - 6 + i;
-					return data.page - 3 + i;
-				}) as p (p)}
-					<button
-						onclick={() => goToPage(p)}
-						class="btn {p === data.page ? 'preset-filled-primary-500' : 'preset-tonal'}"
-					>
-						{p}
-					</button>
-				{/each}
-				<button
-					onclick={() => goToPage(data.page + 1)}
-					disabled={data.page >= totalPages}
-					class="btn preset-tonal"
-				>
-					Next
-				</button>
+					<Pagination.Context>
+						{#snippet children(api)}
+							<Pagination.PrevTrigger>
+								{#snippet element(attrs)}
+									<button {...attrs} class="btn preset-tonal">Previous</button>
+								{/snippet}
+							</Pagination.PrevTrigger>
+							{#each api().pages as p, i (p.type === 'page' ? p.value : `e${i}`)}
+								{#if p.type === 'page'}
+									<Pagination.Item type="page" value={p.value}>
+										{#snippet element(attrs)}
+											<!-- eslint-disable-next-line svelte/no-useless-mustaches -->
+											<button
+												{...attrs as any}
+												type="button"
+												class="btn {p.value === api().page
+													? 'preset-filled-primary-500'
+													: 'preset-tonal'}">{p.value}</button
+											>
+										{/snippet}
+									</Pagination.Item>
+								{:else}
+									<Pagination.Ellipsis index={i}>
+										{#snippet element(attrs)}
+											<span {...attrs} class="btn cursor-default preset-tonal">…</span>
+										{/snippet}
+									</Pagination.Ellipsis>
+								{/if}
+							{/each}
+							<Pagination.NextTrigger>
+								{#snippet element(attrs)}
+									<button {...attrs} class="btn preset-tonal">Next</button>
+								{/snippet}
+							</Pagination.NextTrigger>
+						{/snippet}
+					</Pagination.Context>
+				</Pagination>
 			</div>
 		{/if}
 	{/if}
