@@ -1,6 +1,6 @@
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-import { getPatientsPaginated } from '$lib/server/db/patients';
+import { fail, redirect } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import { getPatientsPaginated, createPatient } from '$lib/server/db/patients';
 import { logAudit } from '$lib/server/audit';
 import { requirePermission } from '$lib/server/authz';
 
@@ -51,4 +51,47 @@ export const load: PageServerLoad = async (event) => {
 		sortBy,
 		sortDir
 	};
+};
+
+export const actions: Actions = {
+	createPatient: async (event) => {
+		const { request, locals } = event;
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'patient.create', { resourceType: 'patient' });
+
+		const formData = await request.formData();
+		const first_name = String(formData.get('first_name') ?? '').trim();
+		const last_name = String(formData.get('last_name') ?? '').trim();
+		const date_of_birth = String(formData.get('date_of_birth') ?? '').trim();
+		const note = String(formData.get('note') ?? '').trim() || undefined;
+
+		if (!first_name || !last_name || !date_of_birth) {
+			return fail(400, { error: 'First name, last name, and date of birth are required' });
+		}
+
+		const { data: patient, error } = await createPatient(locals.supabase, {
+			first_name,
+			last_name,
+			date_of_birth,
+			note
+		});
+
+		if (error || !patient) {
+			return fail(500, { error: error?.message ?? 'Failed to create patient' });
+		}
+
+		logAudit(
+			locals.supabase,
+			user.id,
+			'create',
+			'patient',
+			String(patient.id),
+			{ first_name, last_name, date_of_birth, note },
+			request
+		);
+
+		redirect(303, `/record/${patient.id}`);
+	}
 };
