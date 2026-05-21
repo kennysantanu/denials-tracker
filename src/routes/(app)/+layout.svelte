@@ -102,7 +102,7 @@
 <div class="flex h-screen flex-col overflow-hidden bg-surface-50">
 	<!-- Top navbar -->
 	<header class="shrink-0 border-b border-surface-200 bg-white">
-		<div class="flex h-16 items-center justify-between px-4 lg:px-8">
+		<div class="relative flex h-16 items-center justify-between px-4 lg:px-8">
 			<!-- Left: Hamburger (mobile) + Logo -->
 			<div class="flex items-center gap-3">
 				<button
@@ -119,13 +119,13 @@
 						/>
 					</svg>
 				</button>
-				<h1 class="text-lg font-bold text-primary-600">Denials Tracker</h1>
+				<h1 class="text-2xl font-bold text-primary-500">Denials Tracker</h1>
 			</div>
 
 			<!-- Center: Desktop nav -->
 			<nav class="absolute top-4 left-1/2 hidden -translate-x-1/2 lg:block">
 				<Tabs value={tabValue} navigate={() => {}}>
-					<Tabs.List>
+					<Tabs.List class="justify-center gap-16">
 						{#each navItems as item (item.href)}
 							<Tabs.Trigger value={item.href} class="text-sm">
 								{#snippet element(attrs)}
@@ -134,7 +134,7 @@
 								{/snippet}
 							</Tabs.Trigger>
 						{/each}
-						<Tabs.Indicator class="bg-primary-600" />
+						<Tabs.Indicator class="bg-primary-500" />
 					</Tabs.List>
 				</Tabs>
 			</nav>
