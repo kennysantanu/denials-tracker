@@ -106,7 +106,7 @@
 			<!-- Left: Hamburger (mobile) + Logo -->
 			<div class="flex items-center gap-3">
 				<button
-					class="rounded-md p-2 text-surface-500 hover:bg-surface-100 lg:hidden"
+					class="btn p-2 hover:preset-tonal lg:hidden"
 					onclick={() => (drawerOpen = true)}
 					aria-label="Open navigation"
 				>
@@ -146,9 +146,9 @@
 					<button
 						type="button"
 						onclick={toggleChatDrawer}
-						class="hidden rounded-md transition-colors lg:block {isChatDrawerOpen()
-							? 'bg-primary-100 px-3 py-1.5 text-primary-700'
-							: 'px-3 py-1.5 text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
+						class="btn hidden btn-sm lg:block {isChatDrawerOpen()
+							? 'preset-tonal-primary'
+							: 'hover:preset-tonal'}"
 						title="AI Assistant"
 					>
 						<span class="text-sm font-medium">AI Chat</span>
@@ -173,12 +173,7 @@
 					</div>
 					<div class="h-5 w-px bg-surface-200" aria-hidden="true"></div>
 					<form method="POST" action="/signout" use:enhance>
-						<button
-							type="submit"
-							class="rounded-md px-3 py-1.5 text-sm font-medium text-surface-500 hover:bg-surface-100 hover:text-surface-900"
-						>
-							Sign Out
-						</button>
+						<button type="submit" class="btn btn-sm hover:preset-tonal"> Sign Out </button>
 					</form>
 				</div>
 
@@ -204,7 +199,7 @@
 						></div>
 						<!-- Dropdown -->
 						<div
-							class="absolute right-0 z-20 mt-2 w-52 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
+							class="absolute right-0 z-20 mt-2 w-52 rounded-container border border-surface-200 bg-white py-1 shadow-lg"
 							role="menu"
 							tabindex="-1"
 							onkeydown={handleUserMenuKeydown}
@@ -281,7 +276,7 @@
 					<button
 						bind:this={closeButtonRef}
 						onclick={() => (drawerOpen = false)}
-						class="rounded-md p-1 text-surface-400 hover:text-surface-600"
+						class="btn p-1 hover:preset-tonal"
 						aria-label="Close menu"
 					>
 						✕
@@ -293,11 +288,9 @@
 							href={item.href}
 							onclick={() => (drawerOpen = false)}
 							aria-current={isActive(item.href) ? 'page' : undefined}
-							class="flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(
-								item.href
-							)
-								? 'bg-primary-50 text-primary-700'
-								: 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'}"
+							class="btn w-full justify-start {isActive(item.href)
+								? 'preset-tonal-primary'
+								: 'hover:preset-tonal'}"
 						>
 							{item.label}
 						</a>

@@ -800,10 +800,7 @@
 							onclick={() => {
 								dateMode = item.v as 'service' | 'lastNote';
 							}}
-							class="rounded-base border px-3 py-1 text-xs font-medium transition-colors {dateMode ===
-							item.v
-								? 'border-primary-500 bg-primary-50 text-primary-700'
-								: 'border-surface-300 text-surface-600 hover:bg-surface-100'}">{item.l}</button
+							class="btn btn-sm {dateMode === item.v ? 'preset-tonal-primary' : 'hover:preset-tonal'}">{item.l}</button
 						>
 					{/each}
 				</div>
@@ -817,9 +814,7 @@
 						onclick={() => {
 							showAll = true;
 						}}
-						class="rounded-base border px-2.5 py-1 text-xs font-medium transition-colors {showAll
-							? 'border-primary-500 bg-primary-50 text-primary-700'
-							: 'border-surface-300 text-surface-600 hover:bg-surface-100'}">All</button
+						class="btn btn-sm {showAll ? 'preset-tonal-primary' : 'hover:preset-tonal'}">All</button
 					>
 					{#each DATE_PRESETS as p (p.key)}
 						<button
@@ -827,10 +822,7 @@
 								showAll = false;
 								applyDatePreset(p.key);
 							}}
-							class="rounded-base border px-2.5 py-1 text-xs font-medium transition-colors {!showAll &&
-							activeDatePreset === p.key
-								? 'border-primary-500 bg-primary-50 text-primary-700'
-								: 'border-surface-300 text-surface-600 hover:bg-surface-100'}">{p.label}</button
+							class="btn btn-sm {!showAll && activeDatePreset === p.key ? 'preset-tonal-primary' : 'hover:preset-tonal'}">{p.label}</button
 						>
 					{/each}
 				</div>
@@ -926,10 +918,7 @@
 									onclick={() => {
 										statusFilter = item.v as 'all' | 'open' | 'closed';
 									}}
-									class="rounded-base border px-3 py-1 text-xs font-medium transition-colors {statusFilter ===
-									item.v
-										? 'border-primary-500 bg-primary-50 text-primary-700'
-										: 'border-surface-300 text-surface-600 hover:bg-surface-100'}">{item.l}</button
+									class="btn btn-sm {statusFilter === item.v ? 'preset-tonal-primary' : 'hover:preset-tonal'}">{item.l}</button
 								>
 							{/each}
 						</div>
@@ -1168,10 +1157,7 @@
 			{#each Object.entries(PRESETS) as [key, preset] (key)}
 				<button
 					onclick={() => applyPreset(key as Preset)}
-					class="rounded-base border px-3 py-1 text-xs font-medium transition-colors {activePreset ===
-					key
-						? 'border-primary-500 bg-primary-50 text-primary-700'
-						: 'border-surface-300 text-surface-600 hover:bg-surface-100'}">{preset.label}</button
+					class="btn btn-sm {activePreset === key ? 'preset-tonal-primary' : 'hover:preset-tonal'}">{preset.label}</button
 				>
 			{/each}
 			<Popover>

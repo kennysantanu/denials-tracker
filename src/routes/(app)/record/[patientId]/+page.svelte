@@ -175,7 +175,7 @@
 	</nav>
 
 	<!-- Patient Header -->
-	<div class="mb-8 rounded-lg border border-surface-200 bg-surface-50 p-6">
+	<div class="mb-8 card border border-surface-200 bg-surface-50 p-6">
 		<div class="flex items-start justify-between gap-3">
 			<div class="min-w-0 flex-1">
 				<h1 class="text-2xl font-bold tracking-tight text-surface-900">
@@ -243,7 +243,7 @@
 					{#if patientMenuOpen}
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<div
-							class="absolute right-0 z-10 mt-1 min-w-36 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
+							class="absolute right-0 z-10 mt-1 min-w-36 rounded-container border border-surface-200 bg-white py-1 shadow-lg"
 							onmouseleave={() => (patientMenuOpen = false)}
 						>
 							<button
@@ -283,7 +283,7 @@
 	</div>
 
 	<!-- Filters -->
-	<div class="mb-4 flex flex-wrap items-center gap-2">
+	<div class="mb-4 flex flex-wrap items-center gap-2 lg:flex-nowrap">
 		{#if usedServiceDates.length > 0}
 			<MultiSelectDropdown
 				options={usedServiceDates}
@@ -314,12 +314,12 @@
 			type="search"
 			placeholder="Search notes…"
 			bind:value={searchQuery}
-			class="rounded border border-surface-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none"
+			class="input min-w-24 flex-1"
 		/>
 		{#if isFiltering}
 			<button
 				type="button"
-				class="text-xs text-surface-400 hover:text-surface-700"
+				class="btn shrink-0 btn-sm hover:preset-tonal"
 				onclick={() => {
 					searchQuery = '';
 					filterLabelIds = [];
@@ -352,9 +352,7 @@
 			{#if data.effectivePermissions['denial.create']}
 				<button
 					type="button"
-					class="rounded-lg px-4 py-2 text-sm font-medium transition-colors {showNewDenialForm
-						? 'border border-surface-300 text-surface-600 hover:bg-surface-100'
-						: 'bg-primary-600 text-white hover:bg-primary-700'}"
+					class="btn {showNewDenialForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
 					onclick={() => {
 						showNewDenialForm = !showNewDenialForm;
 						if (showNewDenialForm) newDenialFollowUpDate = '';
@@ -366,7 +364,7 @@
 		</div>
 
 		{#if showNewDenialForm}
-			<div class="mb-4 rounded-lg border border-surface-200 bg-white p-6 shadow-sm">
+			<div class="mb-4 card border border-surface-200 bg-white p-6 shadow-sm">
 				<form
 					method="POST"
 					action="?/createDenial"
@@ -464,10 +462,9 @@
 									<button
 										type="button"
 										onclick={() => (newDenialFollowUpDate = dateFromToday(preset.days))}
-										class="rounded-full border border-surface-300 px-2.5 py-0.5 text-xs font-medium text-surface-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 {newDenialFollowUpDate ===
-										dateFromToday(preset.days)
-											? 'border-primary-500 bg-primary-50 text-primary-700'
-											: ''}"
+										class="btn btn-sm {newDenialFollowUpDate === dateFromToday(preset.days)
+											? 'preset-tonal-primary'
+											: 'preset-outlined-surface-500'}"
 									>
 										{preset.label}
 									</button>

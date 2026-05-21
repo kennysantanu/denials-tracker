@@ -37,7 +37,9 @@
 <div class="relative" bind:this={wrapperEl}>
 	<button
 		type="button"
-		class="rounded border border-surface-300 px-2 py-1.5 text-sm focus:border-primary-500 focus:outline-none"
+		class="btn btn-sm whitespace-nowrap {selected.length > 0
+			? 'preset-tonal-primary'
+			: 'preset-outlined-surface-500'}"
 		onclick={() => (open = !open)}
 	>
 		{selected.length === 0 ? placeholder : `${selected.length} selected`}
@@ -46,7 +48,7 @@
 
 	{#if open}
 		<div
-			class="absolute z-20 mt-1 max-h-52 min-w-full overflow-y-auto rounded border border-surface-200 bg-white shadow-md"
+			class="absolute z-20 mt-1 max-h-52 min-w-full overflow-y-auto rounded-container border border-surface-200 bg-white shadow-md"
 		>
 			{#if options.length === 0}
 				<p class="px-3 py-2 text-sm text-surface-400">No options</p>

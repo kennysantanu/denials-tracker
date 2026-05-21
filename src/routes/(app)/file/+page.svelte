@@ -168,11 +168,11 @@
 			</h2>
 
 			{#if data.files.length === 0}
-				<div class="rounded-md border border-surface-200 bg-surface-50 px-6 py-10 text-center">
+				<div class="rounded-container border-2 border-dashed border-surface-200 p-8 text-center">
 					<p class="text-surface-500">No files found for this date.</p>
 				</div>
 			{:else}
-				<div class="overflow-x-auto rounded-md border border-surface-200">
+				<div class="table-wrap rounded-base border border-surface-200">
 					<table class="w-full text-left text-sm">
 						<thead class="border-b border-surface-200 bg-surface-50">
 							<tr>
@@ -285,7 +285,7 @@
 		}}
 	>
 		<div
-			class="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+			class="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-container bg-white shadow-xl"
 		>
 			<!-- Dialog header -->
 			<div class="flex items-center justify-between border-b border-surface-200 px-4 py-3">
@@ -296,7 +296,7 @@
 					{#if previewFile}
 						<a
 							href="/file/view?name={encodeURIComponent(previewFile.name)}"
-							class="rounded-md border border-surface-300 px-3 py-1.5 text-xs font-medium text-surface-700 hover:bg-surface-50"
+							class="btn preset-outlined-surface-500 btn-sm"
 						>
 							Open Full View
 						</a>
@@ -308,7 +308,7 @@
 							previewFile = null;
 							previewError = '';
 						}}
-						class="rounded p-1 text-surface-400 hover:bg-surface-100 hover:text-surface-700"
+						class="btn p-1 hover:preset-tonal"
 					>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
@@ -346,7 +346,7 @@
 							<a
 								href={previewFile.url}
 								download={previewFile.name}
-								class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+								class="btn preset-filled-primary-500"
 							>
 								Download File
 							</a>

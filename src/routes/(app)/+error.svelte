@@ -18,11 +18,6 @@
 				Something went wrong.
 			{/if}
 		</p>
-		<a
-			href="/dashboard"
-			class="mt-6 inline-block rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
-		>
-			Back to Dashboard
-		</a>
+		<a href="/dashboard" class="mt-6 btn preset-filled-primary-500"> Back to Dashboard </a>
 	</div>
 </div>

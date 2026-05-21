@@ -65,7 +65,7 @@
 
 <div class="mx-auto max-w-5xl space-y-6">
 	{#if data.error}
-		<div class="rounded-md border border-error-200 bg-error-50 px-6 py-10 text-center">
+		<div class="rounded-base border border-error-200 bg-error-50 px-6 py-10 text-center">
 			<p class="text-error-700">{data.error}</p>
 			<a href="/file" class="mt-4 inline-block text-sm text-primary-600 hover:underline">
 				&larr; Back to Files
@@ -82,7 +82,7 @@
 
 		<!-- File Info -->
 		{#if data.fileRecord}
-			<div class="rounded-md border border-surface-200 bg-white">
+			<div class="card border border-surface-200 bg-white">
 				<form
 					method="POST"
 					action="?/updateFileInfo"
@@ -139,7 +139,7 @@
 										id="status-select"
 										name="status"
 										bind:value={editStatus}
-										class="mt-1 block w-full rounded-md border border-surface-300 px-3 py-1.5 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
+										class="select mt-1"
 									>
 										{#each fileStatusOptions as option (option)}
 											<option value={option}>{option}</option>
@@ -154,20 +154,15 @@
 									name="note"
 									rows="3"
 									bind:value={editNote}
-									class="mt-1 block w-full rounded-md border border-surface-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none"
+									class="mt-1 textarea"
 								></textarea>
 							</div>
 							<div class="flex items-center justify-between">
 								<div class="flex gap-2">
-									<button
-										type="submit"
-										class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
-									>
-										Save
-									</button>
+									<button type="submit" class="btn preset-filled-primary-500"> Save </button>
 									<button
 										type="button"
-										class="rounded-md border border-surface-300 px-4 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50"
+										class="btn preset-outlined-surface-500"
 										onclick={() => {
 											editFileInfo = false;
 											editStatus = meta.status ?? 'New';
@@ -185,14 +180,14 @@
 												type="submit"
 												formaction="?/deleteFile"
 												disabled={isDeleting}
-												class="rounded-md bg-error-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-error-700 disabled:opacity-50"
+												class="btn preset-filled-error-500"
 											>
 												{isDeleting ? 'Deleting…' : 'Yes, delete'}
 											</button>
 											<button
 												type="button"
 												disabled={isDeleting}
-												class="rounded-md border border-surface-300 px-4 py-2 text-sm font-medium text-surface-700 hover:bg-surface-50 disabled:opacity-50"
+												class="btn preset-outlined-surface-500"
 												onclick={() => (confirmDelete = false)}
 											>
 												Cancel
@@ -201,7 +196,7 @@
 									{:else}
 										<button
 											type="button"
-											class="rounded-md bg-error-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-error-700"
+											class="btn preset-filled-error-500"
 											onclick={() => (confirmDelete = true)}
 										>
 											Delete
@@ -238,12 +233,11 @@
 									<span class="text-xs font-medium text-surface-500">Status</span>
 									<p class="mt-1 text-sm">
 										<span
-											class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {fileStatus ===
-											'Completed'
-												? 'bg-success-100 text-success-800'
+											class="badge {fileStatus === 'Completed'
+												? 'preset-tonal-success'
 												: fileStatus === 'In Progress'
-													? 'bg-warning-100 text-warning-800'
-													: 'bg-surface-100 text-surface-600'}"
+													? 'preset-tonal-warning'
+													: 'preset-tonal-surface'}"
 										>
 											{fileStatus}
 										</span>
@@ -262,7 +256,7 @@
 								<div>
 									<button
 										type="button"
-										class="rounded-md border border-primary-300 px-4 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50"
+										class="btn preset-outlined-primary-500"
 										onclick={() => (editFileInfo = true)}
 									>
 										Edit
@@ -277,11 +271,11 @@
 
 		<!-- Related Claims -->
 		{#if data.relatedClaims && data.relatedClaims.length > 0}
-			<div class="rounded-md border border-surface-200 bg-white">
+			<div class="card border border-surface-200 bg-white">
 				<div class="space-y-4 p-6">
 					<h2 class="text-lg font-semibold text-surface-800">Related Claims</h2>
-					<div class="overflow-x-auto">
-						<table class="w-full text-left text-sm">
+					<div class="table-wrap">
+						<table class="table caption-bottom">
 							<thead class="border-b border-surface-200 bg-surface-50">
 								<tr>
 									<th class="px-4 py-2 font-medium text-surface-700">Patient</th>
@@ -315,7 +309,7 @@
 													{#each row.notes.denials.denials_labels as dl, i (i)}
 														{#if dl.labels}
 															<span
-																class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
+																class="badge rounded-base"
 																style="background-color: {dl.labels.bg_color}; color: {dl.labels
 																	.txt_color};"
 															>
@@ -345,7 +339,7 @@
 		{/if}
 
 		<!-- File Preview -->
-		<div class="overflow-hidden rounded-md border border-surface-200">
+		<div class="overflow-hidden rounded-base border border-surface-200">
 			{#if isImage}
 				<img src={data.signedUrl} alt={data.fileName} class="max-h-[80vh] w-full object-contain" />
 			{:else if isPdf}
@@ -356,7 +350,7 @@
 					<a
 						href={data.signedUrl}
 						download={data.fileName}
-						class="mt-4 inline-block rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+						class="mt-4 btn preset-filled-primary-500"
 					>
 						Download File
 					</a>
