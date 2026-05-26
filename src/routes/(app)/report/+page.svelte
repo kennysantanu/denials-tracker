@@ -781,6 +781,9 @@
 			<p class="text-sm text-surface-500">Denial records for the selected date range.</p>
 		</div>
 		<div class="no-print flex gap-2">
+			{#if (page.data as any).effectivePermissions?.['kpi.read.self'] || (page.data as any).effectivePermissions?.['kpi.read.team'] || (page.data as any).effectivePermissions?.['kpi.read.all']}
+				<a href="/report/kpis" class="btn preset-tonal-primary btn-sm">KPI Dashboard</a>
+			{/if}
 			<button class="btn preset-tonal btn-sm" onclick={exportCsv}>Export CSV</button>
 			<button class="btn preset-tonal btn-sm" onclick={() => window.print()}>Print</button>
 		</div>
@@ -800,7 +803,9 @@
 							onclick={() => {
 								dateMode = item.v as 'service' | 'lastNote';
 							}}
-							class="btn btn-sm {dateMode === item.v ? 'preset-tonal-primary' : 'hover:preset-tonal'}">{item.l}</button
+							class="btn btn-sm {dateMode === item.v
+								? 'preset-tonal-primary'
+								: 'hover:preset-tonal'}">{item.l}</button
 						>
 					{/each}
 				</div>
@@ -822,7 +827,9 @@
 								showAll = false;
 								applyDatePreset(p.key);
 							}}
-							class="btn btn-sm {!showAll && activeDatePreset === p.key ? 'preset-tonal-primary' : 'hover:preset-tonal'}">{p.label}</button
+							class="btn btn-sm {!showAll && activeDatePreset === p.key
+								? 'preset-tonal-primary'
+								: 'hover:preset-tonal'}">{p.label}</button
 						>
 					{/each}
 				</div>
@@ -918,7 +925,9 @@
 									onclick={() => {
 										statusFilter = item.v as 'all' | 'open' | 'closed';
 									}}
-									class="btn btn-sm {statusFilter === item.v ? 'preset-tonal-primary' : 'hover:preset-tonal'}">{item.l}</button
+									class="btn btn-sm {statusFilter === item.v
+										? 'preset-tonal-primary'
+										: 'hover:preset-tonal'}">{item.l}</button
 								>
 							{/each}
 						</div>
@@ -1157,7 +1166,8 @@
 			{#each Object.entries(PRESETS) as [key, preset] (key)}
 				<button
 					onclick={() => applyPreset(key as Preset)}
-					class="btn btn-sm {activePreset === key ? 'preset-tonal-primary' : 'hover:preset-tonal'}">{preset.label}</button
+					class="btn btn-sm {activePreset === key ? 'preset-tonal-primary' : 'hover:preset-tonal'}"
+					>{preset.label}</button
 				>
 			{/each}
 			<Popover>

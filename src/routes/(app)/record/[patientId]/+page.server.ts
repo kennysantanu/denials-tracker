@@ -311,6 +311,17 @@ export const actions: Actions = {
 		}
 
 		logAudit(locals.supabase, user.id, 'create', 'denial', String(denial.id), undefined, request);
+		logAppEvent(locals.supabase, {
+			eventName: 'denial.created',
+			featureArea: 'denial',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'denial.create',
+			resourceType: 'denial',
+			resourceId: String(denial.id),
+			subjectPatientId: patientId,
+			subjectDenialId: denial.id
+		});
 
 		return { success: true };
 	},
@@ -374,6 +385,17 @@ export const actions: Actions = {
 		}
 
 		logAudit(locals.supabase, user.id, 'update', 'denial', String(denialId), undefined, request);
+		logAppEvent(locals.supabase, {
+			eventName: isClosed ? 'denial.closed' : 'denial.updated',
+			featureArea: 'denial',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'denial.update',
+			resourceType: 'denial',
+			resourceId: String(denialId),
+			subjectDenialId: denialId,
+			metadata: { is_closed: isClosed }
+		});
 
 		return { success: true };
 	},
@@ -400,6 +422,16 @@ export const actions: Actions = {
 		}
 
 		logAudit(locals.supabase, user.id, 'delete', 'denial', String(denialId), undefined, request);
+		logAppEvent(locals.supabase, {
+			eventName: 'denial.deleted',
+			featureArea: 'denial',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'denial.delete',
+			resourceType: 'denial',
+			resourceId: String(denialId),
+			subjectDenialId: denialId
+		});
 
 		return { success: true };
 	},
@@ -511,6 +543,17 @@ export const actions: Actions = {
 			}
 
 			logAudit(supabase, user.id, 'create', 'note', String(note.id), { denialId }, request);
+			logAppEvent(supabase, {
+				eventName: 'note.created',
+				featureArea: 'note',
+				outcome: 'success',
+				actorUserId: user.id,
+				permissionKey: 'note.create',
+				resourceType: 'note',
+				resourceId: String(note.id),
+				subjectPatientId: patientId,
+				subjectDenialId: denialId
+			});
 
 			return { success: true };
 		} catch (err) {
@@ -548,6 +591,15 @@ export const actions: Actions = {
 		}
 
 		logAudit(locals.supabase, user.id, 'delete', 'note', String(noteId), undefined, request);
+		logAppEvent(locals.supabase, {
+			eventName: 'note.deleted',
+			featureArea: 'note',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'note.delete',
+			resourceType: 'note',
+			resourceId: String(noteId)
+		});
 
 		return { success: true };
 	},
@@ -664,6 +716,16 @@ export const actions: Actions = {
 			}
 
 			logAudit(locals.supabase, user.id, 'update', 'note', String(noteId), undefined, request);
+			logAppEvent(locals.supabase, {
+				eventName: 'note.updated',
+				featureArea: 'note',
+				outcome: 'success',
+				actorUserId: user.id,
+				permissionKey: 'note.update',
+				resourceType: 'note',
+				resourceId: String(noteId),
+				subjectPatientId: isNaN(patientId) ? null : patientId
+			});
 
 			return { success: true };
 		} catch (err) {
@@ -782,6 +844,17 @@ export const actions: Actions = {
 				{ fileCount: uploadedFilePaths.length },
 				request
 			);
+			logAppEvent(supabase, {
+				eventName: 'file.uploaded',
+				featureArea: 'file',
+				outcome: 'success',
+				actorUserId: user.id,
+				permissionKey: 'file.upload',
+				resourceType: 'patient_file',
+				resourceId: String(patientId),
+				subjectPatientId: patientId,
+				count: uploadedFilePaths.length
+			});
 
 			return { success: true };
 		} catch (err) {
@@ -855,6 +928,16 @@ export const actions: Actions = {
 		}
 
 		logAudit(supabase, user.id, 'delete', 'patient_file', String(patientId), { fileName }, request);
+		logAppEvent(supabase, {
+			eventName: 'file.deleted',
+			featureArea: 'file',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'file.delete',
+			resourceType: 'patient_file',
+			resourceId: String(patientId),
+			subjectPatientId: patientId
+		});
 
 		return { success: true };
 	},
@@ -948,6 +1031,17 @@ export const actions: Actions = {
 			{ field: 'note' },
 			request
 		);
+		logAppEvent(locals.supabase, {
+			eventName: 'patient.updated',
+			featureArea: 'patient',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'patient.update',
+			resourceType: 'patient',
+			resourceId: String(patientId),
+			subjectPatientId: patientId,
+			metadata: { field: 'note' }
+		});
 
 		return { success: true };
 	},
@@ -1045,6 +1139,18 @@ export const actions: Actions = {
 			{ copied_from: sourceDenialId },
 			request
 		);
+		logAppEvent(supabase, {
+			eventName: 'denial.created',
+			featureArea: 'denial',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'denial.create',
+			resourceType: 'denial',
+			resourceId: String(newDenial.id),
+			subjectPatientId: patientId,
+			subjectDenialId: newDenial.id,
+			metadata: { copied_from: sourceDenialId }
+		});
 
 		return { success: true };
 	}
