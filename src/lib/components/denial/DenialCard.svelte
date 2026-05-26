@@ -21,7 +21,7 @@
 
 	interface Props {
 		denial: DenialRow & { insurances?: InsuranceRow[]; labels?: LabelRow[]; notes?: NoteRow[] };
-		permissions: Record<string, boolean>;
+		effectivePermissions: Record<string, boolean>;
 		patientId: number;
 		insurances: InsuranceRow[];
 		labels: LabelRow[];
@@ -31,7 +31,7 @@
 
 	let {
 		denial,
-		permissions,
+		effectivePermissions,
 		patientId,
 		insurances,
 		labels,
@@ -43,12 +43,12 @@
 	let copying = $state(false);
 	let selectedInsurance = $state<InsuranceRow | null>(null);
 	let menuOpen = $state(false);
-	let canSummarize = $derived(aiEnabled && permissions['generate_summary']);
+	let canSummarize = $derived(aiEnabled && effectivePermissions['ai.summary']);
 	let canShowMenu = $derived(
 		canSummarize ||
-			permissions['update_denial'] ||
-			permissions['delete_denial'] ||
-			permissions['create_denial']
+			effectivePermissions['denial.update'] ||
+			effectivePermissions['denial.delete'] ||
+			effectivePermissions['denial.create']
 	);
 
 	let billedDisplay = $derived(
@@ -181,7 +181,7 @@
 							class="absolute right-0 z-10 mt-1 min-w-32 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
 							onmouseleave={() => (menuOpen = false)}
 						>
-							{#if permissions['update_denial']}
+							{#if effectivePermissions['denial.update']}
 								<button
 									type="button"
 									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
@@ -193,7 +193,7 @@
 									Edit
 								</button>
 							{/if}
-							{#if permissions['create_denial']}
+							{#if effectivePermissions['denial.create']}
 								<button
 									type="button"
 									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
@@ -214,7 +214,7 @@
 									Summary
 								</button>
 							{/if}
-							{#if permissions['delete_denial']}
+							{#if effectivePermissions['denial.delete']}
 								<form
 									method="POST"
 									action="?/deleteDenial"
@@ -260,7 +260,7 @@
 		<DenialNoteList
 			notes={denial.notes ?? []}
 			denialId={denial.id}
-			{permissions}
+			{effectivePermissions}
 			{patientId}
 			{searchQuery}
 		/>
@@ -270,7 +270,7 @@
 {#if selectedInsurance}
 	<InsuranceNoteModal
 		insurance={selectedInsurance}
-		canEdit={!!permissions['manage_insurances']}
+		canEdit={!!effectivePermissions['insurance.update']}
 		onclose={() => (selectedInsurance = null)}
 	/>
 {/if}

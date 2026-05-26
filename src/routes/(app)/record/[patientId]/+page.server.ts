@@ -22,7 +22,7 @@ import { requirePermission } from '$lib/server/authz';
 import { logAppEvent } from '$lib/server/appEvents';
 
 export const load: PageServerLoad = async (event) => {
-	const { locals, params, parent, request } = event;
+	const { locals, params, request } = event;
 	const user = await locals.getUser();
 	if (!user) {
 		redirect(303, '/signin');
@@ -141,8 +141,6 @@ export const load: PageServerLoad = async (event) => {
 		};
 	});
 
-	const { permissions } = await parent();
-
 	logAudit(supabase, user.id, 'view', 'patient', String(patientId), undefined, request);
 
 	return {
@@ -150,7 +148,6 @@ export const load: PageServerLoad = async (event) => {
 		denials: denialsWithRelations,
 		allInsurances,
 		allLabels,
-		permissions,
 		patientFiles
 	};
 };

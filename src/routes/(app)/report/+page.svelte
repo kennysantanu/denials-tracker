@@ -10,6 +10,8 @@
 
 	let { data } = $props();
 
+	const canExport = $derived((page.data as any).effectivePermissions?.['report.export'] === true);
+
 	// -- column definitions ----------------------------------------------------
 
 	type ColKey =
@@ -784,7 +786,9 @@
 			{#if (page.data as any).effectivePermissions?.['kpi.read.self'] || (page.data as any).effectivePermissions?.['kpi.read.team'] || (page.data as any).effectivePermissions?.['kpi.read.all']}
 				<a href="/report/kpis" class="btn preset-tonal-primary btn-sm">KPI Dashboard</a>
 			{/if}
-			<button class="btn preset-tonal btn-sm" onclick={exportCsv}>Export CSV</button>
+			{#if canExport}
+				<button class="btn preset-tonal btn-sm" onclick={exportCsv}>Export CSV</button>
+			{/if}
 			<button class="btn preset-tonal btn-sm" onclick={() => window.print()}>Print</button>
 		</div>
 	</header>

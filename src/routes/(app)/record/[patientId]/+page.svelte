@@ -542,7 +542,7 @@
 						patientId={data.patient.id}
 						insurances={data.allInsurances}
 						labels={data.allLabels}
-						permissions={data.permissions}
+						effectivePermissions={data.effectivePermissions}
 						aiEnabled={data.aiEnabled}
 						{searchQuery}
 					/>
@@ -581,7 +581,7 @@
 						patientId={data.patient.id}
 						insurances={data.allInsurances}
 						labels={data.allLabels}
-						permissions={data.permissions}
+						effectivePermissions={data.effectivePermissions}
 						aiEnabled={data.aiEnabled}
 						{searchQuery}
 					/>

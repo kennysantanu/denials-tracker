@@ -13,12 +13,12 @@
 	interface Props {
 		notes: NoteRow[];
 		denialId: number;
-		permissions: Record<string, boolean>;
+		effectivePermissions: Record<string, boolean>;
 		patientId: number;
 		searchQuery?: string;
 	}
 
-	let { notes, denialId, permissions, patientId, searchQuery = '' }: Props = $props();
+	let { notes, denialId, effectivePermissions, patientId, searchQuery = '' }: Props = $props();
 
 	let showForm = $state(false);
 </script>
@@ -26,7 +26,7 @@
 <div class="space-y-3">
 	<div class="flex items-center justify-between">
 		<h4 class="text-sm font-semibold text-surface-700">Notes ({notes.length})</h4>
-		{#if permissions['create_denial'] && !showForm}
+		{#if effectivePermissions['note.create'] && !showForm}
 			<button
 				type="button"
 				class="btn preset-outlined-primary-500 btn-sm"
@@ -44,7 +44,7 @@
 	{#if notes.length}
 		<div class="space-y-2">
 			{#each notes as note (note.id)}
-				<DenialNote {note} {permissions} {patientId} {searchQuery} />
+				<DenialNote {note} {effectivePermissions} {patientId} {searchQuery} />
 			{/each}
 		</div>
 	{:else}

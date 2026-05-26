@@ -12,14 +12,10 @@ export const load: LayoutServerLoad = async (event) => {
 		redirect(303, '/signin');
 	}
 
-	// Run user+role fetch, preferences, and effective-permissions in parallel.
+	// Run user fetch, preferences, and effective-permissions in parallel.
 	const [{ data: userData }, [{ data: aiPref }, { data: timeoutPref }], effectivePermissions] =
 		await Promise.all([
-			locals.supabase
-				.from('users')
-				.select('*, roles!public_users_role_fkey(*)')
-				.eq('id', user.id)
-				.single(),
+			locals.supabase.from('users').select('password_changed_at').eq('id', user.id).single(),
 			Promise.all([
 				locals.supabase.from('preferences').select('value').eq('name', 'ai_enabled').single(),
 				locals.supabase
@@ -30,9 +26,6 @@ export const load: LayoutServerLoad = async (event) => {
 			]),
 			loadEffectivePermissions(event)
 		]);
-
-	const permissions =
-		(userData?.roles as { permissions?: Record<string, boolean> } | null)?.permissions ?? {};
 
 	// HIPAA T-6.3.5: Password expiry check
 	const passwordExpiryDays = parseInt(env.PASSWORD_EXPIRY_DAYS ?? '90', 10);
@@ -57,8 +50,6 @@ export const load: LayoutServerLoad = async (event) => {
 
 	return {
 		user,
-		userData,
-		permissions,
 		effectivePermissions,
 		aiEnabled,
 		idleTimeoutMinutes

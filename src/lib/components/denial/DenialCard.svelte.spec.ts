@@ -64,7 +64,7 @@ describe('DenialCard.svelte', () => {
 	it('renders denial amounts and dates', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: { view_denials: true },
+			effectivePermissions: {},
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any
@@ -78,7 +78,7 @@ describe('DenialCard.svelte', () => {
 	it('shows follow_up_date when present', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: { view_denials: true },
+			effectivePermissions: {},
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any
@@ -87,22 +87,23 @@ describe('DenialCard.svelte', () => {
 		await expect.element(page.getByText('Follow-up:', { exact: false })).toBeInTheDocument();
 	});
 
-	it('shows Edit button when update_denial permission is true', async () => {
+	it('shows Edit button when denial.update permission is true', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: { update_denial: true },
+			effectivePermissions: { 'denial.update': true },
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any
 		});
 
+		await page.getByTitle('Actions').click();
 		await expect.element(page.getByText('Edit')).toBeInTheDocument();
 	});
 
-	it('hides Edit button when update_denial permission is false', async () => {
+	it('hides Edit button when denial.update permission is false', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: { view_denials: true },
+			effectivePermissions: {},
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any
@@ -111,22 +112,23 @@ describe('DenialCard.svelte', () => {
 		await expect.element(page.getByText('Edit')).not.toBeInTheDocument();
 	});
 
-	it('shows Delete button when delete_denial permission is true', async () => {
+	it('shows Delete button when denial.delete permission is true', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: { delete_denial: true },
+			effectivePermissions: { 'denial.delete': true },
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any
 		});
 
+		await page.getByTitle('Actions').click();
 		await expect.element(page.getByRole('button', { name: 'Delete' }).first()).toBeInTheDocument();
 	});
 
-	it('hides Delete button when delete_denial permission is false', async () => {
+	it('hides Delete button when denial.delete permission is false', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: {},
+			effectivePermissions: {},
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any
@@ -135,23 +137,24 @@ describe('DenialCard.svelte', () => {
 		await expect.element(page.getByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
 	});
 
-	it('shows Summarize button when aiEnabled and generate_summary permission', async () => {
+	it('shows Summary button when aiEnabled and ai.summary permission is true', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: { generate_summary: true },
+			effectivePermissions: { 'ai.summary': true },
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any,
 			aiEnabled: true
 		});
 
-		await expect.element(page.getByText('Summarize', { exact: false })).toBeInTheDocument();
+		await page.getByTitle('Actions').click();
+		await expect.element(page.getByText('Summary', { exact: false })).toBeInTheDocument();
 	});
 
 	it('hides Summarize button when aiEnabled is false', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: { generate_summary: true },
+			effectivePermissions: { 'ai.summary': true },
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any,
@@ -165,7 +168,7 @@ describe('DenialCard.svelte', () => {
 		const closedDenial = { ...baseDenial, is_closed: true };
 		render(DenialCard, {
 			denial: closedDenial as any,
-			permissions: {},
+			effectivePermissions: {},
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any
@@ -177,7 +180,7 @@ describe('DenialCard.svelte', () => {
 	it('renders label badges', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: {},
+			effectivePermissions: {},
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any
@@ -189,7 +192,7 @@ describe('DenialCard.svelte', () => {
 	it('renders insurance names', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: {},
+			effectivePermissions: {},
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any
@@ -201,7 +204,7 @@ describe('DenialCard.svelte', () => {
 	it('shows notes count', async () => {
 		render(DenialCard, {
 			denial: baseDenial as any,
-			permissions: {},
+			effectivePermissions: {},
 			patientId: 10,
 			insurances: allInsurances as any,
 			labels: allLabels as any

@@ -16,12 +16,12 @@
 
 	interface Props {
 		note: NoteRow;
-		permissions: Record<string, boolean>;
+		effectivePermissions: Record<string, boolean>;
 		patientId: number;
 		searchQuery?: string;
 	}
 
-	let { note, permissions, patientId, searchQuery = '' }: Props = $props();
+	let { note, effectivePermissions, patientId, searchQuery = '' }: Props = $props();
 
 	function escapeHtml(str: string): string {
 		return str
@@ -149,7 +149,7 @@
 				{/if}
 			</div>
 
-			{#if permissions['update_denial'] || permissions['delete_denial']}
+			{#if effectivePermissions['note.update'] || effectivePermissions['note.delete']}
 				<div class="relative">
 					<button
 						type="button"
@@ -166,7 +166,7 @@
 							class="absolute right-0 z-10 mt-1 min-w-32 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
 							onmouseleave={() => (menuOpen = false)}
 						>
-							{#if permissions['update_denial']}
+							{#if effectivePermissions['note.update']}
 								<button
 									type="button"
 									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
@@ -175,7 +175,7 @@
 									Edit
 								</button>
 							{/if}
-							{#if permissions['delete_denial']}
+							{#if effectivePermissions['note.delete']}
 								<form
 									method="POST"
 									action="?/deleteNote"
