@@ -11,6 +11,8 @@
 	let resetPasswordValue = $state('');
 	let changeEmailId = $state<string | null>(null);
 	let changeEmailValue = $state('');
+	let changeUsernameId = $state<string | null>(null);
+	let changeUsernameValue = $state('');
 
 	function startEdit(user: any) {
 		editingId = user.id;
@@ -32,7 +34,16 @@
 
 	function startChangeEmail(user: any) {
 		changeEmailId = user.id;
-		changeEmailValue = user.username ?? '';
+		changeEmailValue = user.email ?? '';
+		resetPasswordId = null;
+		changeUsernameId = null;
+		editingId = null;
+	}
+
+	function startChangeUsername(user: any) {
+		changeUsernameId = user.id;
+		changeUsernameValue = user.username ?? '';
+		changeEmailId = null;
 		resetPasswordId = null;
 		editingId = null;
 	}
@@ -40,6 +51,7 @@
 	function cancelInline() {
 		resetPasswordId = null;
 		changeEmailId = null;
+		changeUsernameId = null;
 	}
 
 	function handleResult(action: string) {
@@ -50,6 +62,7 @@
 				editingId = null;
 				resetPasswordId = null;
 				changeEmailId = null;
+				changeUsernameId = null;
 			} else if (result.type === 'failure') {
 				toastError(result.data?.error ?? `Failed to ${action} user`);
 			}
@@ -134,6 +147,7 @@
 				<thead>
 					<tr>
 						<th>Username</th>
+						<th>Email</th>
 						<th>Role</th>
 						<th>Created</th>
 						<th class="w-64 text-right">Actions</th>
@@ -144,6 +158,7 @@
 						{#if editingId === u.id}
 							<tr>
 								<td class="font-medium text-surface-900">{u.username ?? '—'}</td>
+								<td class="text-sm text-surface-600">{u.email ?? '—'}</td>
 								<td>
 									<form
 										method="POST"
@@ -190,7 +205,7 @@
 						{:else if resetPasswordId === u.id}
 							<tr>
 								<td class="font-medium text-surface-900">{u.username ?? '—'}</td>
-								<td colspan="2">
+								<td colspan="3">
 									<form
 										method="POST"
 										action="?/resetPassword"
@@ -232,7 +247,7 @@
 						{:else if changeEmailId === u.id}
 							<tr>
 								<td class="font-medium text-surface-900">{u.username ?? '—'}</td>
-								<td colspan="2">
+								<td colspan="3">
 									<form
 										method="POST"
 										action="?/updateEmail"
@@ -270,9 +285,50 @@
 									</div>
 								</td>
 							</tr>
+						{:else if changeUsernameId === u.id}
+							<tr>
+								<td colspan="4">
+									<form
+										method="POST"
+										action="?/updateUsername"
+										use:enhance={() =>
+											async ({ result, update }) => {
+												handleResult('username updated')({ result });
+												await update();
+											}}
+										class="flex items-center gap-2"
+										id="change-username-{u.id}"
+									>
+										<input type="hidden" name="id" value={u.id} />
+										<input
+											type="text"
+											name="username"
+											required
+											placeholder="Display name"
+											bind:value={changeUsernameValue}
+											class="input"
+										/>
+									</form>
+								</td>
+								<td>
+									<div class="flex justify-end gap-2">
+										<button type="button" onclick={cancelInline} class="btn preset-tonal btn-sm">
+											Cancel
+										</button>
+										<button
+											form="change-username-{u.id}"
+											type="submit"
+											class="btn preset-filled-primary-500 btn-sm"
+										>
+											Save
+										</button>
+									</div>
+								</td>
+							</tr>
 						{:else}
 							<tr>
 								<td class="font-medium text-surface-900">{u.username ?? '—'}</td>
+								<td class="text-sm text-surface-600">{u.email ?? '—'}</td>
 								<td>
 									{#if u.role}
 										<span class="badge preset-tonal-primary">{getRoleName(u.role)}</span>
@@ -290,7 +346,14 @@
 											onclick={() => startEdit(u)}
 											class="btn preset-tonal-primary btn-sm"
 										>
-											Edit
+											Edit role
+										</button>
+										<button
+											type="button"
+											onclick={() => startChangeUsername(u)}
+											class="btn preset-tonal-primary btn-sm"
+										>
+											Username
 										</button>
 										<button
 											type="button"
@@ -332,7 +395,7 @@
 						{/if}
 					{:else}
 						<tr>
-							<td colspan="4">
+							<td colspan="5">
 								<div
 									class="rounded-container border-2 border-dashed border-surface-200 p-8 text-center"
 								>

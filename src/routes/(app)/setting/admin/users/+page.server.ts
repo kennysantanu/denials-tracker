@@ -34,6 +34,11 @@ const updateEmailSchema = z.object({
 	email: z.string().email('Valid email is required')
 });
 
+const updateUsernameSchema = z.object({
+	id: z.string().min(1, 'User ID is required'),
+	username: z.string().min(1, 'Username is required').max(100)
+});
+
 export const load: PageServerLoad = async (event) => {
 	const { locals } = event;
 	const user = await locals.getUser();
@@ -44,11 +49,22 @@ export const load: PageServerLoad = async (event) => {
 	const { data: users } = await getUsers(locals.supabase);
 	const { data: roles } = await getRoles(locals.supabase);
 
+	// Fetch auth emails via service-role to show them in the table.
+	const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
+	const { data: authList } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+	const emailMap = new Map<string, string>(
+		(authList?.users ?? []).map((u) => [u.id, u.email ?? ''])
+	);
+	const usersWithEmail = (users ?? []).map((u) => ({
+		...u,
+		email: emailMap.get(u.id) ?? null
+	}));
+
 	const createForm = await superValidate(zod(createUserSchema));
 	const updateForm = await superValidate(zod(updateUserSchema));
 
 	return {
-		users: users ?? [],
+		users: usersWithEmail,
 		roles: roles ?? [],
 		createForm,
 		updateForm
@@ -268,12 +284,6 @@ export const actions: Actions = {
 		});
 		if (authError) return fail(500, { form, error: authError.message });
 
-		// Keep public.users.username mirrored to the email (matches handle_new_user trigger).
-		const { error: dbError } = await updateUser(locals.supabase, id, {
-			username: email.replace('@supabase', '')
-		});
-		if (dbError) return fail(500, { form, error: dbError.message });
-
 		logAudit(locals.supabase, user.id, 'update', 'user', id, { email }, request);
 		logAppEvent(locals.supabase, {
 			eventName: 'user.email_changed',
@@ -289,5 +299,37 @@ export const actions: Actions = {
 		});
 
 		return message(form, 'Email updated successfully');
+	},
+
+	updateUsername: async (event) => {
+		const { request, locals } = event;
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'user.update', { resourceType: 'user' });
+
+		const form = await superValidate(request, zod(updateUsernameSchema));
+		if (!form.valid) return fail(400, { form });
+
+		const { id, username } = form.data;
+
+		const { error: dbError } = await updateUser(locals.supabase, id, { username });
+		if (dbError) return fail(500, { form, error: dbError.message });
+
+		logAudit(locals.supabase, user.id, 'update', 'user', id, { username }, request);
+		logAppEvent(locals.supabase, {
+			eventName: 'user.username_changed',
+			featureArea: 'admin.users',
+			outcome: 'success',
+			actorUserId: user.id,
+			permissionKey: 'user.update',
+			permissionSource: 'new',
+			resourceType: 'user',
+			resourceId: id,
+			requestId: locals.requestId,
+			metadata: { username }
+		});
+
+		return message(form, 'Username updated successfully');
 	}
 };
