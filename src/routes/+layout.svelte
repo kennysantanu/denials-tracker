@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import ToastHost from '$lib/components/ToastHost.svelte';
 
 	let { data, children } = $props();
 
@@ -22,3 +23,4 @@
 	<title>Denials Tracker</title>
 </svelte:head>
 {@render children()}
+<ToastHost />
