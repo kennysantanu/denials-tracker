@@ -88,9 +88,10 @@
 			inputValue = details.inputValue;
 		}}
 		openOnClick={true}
+		inputBehavior="autohighlight"
 		selectionBehavior="clear"
 		placeholder="Search insurances..."
-		closeOnSelect={false}
+		closeOnSelect={true}
 	>
 		<Combobox.Control>
 			<Combobox.Input
