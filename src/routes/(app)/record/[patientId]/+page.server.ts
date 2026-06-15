@@ -1112,17 +1112,26 @@ export const actions: Actions = {
 		if (copyNoteIds.length > 0) {
 			const { data: sourceNotes } = await supabase
 				.from('notes')
-				.select('id, note')
+				.select('id, note, notes_files(file_name)')
 				.eq('denial_id', sourceDenialId)
 				.in('id', copyNoteIds);
 
 			if (sourceNotes?.length) {
 				for (const sourceNote of sourceNotes) {
-					await createNote(supabase, {
+					const { data: newNote } = await createNote(supabase, {
 						denial_id: newDenial.id,
 						note: sourceNote.note,
 						created_by: user.id
 					});
+
+					if (newNote && sourceNote.notes_files?.length) {
+						await supabase.from('notes_files').insert(
+							sourceNote.notes_files.map((nf) => ({
+								note_id: newNote.id,
+								file_name: nf.file_name
+							}))
+						);
+					}
 				}
 			}
 		}
