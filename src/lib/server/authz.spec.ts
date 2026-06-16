@@ -1,24 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { authorize, requirePermission, getPermissionEngine } from './authz';
+import { authorize, requirePermission } from './authz';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
 // ---------------------------------------------------------------------------
 
 interface TableFixtures {
-	users?: {
-		id: string;
-		role: number | null;
-		roles: { permissions: Record<string, boolean> } | null;
-	}[];
 	user_role_assignments?: { user_id: string; role_id: number; revoked_at: string | null }[];
 	role_permissions?: { role_id: number; permission_key: string }[];
-	permission_compatibility_map?: {
-		legacy_key: string;
-		permission_key: string;
-		direction: 'legacy_to_new' | 'new_to_legacy' | 'both';
-		is_active: boolean;
-	}[];
 	app_events?: { event_name: string; outcome: string; permission_key: string | null }[];
 }
 
@@ -85,21 +74,6 @@ function createEventFake(supabase: ReturnType<typeof createSupabaseFake>) {
 	} as any;
 }
 
-const COMPAT_MAP = [
-	{
-		legacy_key: 'view_denials',
-		permission_key: 'denial.read',
-		direction: 'legacy_to_new' as const,
-		is_active: true
-	},
-	{
-		legacy_key: 'admin',
-		permission_key: 'break_glass.admin',
-		direction: 'both' as const,
-		is_active: true
-	}
-];
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -112,28 +86,7 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-describe('getPermissionEngine', () => {
-	it('defaults to dual when env unset', () => {
-		expect(getPermissionEngine()).toBe('dual');
-	});
-
-	it('honors legacy', () => {
-		process.env.PERMISSION_ENGINE = 'legacy';
-		expect(getPermissionEngine()).toBe('legacy');
-	});
-
-	it('honors new', () => {
-		process.env.PERMISSION_ENGINE = 'new';
-		expect(getPermissionEngine()).toBe('new');
-	});
-
-	it('falls back to dual on unknown value', () => {
-		process.env.PERMISSION_ENGINE = 'wat';
-		expect(getPermissionEngine()).toBe('dual');
-	});
-});
-
-describe('authorize() - dual engine (default)', () => {
+describe('authorize()', () => {
 	it('returns allowed=false when user is not signed in', async () => {
 		const sb = createSupabaseFake({});
 		const event = createEventFake(sb);
@@ -144,26 +97,10 @@ describe('authorize() - dual engine (default)', () => {
 		expect(r.permissionSource).toBe('none');
 	});
 
-	it('grants from legacy-only when canonical key maps to a granted legacy key', async () => {
+	it('grants when role_permissions has the canonical key', async () => {
 		const sb = createSupabaseFake({
-			users: [{ id: USER_ID, role: 1, roles: { permissions: { view_denials: true } } }],
-			user_role_assignments: [],
-			role_permissions: [],
-			permission_compatibility_map: COMPAT_MAP
-		});
-		const event = createEventFake(sb);
-
-		const r = await authorize(event, 'denial.read');
-		expect(r.allowed).toBe(true);
-		expect(r.permissionSource).toBe('legacy');
-	});
-
-	it('grants from new-only when role_permissions has the canonical key', async () => {
-		const sb = createSupabaseFake({
-			users: [{ id: USER_ID, role: null, roles: null }],
 			user_role_assignments: [{ user_id: USER_ID, role_id: 7, revoked_at: null }],
-			role_permissions: [{ role_id: 7, permission_key: 'denial.read' }],
-			permission_compatibility_map: COMPAT_MAP
+			role_permissions: [{ role_id: 7, permission_key: 'denial.read' }]
 		});
 		const event = createEventFake(sb);
 
@@ -173,26 +110,10 @@ describe('authorize() - dual engine (default)', () => {
 		expect(r.roleIds).toEqual([7]);
 	});
 
-	it('reports both when legacy and new agree', async () => {
+	it('denies when role_permissions does not contain the key', async () => {
 		const sb = createSupabaseFake({
-			users: [{ id: USER_ID, role: 1, roles: { permissions: { view_denials: true } } }],
-			user_role_assignments: [{ user_id: USER_ID, role_id: 1, revoked_at: null }],
-			role_permissions: [{ role_id: 1, permission_key: 'denial.read' }],
-			permission_compatibility_map: COMPAT_MAP
-		});
-		const event = createEventFake(sb);
-
-		const r = await authorize(event, 'denial.read');
-		expect(r.allowed).toBe(true);
-		expect(r.permissionSource).toBe('both');
-	});
-
-	it('returns none when neither store grants', async () => {
-		const sb = createSupabaseFake({
-			users: [{ id: USER_ID, role: 1, roles: { permissions: {} } }],
-			user_role_assignments: [],
-			role_permissions: [],
-			permission_compatibility_map: COMPAT_MAP
+			user_role_assignments: [{ user_id: USER_ID, role_id: 7, revoked_at: null }],
+			role_permissions: [{ role_id: 7, permission_key: 'patient.read' }]
 		});
 		const event = createEventFake(sb);
 
@@ -201,31 +122,10 @@ describe('authorize() - dual engine (default)', () => {
 		expect(r.permissionSource).toBe('none');
 	});
 
-	it('respects the admin -> break_glass.admin only mapping (admin does NOT auto-grant other admin perms)', async () => {
+	it('denies when user has no active role assignments', async () => {
 		const sb = createSupabaseFake({
-			users: [{ id: USER_ID, role: 1, roles: { permissions: { admin: true } } }],
 			user_role_assignments: [],
-			role_permissions: [],
-			permission_compatibility_map: COMPAT_MAP
-		});
-		const event = createEventFake(sb);
-
-		const breakGlass = await authorize(event, 'break_glass.admin');
-		expect(breakGlass.allowed).toBe(true);
-
-		const userManage = await authorize(event, 'user.create');
-		expect(userManage.allowed).toBe(false);
-	});
-});
-
-describe('authorize() - engine flag overrides', () => {
-	it('engine=legacy ignores role_permissions even when granted', async () => {
-		process.env.PERMISSION_ENGINE = 'legacy';
-		const sb = createSupabaseFake({
-			users: [{ id: USER_ID, role: 1, roles: { permissions: {} } }],
-			user_role_assignments: [{ user_id: USER_ID, role_id: 1, revoked_at: null }],
-			role_permissions: [{ role_id: 1, permission_key: 'denial.read' }],
-			permission_compatibility_map: COMPAT_MAP
+			role_permissions: [{ role_id: 7, permission_key: 'denial.read' }]
 		});
 		const event = createEventFake(sb);
 
@@ -233,17 +133,16 @@ describe('authorize() - engine flag overrides', () => {
 		expect(r.allowed).toBe(false);
 	});
 
-	it('engine=new ignores legacy permissions JSON', async () => {
-		process.env.PERMISSION_ENGINE = 'new';
+	it('does NOT grant admin permissions from the legacy admin key (legacy paths removed)', async () => {
+		// Even if a user somehow still has roles.permissions={admin:true} in DB,
+		// authorize() no longer reads that column - only role_permissions is consulted.
 		const sb = createSupabaseFake({
-			users: [{ id: USER_ID, role: 1, roles: { permissions: { view_denials: true } } }],
 			user_role_assignments: [],
-			role_permissions: [],
-			permission_compatibility_map: COMPAT_MAP
+			role_permissions: []
 		});
 		const event = createEventFake(sb);
 
-		const r = await authorize(event, 'denial.read');
+		const r = await authorize(event, 'break_glass.admin');
 		expect(r.allowed).toBe(false);
 	});
 });
@@ -251,10 +150,8 @@ describe('authorize() - engine flag overrides', () => {
 describe('requirePermission()', () => {
 	it('returns the result on success', async () => {
 		const sb = createSupabaseFake({
-			users: [{ id: USER_ID, role: 1, roles: { permissions: { view_denials: true } } }],
-			user_role_assignments: [],
-			role_permissions: [],
-			permission_compatibility_map: COMPAT_MAP
+			user_role_assignments: [{ user_id: USER_ID, role_id: 1, revoked_at: null }],
+			role_permissions: [{ role_id: 1, permission_key: 'denial.read' }]
 		});
 		const event = createEventFake(sb);
 
@@ -264,10 +161,8 @@ describe('requirePermission()', () => {
 
 	it('throws SvelteKit 403 and emits authorization.denied to app_events on failure', async () => {
 		const sb = createSupabaseFake({
-			users: [{ id: USER_ID, role: 1, roles: { permissions: {} } }],
 			user_role_assignments: [],
-			role_permissions: [],
-			permission_compatibility_map: COMPAT_MAP
+			role_permissions: []
 		});
 		const event = createEventFake(sb);
 

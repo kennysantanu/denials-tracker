@@ -14,8 +14,8 @@ import type { PageServerLoad, Actions } from './$types';
 
 // The form posts a comma-separated `keys` string of canonical permission
 // keys (sourced from `permission_catalog`). The server validates against the
-// catalog, then dual-writes via `setRolePermissions` (canonical rows in
-// `role_permissions` plus the derived legacy `roles.permissions` JSON).
+// catalog, then writes canonical rows to `role_permissions` via
+// `setRolePermissions`.
 const createRoleSchema = z.object({
 	role_name: z.string().min(1, 'Role name is required'),
 	keys: z.string().default('')
@@ -58,14 +58,11 @@ export const load: PageServerLoad = async (event) => {
 
 	await requirePermission(event, 'role.read', { resourceType: 'role' });
 
-	const [{ data: roles }, { data: catalog }, { data: rolePerms }, { data: compat }] =
+	const [{ data: roles }, { data: catalog }, { data: rolePerms }] =
 		await Promise.all([
 			getRoles(locals.supabase),
 			getPermissionCatalog(locals.supabase),
-			locals.supabase.from('role_permissions').select('role_id, permission_key'),
-			locals.supabase
-				.from('permission_compatibility_map')
-				.select('permission_key, legacy_key, direction, is_active')
+			locals.supabase.from('role_permissions').select('role_id, permission_key')
 		]);
 
 	const grantsByRole = new Map<number, string[]>();
@@ -79,23 +76,11 @@ export const load: PageServerLoad = async (event) => {
 		canonicalKeys: grantsByRole.get(r.id) ?? []
 	}));
 
-	// Map canonical key -> legacy keys it maps to (active rows only). Catalog
-	// entries with at least one mapping are 'legacy-mapped'; the rest are
-	// 'new'. FK on permission_compatibility_map.permission_key precludes a
-	// 'legacy-only' kind here.
-	const legacyByKey = new Map<string, string[]>();
-	for (const row of compat ?? []) {
-		if (!row.is_active) continue;
-		if (!legacyByKey.has(row.permission_key)) legacyByKey.set(row.permission_key, []);
-		legacyByKey.get(row.permission_key)!.push(row.legacy_key);
-	}
-
+	// All catalog entries are canonical-only post Phase 9a — no legacy-mapped kind.
 	const catalogWithKind = (catalog ?? []).map((c) => ({
 		...c,
-		kind: (legacyByKey.get(c.key)?.length ?? 0) > 0
-			? ('legacy-mapped' as const)
-			: ('new' as const),
-		legacyKeys: legacyByKey.get(c.key) ?? []
+		kind: 'new' as const,
+		legacyKeys: [] as string[]
 	}));
 
 	const createForm = await superValidate(zod(createRoleSchema));
@@ -130,8 +115,7 @@ export const actions: Actions = {
 		}
 
 		const { data: role, error } = await createRole(locals.supabase, {
-			role_name: form.data.role_name,
-			permissions: {} // legacy mirror is rewritten by setRolePermissions
+			role_name: form.data.role_name
 		});
 		if (error || !role) {
 			return fail(500, { createForm: form, error: error?.message ?? 'Failed to create role' });

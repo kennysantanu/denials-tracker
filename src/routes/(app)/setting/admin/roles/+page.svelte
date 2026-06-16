@@ -114,15 +114,9 @@
 
 			<fieldset class="mt-4 space-y-4">
 				<legend class="text-sm font-medium text-surface-700">Permissions</legend>
-				<p class="text-xs text-surface-500">
-					<span class="badge preset-tonal-primary text-[10px]">new</span>
-					= no v2 equivalent.
-					<span class="badge preset-tonal-warning ml-2 text-[10px]">legacy-mapped</span>
-					= dual-writes a v2 permission for transition.
-				</p>
 				{#each catalogByCategory as [category, entries] (category)}
 					<div>
-						<h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-600">
+						<h4 class="mb-2 text-xs font-semibold tracking-wide text-surface-600 uppercase">
 							{category}
 						</h4>
 						<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -131,22 +125,10 @@
 									<input
 										type="checkbox"
 										bind:checked={newKeys[entry.key]}
-										class="checkbox mt-0.5"
+										class="mt-0.5 checkbox"
 									/>
 									<span>
-										<span class="flex flex-wrap items-center gap-1">
-											<code class="text-xs">{entry.key}</code>
-											<span
-												class="badge text-[10px] {entry.kind === 'legacy-mapped'
-													? 'preset-tonal-warning'
-													: 'preset-tonal-primary'}"
-												title={entry.kind === 'legacy-mapped'
-													? `Maps to legacy: ${entry.legacyKeys.join(', ')}`
-													: 'No v2 equivalent'}
-											>
-												{entry.kind}
-											</span>
-										</span>
+										<code class="text-xs">{entry.key}</code>
 										{#if entry.description}
 											<span class="block text-xs text-surface-500">{entry.description}</span>
 										{/if}
@@ -218,7 +200,7 @@
 											{#each catalogByCategory as [category, entries] (category)}
 												<div>
 													<h4
-														class="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-600"
+														class="mb-2 text-xs font-semibold tracking-wide text-surface-600 uppercase"
 													>
 														{category}
 													</h4>
@@ -228,50 +210,38 @@
 																<input
 																	type="checkbox"
 																	bind:checked={editKeys[entry.key]}
-																	class="checkbox mt-0.5"
+																	class="mt-0.5 checkbox"
 																/>
 																<span>
-																<span class="flex flex-wrap items-center gap-1">
 																	<code class="text-xs">{entry.key}</code>
-																	<span
-																		class="badge text-[10px] {entry.kind === 'legacy-mapped'
-																			? 'preset-tonal-warning'
-																			: 'preset-tonal-primary'}"
-																		title={entry.kind === 'legacy-mapped'
-																			? `Maps to legacy: ${entry.legacyKeys.join(', ')}`
-																			: 'No v2 equivalent'}
-																	>
-																		{entry.kind}
-																	</span>
+																	{#if entry.description}
+																		<span class="block text-xs text-surface-500">
+																			{entry.description}
+																		</span>
+																	{/if}
 																</span>
-																{#if entry.description}
-																	<span class="block text-xs text-surface-500">
-																		{entry.description}
-																	</span>
-																{/if}
-															</span>
-														</label>
-													{/each}
+															</label>
+														{/each}
+													</div>
 												</div>
-											</div>
-										{/each}
-									</fieldset>
+											{/each}
+										</fieldset>
 
-									<div class="flex justify-end gap-2">
-										<button
-											type="button"
-											onclick={() => cancelEdit()}
-											class="btn preset-tonal btn-sm"
-										>
-											Cancel
-										</button>
-										<button type="submit" class="btn preset-filled-primary-500 btn-sm">
-											Save
-										</button>
-									</div>
-								</form>
-							</td>
-						</tr>
+										<div class="flex justify-end gap-2">
+											<button
+												type="button"
+												onclick={() => cancelEdit()}
+												class="btn preset-tonal btn-sm"
+											>
+												Cancel
+											</button>
+											<button type="submit" class="btn preset-filled-primary-500 btn-sm">
+												Save
+											</button>
+										</div>
+									</form>
+								</td>
+							</tr>
 						{:else}
 							<tr>
 								<td class="font-medium text-surface-900">{role.role_name}</td>
@@ -335,4 +305,3 @@
 		</div>
 	</div>
 </div>
-
