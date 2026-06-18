@@ -8,11 +8,17 @@ import { passwordSchema } from '$lib/schemas/auth';
 import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
 import { isSystemInitialized } from '$lib/server/setupState';
 import { logAudit } from '$lib/server/audit';
+import { setUserActiveRole } from '$lib/server/db/userRoleAssignments';
 import type { Database } from '$lib/supabase';
 import type { Actions, PageServerLoad } from './$types';
 
 const setupSchema = z
 	.object({
+		username: z
+			.string()
+			.min(2, 'Username must be at least 2 characters')
+			.max(50, 'Username must be 50 characters or fewer')
+			.regex(/^[a-zA-Z0-9._-]+$/, 'Only letters, numbers, dots, hyphens and underscores allowed'),
 		email: z.string().email('Please enter a valid email address'),
 		password: passwordSchema,
 		confirmPassword: z.string()
@@ -45,8 +51,7 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const email = form.data.email;
-		const password = form.data.password;
+		const { username, email, password } = form.data;
 
 		// Use the service-role admin client so we can:
 		//   1. Auto-confirm the email (no SMTP required for self-hosted installs).
@@ -61,7 +66,7 @@ export const actions: Actions = {
 			email,
 			password,
 			email_confirm: true,
-			user_metadata: { username: email.split('@')[0] }
+			user_metadata: { username }
 		});
 
 		if (createError || !created.user) {
@@ -91,8 +96,10 @@ export const actions: Actions = {
 			});
 		}
 
-		// Assign the Administrator role to the user row that handle_new_user()
-		// just created via the auth.users insert trigger.
+		// Assign the Administrator role:
+		//   1. Update legacy users.role FK (dual-write for backward compat).
+		//   2. Insert a user_role_assignments row so authorize() (canonical store)
+		//      can resolve permissions for this user.
 		const { error: assignError } = await adminClient
 			.from('users')
 			.update({ role: adminRole.id })
@@ -103,6 +110,22 @@ export const actions: Actions = {
 			return fail(500, {
 				form,
 				error: `Failed to assign administrator role: ${assignError.message}`
+			});
+		}
+
+		const { error: canonicalAssignError } = await setUserActiveRole(
+			adminClient,
+			newUserId,
+			adminRole.id,
+			null, // no actor — this is the first user
+			'initial setup'
+		);
+
+		if (canonicalAssignError) {
+			await adminClient.auth.admin.deleteUser(newUserId).catch(() => {});
+			return fail(500, {
+				form,
+				error: `Failed to create canonical role assignment: ${canonicalAssignError.message}`
 			});
 		}
 

@@ -30,6 +30,22 @@
 
 		<form method="POST" use:enhance class="space-y-4">
 			<label class="block">
+				<span class="text-sm font-medium text-surface-700">Username</span>
+				<input
+					type="text"
+					name="username"
+					bind:value={$form.username}
+					class="mt-1 block w-full rounded-md border border-surface-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+					placeholder="admin"
+					autocomplete="username"
+					required
+				/>
+				{#if $errors.username}
+					<p class="mt-1 text-sm text-error-500">{$errors.username}</p>
+				{/if}
+			</label>
+
+			<label class="block">
 				<span class="text-sm font-medium text-surface-700">Email</span>
 				<input
 					type="email"
