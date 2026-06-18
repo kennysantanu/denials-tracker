@@ -6,19 +6,8 @@
 	let effectivePermissions = $derived(
 		(data as any).effectivePermissions ?? ({} as Record<string, boolean>)
 	);
-	const ADMIN_KEYS = [
-		'user.read',
-		'role.read',
-		'audit.read',
-		'label.read',
-		'insurance.read',
-		'system_preferences.read',
-		'permission.read',
-		'break_glass.admin'
-	] as const;
-	let isAdmin = $derived(ADMIN_KEYS.some((k) => effectivePermissions[k] === true));
-
 	type NavItem = { href: string; label: string; description?: string };
+	type AdminNavItem = NavItem & { permKey: string };
 
 	const manageItems: NavItem[] = [
 		{ href: '/setting/manage/account', label: 'Account', description: 'Email and password' },
@@ -31,13 +20,47 @@
 		}
 	];
 
-	const adminItems: NavItem[] = [
-		{ href: '/setting/admin/users', label: 'Users', description: 'Manage workspace users' },
-		{ href: '/setting/admin/roles', label: 'Roles', description: 'Roles and permissions' },
-		{ href: '/setting/admin/labels', label: 'Labels', description: 'Denial labels' },
-		{ href: '/setting/admin/preferences', label: 'System', description: 'AI, session, system' },
-		{ href: '/setting/admin/audit', label: 'Audit Log', description: 'Activity history' }
+	const allAdminItems: AdminNavItem[] = [
+		{
+			href: '/setting/admin/users',
+			label: 'Users',
+			description: 'Manage workspace users',
+			permKey: 'user.read'
+		},
+		{
+			href: '/setting/admin/roles',
+			label: 'Roles',
+			description: 'Roles and permissions',
+			permKey: 'role.read'
+		},
+		{
+			href: '/setting/admin/labels',
+			label: 'Labels',
+			description: 'Denial labels',
+			permKey: 'label.read'
+		},
+		{
+			href: '/setting/admin/preferences',
+			label: 'System',
+			description: 'AI, session, system',
+			permKey: 'system_preferences.read'
+		},
+		{
+			href: '/setting/admin/audit',
+			label: 'Audit Log',
+			description: 'Activity history',
+			permKey: 'audit.read'
+		}
 	];
+
+	let adminItems = $derived(
+		allAdminItems.filter(
+			(i) =>
+				effectivePermissions[i.permKey] === true ||
+				effectivePermissions['break_glass.admin'] === true
+		)
+	);
+	let isAdmin = $derived(adminItems.length > 0);
 
 	function isActive(href: string): boolean {
 		return currentPath === href || currentPath.startsWith(href + '/');

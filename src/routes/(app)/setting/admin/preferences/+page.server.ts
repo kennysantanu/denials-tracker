@@ -1,5 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
+import { createClient } from '@supabase/supabase-js';
+import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
 import { logAudit } from '$lib/server/audit';
 import {
 	getSystemPreferences,
@@ -8,7 +10,12 @@ import {
 	MANAGED_PREFERENCE_NAMES
 } from '$lib/server/db/preferences';
 import { requirePermission } from '$lib/server/authz';
+import type { Database } from '$lib/supabase';
 import type { PageServerLoad, Actions } from './$types';
+
+function getAdminClient() {
+	return createClient<Database>(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
+}
 
 export const load: PageServerLoad = async (event) => {
 	const { locals } = event;
@@ -34,9 +41,7 @@ export const load: PageServerLoad = async (event) => {
 	]);
 
 	// Filter out managed prefs from the generic list
-	const preferences = (prefResult.data ?? []).filter(
-		(p) => !MANAGED_PREFERENCE_NAMES.has(p.name)
-	);
+	const preferences = (prefResult.data ?? []).filter((p) => !MANAGED_PREFERENCE_NAMES.has(p.name));
 
 	// Env cap for idle timeout (max allowed value, up to 1440 min / 24 h)
 	const maxIdleTimeout = Math.min(parseInt(env.SESSION_TIMEOUT_MINUTES ?? '30', 10) || 30, 1440);
@@ -72,7 +77,7 @@ export const actions: Actions = {
 		}
 
 		const { error } = await setSystemPreference(
-			locals.supabase,
+			getAdminClient(),
 			'idle_timeout_minutes',
 			String(rawValue),
 			'number'
@@ -117,9 +122,10 @@ export const actions: Actions = {
 			}
 		}
 
+		const adminClient = getAdminClient();
 		const [baseUrlResult, modelResult] = await Promise.all([
-			setSystemPreference(locals.supabase, 'ai_base_url', aiBaseUrl || null),
-			setSystemPreference(locals.supabase, 'ai_model_name', aiModelName || null)
+			setSystemPreference(adminClient, 'ai_base_url', aiBaseUrl || null),
+			setSystemPreference(adminClient, 'ai_model_name', aiModelName || null)
 		]);
 
 		if (baseUrlResult.error || modelResult.error) {
@@ -131,7 +137,7 @@ export const actions: Actions = {
 
 		// Set ai_enabled based on whether both fields are provided
 		const aiEnabled = !!(aiBaseUrl && aiModelName);
-		await setSystemPreference(locals.supabase, 'ai_enabled', aiEnabled ? 'true' : 'false');
+		await setSystemPreference(adminClient, 'ai_enabled', aiEnabled ? 'true' : 'false');
 
 		logAudit(
 			locals.supabase,
@@ -157,7 +163,7 @@ export const actions: Actions = {
 		const value = (formData.get('ai_chat_system_prompt') as string)?.trim() || null;
 
 		const { error } = await setSystemPreference(
-			locals.supabase,
+			getAdminClient(),
 			'ai_chat_system_prompt',
 			value,
 			'string'
@@ -188,7 +194,7 @@ export const actions: Actions = {
 		const value = (formData.get('ai_rewrite_system_prompt') as string)?.trim() || null;
 
 		const { error } = await setSystemPreference(
-			locals.supabase,
+			getAdminClient(),
 			'ai_rewrite_system_prompt',
 			value,
 			'string'
@@ -237,12 +243,7 @@ export const actions: Actions = {
 			return fail(404, { error: 'Preference not found' });
 		}
 
-		const { error } = await setSystemPreference(
-			locals.supabase,
-			name,
-			value,
-			existing.data_type
-		);
+		const { error } = await setSystemPreference(getAdminClient(), name, value, existing.data_type);
 		if (error) return fail(500, { error: error.message });
 
 		logAudit(
