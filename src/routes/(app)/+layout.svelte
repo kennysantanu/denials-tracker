@@ -54,11 +54,8 @@
 
 	let tabValue = $derived(navItems.find((item) => isActive(item.href))?.href ?? null);
 
-	// AI chat button visibility: only on context-providing routes
-	const aiContextRoutes = ['/record', '/report'];
-	let showAiButton = $derived(
-		data.aiEnabled && aiContextRoutes.some((r) => currentPath === r || currentPath.startsWith(r))
-	);
+	// AI chat button: visible on all (app) pages when AI is enabled and user has ai.chat permission
+	let showAiButton = $derived(data.aiEnabled && data.effectivePermissions['ai.chat'] === true);
 
 	// Update chat context when route changes
 	$effect(() => {

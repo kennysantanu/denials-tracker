@@ -153,8 +153,13 @@
 			patientId: data.patient.id,
 			pageData: {
 				patientName: `${data.patient.first_name} ${data.patient.last_name}`,
+				patientDob: data.patient.date_of_birth,
 				openDenialCount: openDenials.length,
-				closedDenialCount: closedDenials.length
+				closedDenialCount: closedDenials.length,
+				denials: openDenials.map((d: (typeof data.denials)[number]) => ({
+					id: d.id,
+					serviceStartDate: d.service_start_date ?? ''
+				}))
 			}
 		});
 	});
