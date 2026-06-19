@@ -1,4 +1,4 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
@@ -66,12 +66,27 @@ export const load: PageServerLoad = async (event) => {
 
 	await requirePermission(event, 'user.read', { resourceType: 'user' });
 
-	const { data: users } = await getUsers(locals.supabase);
-	const { data: roles } = await getRoles(locals.supabase);
+	const [{ data: users, error: usersError }, { data: roles, error: rolesError }] =
+		await Promise.all([getUsers(locals.supabase), getRoles(locals.supabase)]);
+
+	if (usersError) {
+		console.error('[admin/users] Failed to load users:', usersError);
+		error(500, 'Failed to load users.');
+	}
+
+	if (rolesError) {
+		console.error('[admin/users] Failed to load roles:', rolesError);
+		error(500, 'Failed to load roles.');
+	}
 
 	// Fetch auth emails via service-role to show them in the table.
 	const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
-	const { emailMap } = await listAllAuthEmails(adminClient);
+	const { emailMap, error: authUsersError } = await listAllAuthEmails(adminClient);
+	if (authUsersError) {
+		console.error('[admin/users] Failed to load auth users:', authUsersError);
+		error(500, 'Failed to load auth users.');
+	}
+
 	const usersWithEmail = (users ?? []).map((u: any) => {
 		const active = (u.user_role_assignments ?? []).find((a: any) => !a.revoked_at);
 		return {

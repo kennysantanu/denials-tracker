@@ -6,14 +6,18 @@ type Users = Database['public']['Tables']['users'];
 export function getUsers(supabase: SupabaseClient<Database>) {
 	return supabase
 		.from('users')
-		.select('*, user_role_assignments(role_id, revoked_at, roles(id, role_name))')
+		.select(
+			'*, user_role_assignments!user_role_assignments_user_id_fkey(role_id, revoked_at, roles(id, role_name))'
+		)
 		.order('created_at');
 }
 
 export function getUserById(supabase: SupabaseClient<Database>, id: string) {
 	return supabase
 		.from('users')
-		.select('*, user_role_assignments(role_id, revoked_at, roles(id, role_name))')
+		.select(
+			'*, user_role_assignments!user_role_assignments_user_id_fkey(role_id, revoked_at, roles(id, role_name))'
+		)
 		.eq('id', id)
 		.single();
 }
