@@ -72,10 +72,15 @@ export const load: PageServerLoad = async (event) => {
 	// Fetch auth emails via service-role to show them in the table.
 	const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
 	const { emailMap } = await listAllAuthEmails(adminClient);
-	const usersWithEmail = (users ?? []).map((u) => ({
-		...u,
-		email: emailMap.get(u.id) ?? null
-	}));
+	const usersWithEmail = (users ?? []).map((u: any) => {
+		const active = (u.user_role_assignments ?? []).find((a: any) => !a.revoked_at);
+		return {
+			...u,
+			email: emailMap.get(u.id) ?? null,
+			role_id: active?.role_id ?? null,
+			role_name: active?.roles?.role_name ?? null
+		};
+	});
 
 	const createForm = await superValidate(zod(createUserSchema));
 	const updateForm = await superValidate(zod(updateUserSchema));
@@ -111,13 +116,8 @@ export const actions: Actions = {
 		if (authError) return fail(500, { createForm: form, error: authError.message });
 
 		// handle_new_user() trigger auto-creates public.users row.
-		// Set role mirror + create canonical assignment row when a role was chosen.
+		// Create canonical role assignment when a role was chosen.
 		if (form.data.role_id) {
-			const { error: dbError } = await updateUser(locals.supabase, authData.user.id, {
-				role: form.data.role_id
-			});
-			if (dbError) return fail(500, { createForm: form, error: dbError.message });
-
 			const { error: assignError } = await setUserActiveRole(
 				adminClient,
 				authData.user.id,
@@ -167,17 +167,15 @@ export const actions: Actions = {
 		const newRole = role_id ?? null;
 
 		// Read previous role for audit + change detection.
-		const { data: prevUser } = await locals.supabase
-			.from('users')
-			.select('role')
-			.eq('id', id)
+		const { data: prevAssignment } = await locals.supabase
+			.from('user_role_assignments')
+			.select('role_id')
+			.eq('user_id', id)
+			.is('revoked_at', null)
 			.maybeSingle();
-		const prevRole = prevUser?.role ?? null;
+		const prevRole = (prevAssignment as any)?.role_id ?? null;
 
-		const { error } = await updateUser(locals.supabase, id, { role: newRole });
-		if (error) return fail(500, { updateForm: form, error: error.message });
-
-		// Mirror to user_role_assignments only when the role actually changed.
+		// Update canonical assignment when the role actually changed.
 		if (newRole !== prevRole) {
 			const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
 			const { error: assignError } = await setUserActiveRole(

@@ -96,23 +96,7 @@ export const actions: Actions = {
 			});
 		}
 
-		// Assign the Administrator role:
-		//   1. Update legacy users.role FK (dual-write for backward compat).
-		//   2. Insert a user_role_assignments row so authorize() (canonical store)
-		//      can resolve permissions for this user.
-		const { error: assignError } = await adminClient
-			.from('users')
-			.update({ role: adminRole.id })
-			.eq('id', newUserId);
-
-		if (assignError) {
-			await adminClient.auth.admin.deleteUser(newUserId).catch(() => {});
-			return fail(500, {
-				form,
-				error: `Failed to assign administrator role: ${assignError.message}`
-			});
-		}
-
+		// Assign the Administrator role via the canonical store.
 		const { error: canonicalAssignError } = await setUserActiveRole(
 			adminClient,
 			newUserId,

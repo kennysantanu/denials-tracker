@@ -19,13 +19,19 @@
 	let changeUsernameValue = $state('');
 
 	let permissions = $derived((page.data as any).effectivePermissions ?? {});
-	let canCreate = $derived(permissions['user.create'] === true || permissions['break_glass.admin'] === true);
-	let canUpdate = $derived(permissions['user.update'] === true || permissions['break_glass.admin'] === true);
-	let canDelete = $derived(permissions['user.delete'] === true || permissions['break_glass.admin'] === true);
+	let canCreate = $derived(
+		permissions['user.create'] === true || permissions['break_glass.admin'] === true
+	);
+	let canUpdate = $derived(
+		permissions['user.update'] === true || permissions['break_glass.admin'] === true
+	);
+	let canDelete = $derived(
+		permissions['user.delete'] === true || permissions['break_glass.admin'] === true
+	);
 
 	function startEdit(user: any) {
 		editingId = user.id;
-		editRoleId = user.role ?? undefined;
+		editRoleId = user.role_id ?? undefined;
 		resetPasswordId = null;
 		changeEmailId = null;
 	}
@@ -86,12 +92,6 @@
 		if (!deleteId) return;
 		(document.getElementById(`delete-user-${deleteId}`) as HTMLFormElement | null)?.requestSubmit();
 	}
-
-	function getRoleName(roleId: number | null): string {
-		if (!roleId) return '—';
-		const role = data.roles.find((r: any) => r.id === roleId);
-		return role?.role_name ?? '—';
-	}
 </script>
 
 <svelte:head>
@@ -116,7 +116,10 @@
 	</header>
 
 	{#if actionError}
-		<div class="rounded-base border-l-4 border-error-500 bg-error-50 p-4 text-sm text-error-700" role="alert">
+		<div
+			class="rounded-base border-l-4 border-error-500 bg-error-50 p-4 text-sm text-error-700"
+			role="alert"
+		>
 			{actionError}
 		</div>
 	{/if}
@@ -359,8 +362,8 @@
 								<td class="font-medium text-surface-900">{u.username ?? '—'}</td>
 								<td class="text-sm text-surface-600">{u.email ?? '—'}</td>
 								<td>
-									{#if u.role}
-										<span class="badge preset-tonal-primary">{getRoleName(u.role)}</span>
+									{#if u.role_id}
+										<span class="badge preset-tonal-primary">{u.role_name}</span>
 									{:else}
 										<span class="text-surface-400">—</span>
 									{/if}
