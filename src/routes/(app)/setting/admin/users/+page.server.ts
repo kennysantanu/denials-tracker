@@ -39,6 +39,26 @@ const updateUsernameSchema = z.object({
 	username: z.string().min(1, 'Username is required').max(100)
 });
 
+async function listAllAuthEmails(adminClient: any) {
+	const emailMap = new Map<string, string>();
+	let page = 1;
+	const perPage = 1000;
+
+	while (true) {
+		const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
+		if (error) return { emailMap, error };
+
+		for (const user of data?.users ?? []) {
+			emailMap.set(user.id, user.email ?? '');
+		}
+
+		if ((data?.users ?? []).length < perPage) break;
+		page += 1;
+	}
+
+	return { emailMap, error: null };
+}
+
 export const load: PageServerLoad = async (event) => {
 	const { locals } = event;
 	const user = await locals.getUser();
@@ -51,10 +71,7 @@ export const load: PageServerLoad = async (event) => {
 
 	// Fetch auth emails via service-role to show them in the table.
 	const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
-	const { data: authList } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
-	const emailMap = new Map<string, string>(
-		(authList?.users ?? []).map((u) => [u.id, u.email ?? ''])
-	);
+	const { emailMap } = await listAllAuthEmails(adminClient);
 	const usersWithEmail = (users ?? []).map((u) => ({
 		...u,
 		email: emailMap.get(u.id) ?? null
@@ -207,15 +224,16 @@ export const actions: Actions = {
 
 		const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
 
-		// Delete from public.users first (cascade revokes user_role_assignments).
-		const { error: dbError } = await deleteUser(locals.supabase, id);
-		if (dbError) return fail(500, { error: dbError.message });
-
-		// Delete auth user
+		// Delete auth user first. If this fails, leave the app profile intact so
+		// the user is not stranded with an auth account that has no profile row.
 		const { error: authError } = await adminClient.auth.admin.deleteUser(id);
 		if (authError) {
-			console.error('[admin] Failed to delete auth user:', authError);
+			return fail(500, { error: authError.message });
 		}
+
+		// Delete from public.users after auth deletion succeeds.
+		const { error: dbError } = await deleteUser(locals.supabase, id);
+		if (dbError) return fail(500, { error: dbError.message });
 
 		logAudit(locals.supabase, user.id, 'delete', 'user', id, undefined, request);
 		logAppEvent(locals.supabase, {

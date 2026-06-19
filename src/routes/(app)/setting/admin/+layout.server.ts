@@ -6,10 +6,9 @@ const ADMIN_KEYS = [
 	'user.read',
 	'role.read',
 	'audit.read',
+	'audit.export',
 	'label.read',
-	'insurance.read',
 	'system_preferences.read',
-	'permission.read',
 	'break_glass.admin'
 ] as const;
 

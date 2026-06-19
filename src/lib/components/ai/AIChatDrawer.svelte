@@ -26,6 +26,7 @@
 	let drawerWidth = $state(400);
 	let isSmallScreen = $state(false);
 	let isFullscreen = $state(false);
+	let isResizing = $state(false);
 	let hydrated = $state(false);
 
 	/** Full-screen mode: always on small screens, or when user toggled it on desktop */

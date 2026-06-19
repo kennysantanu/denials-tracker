@@ -110,6 +110,20 @@ describe('authorize()', () => {
 		expect(r.roleIds).toEqual([7]);
 	});
 
+	it('grants through break_glass.admin when the exact key is absent', async () => {
+		const sb = createSupabaseFake({
+			user_role_assignments: [{ user_id: USER_ID, role_id: 7, revoked_at: null }],
+			role_permissions: [{ role_id: 7, permission_key: 'break_glass.admin' }]
+		});
+		const event = createEventFake(sb);
+
+		const r = await authorize(event, 'denial.read');
+		expect(r.allowed).toBe(true);
+		expect(r.permissionSource).toBe('system');
+		expect(r.viaBreakGlass).toBe(true);
+		expect(r.reason).toContain('break_glass.admin');
+	});
+
 	it('denies when role_permissions does not contain the key', async () => {
 		const sb = createSupabaseFake({
 			user_role_assignments: [{ user_id: USER_ID, role_id: 7, revoked_at: null }],
@@ -157,6 +171,29 @@ describe('requirePermission()', () => {
 
 		const r = await requirePermission(event, 'denial.read');
 		expect(r.allowed).toBe(true);
+	});
+
+	it('emits authorization.break_glass to app_events when override access is used', async () => {
+		const sb = createSupabaseFake({
+			user_role_assignments: [{ user_id: USER_ID, role_id: 1, revoked_at: null }],
+			role_permissions: [{ role_id: 1, permission_key: 'break_glass.admin' }]
+		});
+		const event = createEventFake(sb);
+
+		const r = await requirePermission(event, 'denial.read');
+		expect(r.allowed).toBe(true);
+		expect(r.viaBreakGlass).toBe(true);
+
+		await new Promise((r) => setTimeout(r, 0));
+
+		const inserted = sb._inserts.app_events ?? [];
+		expect(inserted.length).toBe(1);
+		expect(inserted[0]).toMatchObject({
+			event_name: 'authorization.break_glass',
+			outcome: 'success',
+			permission_key: 'denial.read',
+			permission_source: 'system'
+		});
 	});
 
 	it('throws SvelteKit 403 and emits authorization.denied to app_events on failure', async () => {

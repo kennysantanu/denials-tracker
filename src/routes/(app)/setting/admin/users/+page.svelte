@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
+	import { page } from '$app/state';
+	import { ConfirmDialog } from '$lib/components/ui';
 
 	let { data } = $props();
 
 	let showAddForm = $state(false);
 	let editingId = $state<string | null>(null);
+	let deleteId = $state<string | null>(null);
+	let actionError = $state<string | null>(null);
 	let editRoleId = $state<number | undefined>(undefined);
 	let resetPasswordId = $state<string | null>(null);
 	let resetPasswordValue = $state('');
@@ -13,6 +17,11 @@
 	let changeEmailValue = $state('');
 	let changeUsernameId = $state<string | null>(null);
 	let changeUsernameValue = $state('');
+
+	let permissions = $derived((page.data as any).effectivePermissions ?? {});
+	let canCreate = $derived(permissions['user.create'] === true || permissions['break_glass.admin'] === true);
+	let canUpdate = $derived(permissions['user.update'] === true || permissions['break_glass.admin'] === true);
+	let canDelete = $derived(permissions['user.delete'] === true || permissions['break_glass.admin'] === true);
 
 	function startEdit(user: any) {
 		editingId = user.id;
@@ -58,15 +67,24 @@
 		return ({ result }: any) => {
 			if (result.type === 'success') {
 				toastSuccess(`User ${action} successfully`);
+				actionError = null;
 				showAddForm = false;
 				editingId = null;
+				deleteId = null;
 				resetPasswordId = null;
 				changeEmailId = null;
 				changeUsernameId = null;
 			} else if (result.type === 'failure') {
-				toastError(result.data?.error ?? `Failed to ${action} user`);
+				const message = result.data?.error ?? `Failed to ${action} user`;
+				actionError = message;
+				toastError(message);
 			}
 		};
+	}
+
+	function confirmDelete() {
+		if (!deleteId) return;
+		(document.getElementById(`delete-user-${deleteId}`) as HTMLFormElement | null)?.requestSubmit();
 	}
 
 	function getRoleName(roleId: number | null): string {
@@ -86,16 +104,24 @@
 			<h2 class="text-xl font-semibold text-surface-900">Users</h2>
 			<p class="text-sm text-surface-500">Workspace members and their assigned roles.</p>
 		</div>
-		<button
-			type="button"
-			onclick={() => (showAddForm = !showAddForm)}
-			class="btn btn-sm {showAddForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
-		>
-			{showAddForm ? 'Cancel' : 'Add user'}
-		</button>
+		{#if canCreate}
+			<button
+				type="button"
+				onclick={() => (showAddForm = !showAddForm)}
+				class="btn btn-sm {showAddForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
+			>
+				{showAddForm ? 'Cancel' : 'Add user'}
+			</button>
+		{/if}
 	</header>
 
-	{#if showAddForm}
+	{#if actionError}
+		<div class="rounded-base border-l-4 border-error-500 bg-error-50 p-4 text-sm text-error-700" role="alert">
+			{actionError}
+		</div>
+	{/if}
+
+	{#if showAddForm && canCreate}
 		<form
 			method="POST"
 			action="?/createUser"
@@ -172,7 +198,7 @@
 										id="edit-user-{u.id}"
 									>
 										<input type="hidden" name="id" value={u.id} />
-										<select name="role_id" bind:value={editRoleId} class="select">
+										<select name="role_id" bind:value={editRoleId} class="select" aria-label="Role">
 											<option value="">No role</option>
 											{#each data.roles as role (role.id)}
 												<option value={role.id}>{role.role_name}</option>
@@ -226,6 +252,7 @@
 											placeholder="New password (min 8 chars)"
 											bind:value={resetPasswordValue}
 											class="input"
+											aria-label="New password"
 										/>
 									</form>
 								</td>
@@ -267,6 +294,7 @@
 											placeholder="New email"
 											bind:value={changeEmailValue}
 											class="input"
+											aria-label="New email"
 										/>
 									</form>
 								</td>
@@ -307,6 +335,7 @@
 											placeholder="Display name"
 											bind:value={changeUsernameValue}
 											class="input"
+											aria-label="Display name"
 										/>
 									</form>
 								</td>
@@ -341,54 +370,57 @@
 								</td>
 								<td>
 									<div class="flex justify-end gap-2">
-										<button
-											type="button"
-											onclick={() => startEdit(u)}
-											class="btn preset-tonal-primary btn-sm"
-										>
-											Edit role
-										</button>
-										<button
-											type="button"
-											onclick={() => startChangeUsername(u)}
-											class="btn preset-tonal-primary btn-sm"
-										>
-											Username
-										</button>
-										<button
-											type="button"
-											onclick={() => startChangeEmail(u)}
-											class="btn preset-tonal-primary btn-sm"
-										>
-											Email
-										</button>
-										<button
-											type="button"
-											onclick={() => startResetPassword(u)}
-											class="btn preset-tonal-warning btn-sm"
-										>
-											Reset PW
-										</button>
-										<form
-											method="POST"
-											action="?/deleteUser"
-											use:enhance={() =>
-												async ({ result, update }) => {
-													handleResult('deleted')({ result });
-													await update();
-												}}
-										>
-											<input type="hidden" name="id" value={u.id} />
+										{#if canUpdate}
 											<button
-												type="submit"
-												onclick={(e) => {
-													if (!confirm('Delete this user?')) e.preventDefault();
-												}}
-												class="btn preset-tonal-error btn-sm"
+												type="button"
+												onclick={() => startEdit(u)}
+												class="btn preset-tonal-primary btn-sm"
 											>
-												Delete
+												Edit role
 											</button>
-										</form>
+											<button
+												type="button"
+												onclick={() => startChangeUsername(u)}
+												class="btn preset-tonal-primary btn-sm"
+											>
+												Username
+											</button>
+											<button
+												type="button"
+												onclick={() => startChangeEmail(u)}
+												class="btn preset-tonal-primary btn-sm"
+											>
+												Email
+											</button>
+											<button
+												type="button"
+												onclick={() => startResetPassword(u)}
+												class="btn preset-tonal-warning btn-sm"
+											>
+												Reset PW
+											</button>
+										{/if}
+										{#if canDelete}
+											<form
+												id="delete-user-{u.id}"
+												method="POST"
+												action="?/deleteUser"
+												use:enhance={() =>
+													async ({ result, update }) => {
+														handleResult('deleted')({ result });
+														await update();
+													}}
+											>
+												<input type="hidden" name="id" value={u.id} />
+												<button
+													type="button"
+													onclick={() => (deleteId = u.id)}
+													class="btn preset-tonal-error btn-sm"
+												>
+													Delete
+												</button>
+											</form>
+										{/if}
 									</div>
 								</td>
 							</tr>
@@ -409,3 +441,12 @@
 		</div>
 	</div>
 </div>
+
+<ConfirmDialog
+	open={deleteId !== null}
+	title="Delete user?"
+	message="This deletes the user from authentication and the workspace. You cannot undo this action."
+	confirmLabel="Delete user"
+	onconfirm={confirmDelete}
+	oncancel={() => (deleteId = null)}
+/>

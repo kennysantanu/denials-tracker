@@ -6,13 +6,23 @@
 	let effectivePermissions = $derived(
 		(data as any).effectivePermissions ?? ({} as Record<string, boolean>)
 	);
-	type NavItem = { href: string; label: string; description?: string };
+	type NavItem = { href: string; label: string; description?: string; permKey?: string };
 	type AdminNavItem = NavItem & { permKey: string };
 
-	const manageItems: NavItem[] = [
+	const allManageItems: NavItem[] = [
 		{ href: '/setting/manage/account', label: 'Account', description: 'Email and password' },
-		{ href: '/setting/manage/patients', label: 'Patients', description: 'Patient roster' },
-		{ href: '/setting/manage/insurances', label: 'Insurances', description: 'Payer list' },
+		{
+			href: '/setting/manage/patients',
+			label: 'Patients',
+			description: 'Patient roster',
+			permKey: 'patient.read'
+		},
+		{
+			href: '/setting/manage/insurances',
+			label: 'Insurances',
+			description: 'Payer list',
+			permKey: 'insurance.read'
+		},
 		{
 			href: '/setting/manage/preferences',
 			label: 'Preferences',
@@ -53,6 +63,15 @@
 		}
 	];
 
+	function canAccess(item: NavItem): boolean {
+		return (
+			!item.permKey ||
+			effectivePermissions[item.permKey] === true ||
+			effectivePermissions['break_glass.admin'] === true
+		);
+	}
+
+	let manageItems = $derived(allManageItems.filter(canAccess));
 	let adminItems = $derived(
 		allAdminItems.filter(
 			(i) =>

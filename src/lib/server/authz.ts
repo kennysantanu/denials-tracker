@@ -24,6 +24,7 @@ export interface AuthorizeResult {
 	permissionSource: PermissionSource;
 	roleIds: number[];
 	reason?: string;
+	viaBreakGlass?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -62,24 +63,32 @@ export async function authorize(
 
 	const roleIds = (assignments ?? []).map((a) => a.role_id);
 	let allowed = false;
+	let viaBreakGlass = false;
 
 	if (roleIds.length > 0) {
 		const { data: rps } = await supabase
 			.from('role_permissions')
 			.select('permission_key')
 			.in('role_id', roleIds)
-			.eq('permission_key', permissionKey)
-			.limit(1);
+			.in('permission_key', [permissionKey, 'break_glass.admin']);
 
-		allowed = (rps ?? []).length > 0;
+		const keys = new Set((rps ?? []).map((rp) => rp.permission_key));
+		allowed = keys.has(permissionKey);
+		viaBreakGlass = !allowed && permissionKey !== 'break_glass.admin' && keys.has('break_glass.admin');
+		allowed = allowed || viaBreakGlass;
 	}
 
 	return {
 		allowed,
 		permissionKey,
-		permissionSource: allowed ? 'new' : 'none',
+		permissionSource: viaBreakGlass ? 'system' : allowed ? 'new' : 'none',
 		roleIds,
-		reason: allowed ? undefined : `no grant for ${permissionKey}`
+		reason: allowed
+			? viaBreakGlass
+				? `allowed by break_glass.admin for ${permissionKey}`
+				: undefined
+			: `no grant for ${permissionKey}`,
+		viaBreakGlass
 	};
 }
 
@@ -120,6 +129,25 @@ export async function requirePermission(
 		});
 
 		error(403, `Forbidden: missing permission "${permissionKey}"`);
+	}
+
+	if (result.viaBreakGlass) {
+		const user = await event.locals.getUser();
+		logAppEvent(event.locals.supabase, {
+			eventName: 'authorization.break_glass',
+			featureArea: 'authz',
+			outcome: 'success',
+			actorUserId: user?.id ?? null,
+			actorRoleIds: result.roleIds,
+			permissionKey,
+			permissionSource: result.permissionSource,
+			resourceType: context?.resourceType ?? null,
+			resourceId: context?.resourceId ?? null,
+			subjectPatientId: context?.subjectPatientId ?? null,
+			subjectDenialId: context?.subjectDenialId ?? null,
+			requestId: event.locals.requestId,
+			metadata: { reason: result.reason ?? null, override: 'break_glass.admin' }
+		});
 	}
 
 	return result;

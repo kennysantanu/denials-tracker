@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { untrack } from 'svelte';
+	import { page } from '$app/state';
 
 	const DEFAULT_CHAT_PROMPT =
 		'You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.';
@@ -23,6 +24,11 @@
 	let idleTimeout = $state(initialData.idleTimeoutMinutes ?? 15);
 	let aiChatPrompt = $state(initialData.aiChatSystemPrompt ?? '');
 	let aiRewritePrompt = $state(initialData.aiRewriteSystemPrompt ?? '');
+	let permissions = $derived((page.data as any).effectivePermissions ?? {});
+	let canUpdate = $derived(
+		permissions['system_preferences.update'] === true ||
+			permissions['break_glass.admin'] === true
+	);
 
 	function handleResult() {
 		return ({ result }: any) => {
@@ -78,6 +84,7 @@
 					max={data.maxIdleTimeout}
 					bind:value={idleTimeout}
 					class="input max-w-xs"
+					disabled={!canUpdate}
 				/>
 				<span class="text-xs text-surface-500">
 					Range: 1–{data.maxIdleTimeout} minutes (max set by
@@ -85,7 +92,9 @@
 					2-minute warning before auto-signout.
 				</span>
 			</label>
-			<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+			{#if canUpdate}
+				<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+			{/if}
 		</form>
 	</section>
 
@@ -125,6 +134,7 @@
 					bind:value={aiBaseUrl}
 					placeholder="http://localhost:1234/v1"
 					class="input"
+					disabled={!canUpdate}
 				/>
 				<span class="text-xs text-surface-500">
 					Full OpenAI-compatible base URL — e.g. <code>http://localhost:1234/v1</code> (LM Studio)
@@ -140,16 +150,19 @@
 					bind:value={aiModelName}
 					placeholder="local-model"
 					class="input"
+					disabled={!canUpdate}
 				/>
 				<span class="text-xs text-surface-500">
 					Model identifier as configured in your local AI server.
 				</span>
 			</label>
-			<div>
-				<button type="submit" class="btn preset-filled-primary-500 btn-sm">
-					Save AI settings
-				</button>
-			</div>
+			{#if canUpdate}
+				<div>
+					<button type="submit" class="btn preset-filled-primary-500 btn-sm">
+						Save AI settings
+					</button>
+				</div>
+			{/if}
 		</form>
 
 		<!-- AI System Prompts -->
@@ -181,20 +194,23 @@
 						rows="5"
 						placeholder={DEFAULT_CHAT_PROMPT}
 						class="textarea font-mono"
+						disabled={!canUpdate}
 					></textarea>
 				</label>
-				<div class="flex items-center gap-2">
-					<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
-					{#if aiChatPrompt}
-						<button
-							type="button"
-							class="btn preset-tonal btn-sm"
-							onclick={() => (aiChatPrompt = '')}
-						>
-							Reset to default
-						</button>
-					{/if}
-				</div>
+				{#if canUpdate}
+					<div class="flex items-center gap-2">
+						<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+						{#if aiChatPrompt}
+							<button
+								type="button"
+								class="btn preset-tonal btn-sm"
+								onclick={() => (aiChatPrompt = '')}
+							>
+								Reset to default
+							</button>
+						{/if}
+					</div>
+				{/if}
 			</form>
 
 			<!-- Rewrite prompt -->
@@ -217,20 +233,23 @@
 						rows="4"
 						placeholder={DEFAULT_REWRITE_PROMPT}
 						class="textarea font-mono"
+						disabled={!canUpdate}
 					></textarea>
 				</label>
-				<div class="flex items-center gap-2">
-					<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
-					{#if aiRewritePrompt}
-						<button
-							type="button"
-							class="btn preset-tonal btn-sm"
-							onclick={() => (aiRewritePrompt = '')}
-						>
-							Reset to default
-						</button>
-					{/if}
-				</div>
+				{#if canUpdate}
+					<div class="flex items-center gap-2">
+						<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+						{#if aiRewritePrompt}
+							<button
+								type="button"
+								class="btn preset-tonal btn-sm"
+								onclick={() => (aiRewritePrompt = '')}
+							>
+								Reset to default
+							</button>
+						{/if}
+					</div>
+				{/if}
 			</form>
 		</div>
 	</section>
@@ -266,12 +285,15 @@
 									type="text"
 									value={pref.value ?? ''}
 									class="input"
+									disabled={!canUpdate}
 								/>
 								<span class="text-xs text-surface-500">
 									Type: <code>{pref.data_type ?? 'string'}</code>
 								</span>
 							</label>
-							<button type="submit" class="btn preset-filled-primary-500 btn-sm"> Save </button>
+							{#if canUpdate}
+								<button type="submit" class="btn preset-filled-primary-500 btn-sm"> Save </button>
+							{/if}
 						</div>
 					</form>
 				{/each}

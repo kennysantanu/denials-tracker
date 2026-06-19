@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
+	import { page } from '$app/state';
+	import { ConfirmDialog } from '$lib/components/ui';
 
 	let { data } = $props();
 
 	let showAddForm = $state(false);
 	let editingId = $state<number | null>(null);
+	let deleteId = $state<number | null>(null);
+	let actionError = $state<string | null>(null);
 
 	// Add form state
 	let newRoleName = $state('');
@@ -14,6 +18,11 @@
 	// Edit form state
 	let editRoleName = $state('');
 	let editKeys = $state<Record<string, boolean>>({});
+
+	let permissions = $derived((page.data as any).effectivePermissions ?? {});
+	let canCreate = $derived(permissions['role.create'] === true || permissions['break_glass.admin'] === true);
+	let canUpdate = $derived(permissions['role.update'] === true || permissions['break_glass.admin'] === true);
+	let canDelete = $derived(permissions['role.delete'] === true || permissions['break_glass.admin'] === true);
 
 	// Group catalog entries by category for the picker.
 	const catalogByCategory = $derived(
@@ -53,13 +62,22 @@
 		return ({ result }: { result: { type: string; data?: { error?: string } } }) => {
 			if (result.type === 'success') {
 				toastSuccess(`Role ${action} successfully`);
+				actionError = null;
 				showAddForm = false;
 				editingId = null;
+				deleteId = null;
 				resetAddForm();
 			} else if (result.type === 'failure') {
-				toastError(result.data?.error ?? `Failed to ${action} role`);
+				const message = result.data?.error ?? `Failed to ${action} role`;
+				actionError = message;
+				toastError(message);
 			}
 		};
+	}
+
+	function confirmDelete() {
+		if (!deleteId) return;
+		(document.getElementById(`delete-role-${deleteId}`) as HTMLFormElement | null)?.requestSubmit();
 	}
 </script>
 
@@ -75,19 +93,27 @@
 				Define roles and the canonical permissions granted to users assigned to them.
 			</p>
 		</div>
-		<button
-			type="button"
-			onclick={() => {
-				showAddForm = !showAddForm;
-				resetAddForm();
-			}}
-			class="btn btn-sm {showAddForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
-		>
-			{showAddForm ? 'Cancel' : 'Add role'}
-		</button>
+		{#if canCreate}
+			<button
+				type="button"
+				onclick={() => {
+					showAddForm = !showAddForm;
+					resetAddForm();
+				}}
+				class="btn btn-sm {showAddForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
+			>
+				{showAddForm ? 'Cancel' : 'Add role'}
+			</button>
+		{/if}
 	</header>
 
-	{#if showAddForm}
+	{#if actionError}
+		<div class="rounded-base border-l-4 border-error-500 bg-error-50 p-4 text-sm text-error-700" role="alert">
+			{actionError}
+		</div>
+	{/if}
+
+	{#if showAddForm && canCreate}
 		<form
 			method="POST"
 			action="?/createRole"
@@ -258,33 +284,36 @@
 								</td>
 								<td>
 									<div class="flex justify-end gap-2">
-										<button
-											type="button"
-											onclick={() => startEdit(role)}
-											class="btn preset-tonal-primary btn-sm"
-										>
-											Edit
-										</button>
-										<form
-											method="POST"
-											action="?/deleteRole"
-											use:enhance={() =>
-												async ({ result, update }) => {
-													handleResult('deleted')({ result });
-													await update();
-												}}
-										>
-											<input type="hidden" name="id" value={role.id} />
+										{#if canUpdate}
 											<button
-												type="submit"
-												onclick={(e) => {
-													if (!confirm('Delete this role?')) e.preventDefault();
-												}}
-												class="btn preset-tonal-error btn-sm"
+												type="button"
+												onclick={() => startEdit(role)}
+												class="btn preset-tonal-primary btn-sm"
 											>
-												Delete
+												Edit
 											</button>
-										</form>
+										{/if}
+										{#if canDelete}
+											<form
+												id="delete-role-{role.id}"
+												method="POST"
+												action="?/deleteRole"
+												use:enhance={() =>
+													async ({ result, update }) => {
+														handleResult('deleted')({ result });
+														await update();
+													}}
+											>
+												<input type="hidden" name="id" value={role.id} />
+												<button
+													type="button"
+													onclick={() => (deleteId = role.id)}
+													class="btn preset-tonal-error btn-sm"
+												>
+													Delete
+												</button>
+											</form>
+										{/if}
 									</div>
 								</td>
 							</tr>
@@ -305,3 +334,12 @@
 		</div>
 	</div>
 </div>
+
+<ConfirmDialog
+	open={deleteId !== null}
+	title="Delete role?"
+	message="Roles assigned to users cannot be deleted."
+	confirmLabel="Delete role"
+	onconfirm={confirmDelete}
+	oncancel={() => (deleteId = null)}
+/>
