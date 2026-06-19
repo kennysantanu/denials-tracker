@@ -4,7 +4,12 @@ import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { passwordSchema } from '$lib/schemas/auth';
 import { logAudit } from '$lib/server/audit';
+import { updateUser } from '$lib/server/db/users';
 import type { PageServerLoad, Actions } from './$types';
+
+const updateUsernameSchema = z.object({
+	username: z.string().trim().min(1, 'Username is required').max(100, 'Username is too long')
+});
 
 const changePasswordSchema = z
 	.object({
@@ -21,12 +26,41 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const user = await locals.getUser();
 	if (!user) redirect(303, '/signin');
 
-		const form = await superValidate(zod(changePasswordSchema));
+	const [{ data: profile }, form] = await Promise.all([
+		locals.supabase.from('users').select('username').eq('id', user.id).single(),
+		superValidate(zod(changePasswordSchema))
+	]);
 
-		return { form, expired: url.searchParams.get('expired') === '1' };
+	return {
+		form,
+		username: profile?.username ?? '',
+		expired: url.searchParams.get('expired') === '1'
+	};
 };
 
 export const actions: Actions = {
+	updateUsername: async ({ request, locals }) => {
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		const formData = await request.formData();
+		const parsed = updateUsernameSchema.safeParse({
+			username: formData.get('username')
+		});
+
+		if (!parsed.success) {
+			return fail(400, { error: parsed.error.issues[0]?.message ?? 'Invalid username' });
+		}
+
+		const { username } = parsed.data;
+		const { error } = await updateUser(locals.supabase, user.id, { username });
+		if (error) return fail(500, { error: error.message });
+
+		logAudit(locals.supabase, user.id, 'update', 'user', user.id, { username }, request);
+
+		return { success: true, username };
+	},
+
 	changePassword: async ({ request, locals }) => {
 		const user = await locals.getUser();
 		if (!user) redirect(303, '/signin');

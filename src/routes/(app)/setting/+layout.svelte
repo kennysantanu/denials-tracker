@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 
 	let { data, children } = $props();
@@ -72,12 +73,18 @@
 	}
 
 	let manageItems = $derived(allManageItems.filter(canAccess));
+	let canAccessAdminSettings = $derived(
+		effectivePermissions['admin.read'] === true ||
+			effectivePermissions['break_glass.admin'] === true
+	);
 	let adminItems = $derived(
-		allAdminItems.filter(
-			(i) =>
+		canAccessAdminSettings
+			? allAdminItems.filter(
+					(i) =>
 				effectivePermissions[i.permKey] === true ||
 				effectivePermissions['break_glass.admin'] === true
-		)
+				)
+			: []
 	);
 	let isAdmin = $derived(adminItems.length > 0);
 
@@ -96,7 +103,7 @@
 	<header class="mb-6 space-y-1">
 		<!-- Breadcrumb: full path on md+, current page only on mobile -->
 		<nav class="flex items-center gap-1.5 text-sm text-surface-500" aria-label="Breadcrumb">
-			<a href="/dashboard" class="hover:text-primary-600 hover:underline">Home</a>
+			<a href={resolve('/dashboard')} class="hover:text-primary-600 hover:underline">Home</a>
 			<span aria-hidden="true">/</span>
 			<span class="hidden font-medium text-surface-700 sm:inline">Settings</span>
 			<span class="hidden sm:inline" aria-hidden="true">/</span>
@@ -119,7 +126,7 @@
 				</span>
 				{#each manageItems as item (item.href)}
 					<a
-						href={item.href}
+						href={resolve(item.href as any)}
 						aria-current={isActive(item.href) ? 'page' : undefined}
 						class="btn shrink-0 btn-sm {isActive(item.href)
 							? 'preset-filled-primary-500'
@@ -137,7 +144,7 @@
 					</span>
 					{#each adminItems as item (item.href)}
 						<a
-							href={item.href}
+							href={resolve(item.href as any)}
 							aria-current={isActive(item.href) ? 'page' : undefined}
 							class="btn shrink-0 btn-sm {isActive(item.href)
 								? 'preset-filled-primary-500'
@@ -160,7 +167,7 @@
 					{#each manageItems as item (item.href)}
 						<li>
 							<a
-								href={item.href}
+								href={resolve(item.href as any)}
 								aria-current={isActive(item.href) ? 'page' : undefined}
 								class="flex flex-col rounded-base px-3 py-2 text-sm transition-colors {isActive(
 									item.href
@@ -185,7 +192,7 @@
 						{#each adminItems as item (item.href)}
 							<li>
 								<a
-									href={item.href}
+									href={resolve(item.href as any)}
 									aria-current={isActive(item.href) ? 'page' : undefined}
 									class="flex flex-col rounded-base px-3 py-2 text-sm transition-colors {isActive(
 										item.href

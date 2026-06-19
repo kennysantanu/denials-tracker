@@ -71,6 +71,7 @@ export type Permission =
 	| 'kpi.read.self'
 	| 'kpi.read.team'
 	| 'kpi.read.all'
+	| 'admin.read'
 	| 'system_preferences.read'
 	| 'system_preferences.update'
 	| 'break_glass.admin';
