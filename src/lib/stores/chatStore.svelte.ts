@@ -18,6 +18,8 @@ export interface ChatMessage {
 	toolArgs?: unknown;
 	toolResult?: string;
 	status?: 'pending' | 'streaming' | 'complete' | 'error' | 'cancelled';
+	round?: number;
+	maxRounds?: number;
 	createdAt: string;
 }
 
@@ -318,6 +320,8 @@ export async function send(text: string) {
 		const reader = res.body!.getReader();
 		const decoder = new TextDecoder();
 		let buffer = '';
+		let currentRound = 0;
+		let maxRounds = 5;
 
 		function flushDelta() {
 			if (pendingDelta) {
@@ -378,7 +382,9 @@ export async function send(text: string) {
 							toolName: payload.name as string,
 							toolArgs: payload.args,
 							createdAt: new Date().toISOString(),
-							status: 'pending'
+							status: 'pending',
+							round: currentRound,
+							maxRounds
 						};
 						// Insert tool message before assistant placeholder
 						const aidx = messages.findIndex((m) => m.id === assistantMsgId);
@@ -448,7 +454,8 @@ export async function send(text: string) {
 						break;
 					}
 					case 'round':
-						// Round indicator — no state change needed, UI can use it
+						currentRound = (payload.round as number) ?? 0;
+						maxRounds = (payload.max as number) ?? 5;
 						break;
 				}
 			}

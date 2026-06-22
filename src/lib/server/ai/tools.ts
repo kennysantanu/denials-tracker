@@ -198,6 +198,14 @@ async function handleQueryDenials(
 	}
 }
 
+// --- Interaction type mapping (replaces .includes() string matching) ---
+
+export const toolInteractionType: Record<string, string> = {
+	get_denial_summary: 'summary_tool',
+	generate_appeal_letter: 'appeal_tool',
+	query_denials: 'query_tool'
+};
+
 // --- Dispatcher ---
 
 export async function executeToolCall(

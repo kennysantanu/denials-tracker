@@ -225,8 +225,10 @@
 				<ChatEmptyState {quickPrompts} onPromptClick={handlePromptClick} />
 			{/snippet}
 			{#snippet children(args)}
+				{@const prevMsg = args.index > 0 ? messages[args.index - 1] : null}
 				<ChatMessage
 					message={args.message}
+					showRoundDivider={args.message.role === 'tool' && prevMsg?.role === 'tool' && (args.message.round ?? 0) !== (prevMsg?.round ?? 0)}
 					onCopy={handleCopy}
 				/>
 			{/snippet}

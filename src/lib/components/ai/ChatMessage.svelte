@@ -5,16 +5,18 @@
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Loader2 from '@lucide/svelte/icons/loader-2';
 	import type { ChatMessage as ChatMessageType } from '$lib/stores/chatStore.svelte';
 
 	interface Props {
 		message: ChatMessageType;
+		showRoundDivider?: boolean;
 		onCopy?: (id: string) => void;
 		onRetry?: () => void;
 		onEdit?: (id: string, text: string) => void;
 	}
 
-	let { message, onCopy, onRetry, onEdit }: Props = $props();
+	let { message, showRoundDivider = false, onCopy, onRetry, onEdit }: Props = $props();
 
 	let toolExpanded = $state(false);
 
@@ -38,19 +40,31 @@
 </script>
 
 {#if message.role === 'tool'}
+	<!-- Round divider -->
+	{#if showRoundDivider && message.round != null && message.round > 0}
+		<div class="flex items-center gap-2 pt-1 pb-0.5">
+			<div class="flex-1 border-t border-surface-200"></div>
+			<span class="text-[10px] text-surface-400 font-medium">
+				Round {message.round + 1} of {message.maxRounds ?? 5}
+			</span>
+			<div class="flex-1 border-t border-surface-200"></div>
+		</div>
+	{/if}
+
 	<!-- Tool call trace row (collapsed by default) -->
 	<div class="flex justify-start">
 		<div class="max-w-[85%] rounded-base border border-surface-200 bg-surface-50 px-3 py-1.5 text-xs">
 			<button
 				type="button"
-				class="flex items-center gap-1 text-surface-500 hover:text-surface-700 w-full text-left"
+				class="flex items-center gap-1.5 text-surface-500 hover:text-surface-700 w-full text-left"
 				onclick={() => (toolExpanded = !toolExpanded)}
 			>
 				<ChevronRight
-					class="h-3.5 w-3.5 transition-transform {toolExpanded ? 'rotate-90' : ''}"
+					class="h-3 w-3 shrink-0 transition-transform {toolExpanded ? 'rotate-90' : ''}"
 				/>
 				{#if message.status === 'pending'}
-					<span class="text-surface-400">Calling {message.toolName ?? 'tool'}...</span>
+					<Loader2 class="h-3 w-3 animate-spin text-primary-500 shrink-0" />
+					<span class="text-surface-500">Calling {message.toolName ?? 'tool'}...</span>
 				{:else if message.status === 'complete'}
 					<span class="text-success-600">{message.toolName ?? 'Tool'} completed</span>
 				{:else}

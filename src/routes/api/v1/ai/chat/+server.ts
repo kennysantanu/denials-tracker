@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isAIConfigured } from '$lib/server/ai/client';
 import { callChat, callChatStream, type StreamEvent } from '$lib/server/ai/chat';
-import { aiToolDefinitions, toolPermissions, type ToolContext } from '$lib/server/ai/tools';
+import { aiToolDefinitions, toolPermissions, toolInteractionType, type ToolContext } from '$lib/server/ai/tools';
 import { logAudit } from '$lib/server/audit';
 import { getSystemPreference } from '$lib/server/db/preferences';
 import { requirePermission, loadEffectivePermissions } from '$lib/server/authz';
@@ -232,13 +232,7 @@ export const POST: RequestHandler = async (event) => {
 							user_id: user.id,
 							denial_id: null,
 							interaction_type: finalToolCalls?.length
-								? finalToolCalls[0].name.includes('summary')
-									? 'summary_tool'
-									: finalToolCalls[0].name.includes('appeal')
-										? 'appeal_tool'
-										: finalToolCalls[0].name.includes('query')
-											? 'query_tool'
-											: 'chat'
+								? (toolInteractionType[finalToolCalls[0].name] ?? 'chat')
 								: 'chat',
 							tool_name: finalToolCalls?.[0]?.name ?? null,
 							prompt_summary:
