@@ -157,8 +157,8 @@ export async function* callChatStream(
 			model,
 			messages: conversationMessages,
 			tools: useTools ? tools : undefined,
-			stream: true,
-			stream_options: { include_usage: true }
+			stream: true
+			// stream_options is OpenAI-proprietary; omitted for LM Studio / Ollama compat
 		});
 
 		// Accumulate streaming deltas
