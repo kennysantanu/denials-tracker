@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
 import { toastSuccess, toastError } from '$lib/toast';
+import { getChatContext } from '$lib/stores/chatContext.svelte';
 
 export interface ChatThread {
 	id: string;
@@ -276,8 +277,8 @@ export async function send(text: string) {
 			body: JSON.stringify({
 				messages: apiMessages,
 				context: {
-					patientId: undefined,
-					denialId: undefined
+					patientId: getChatContext().patientId,
+					pageData: getChatContext().pageData
 				}
 			})
 		});

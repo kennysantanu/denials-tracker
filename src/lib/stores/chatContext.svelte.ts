@@ -8,10 +8,6 @@ export interface ChatContext {
 	route: string;
 	/** Patient ID when on a patient page */
 	patientId?: number;
-	/** Specific denial ID to focus on */
-	denialId?: number;
-	/** Pre-filled prompt (e.g. "Summarize this denial") */
-	focusedPrompt?: string;
 	/** Serializable page data for AI context */
 	pageData?: Record<string, unknown>;
 }
@@ -35,10 +31,7 @@ export function isChatDrawerOpen(): boolean {
 	return drawerOpen;
 }
 
-export function openChatDrawer(focusedPrompt?: string): void {
-	if (focusedPrompt) {
-		context = { ...context, focusedPrompt };
-	}
+export function openChatDrawer(): void {
 	drawerOpen = true;
 }
 

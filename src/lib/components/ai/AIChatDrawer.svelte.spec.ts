@@ -17,9 +17,8 @@ vi.mock('$lib/stores/chatContext.svelte', () => ({
 	closeChatDrawer: vi.fn(() => {
 		state._open = false;
 	}),
-	openChatDrawer: vi.fn((prompt?: string) => {
+	openChatDrawer: vi.fn(() => {
 		state._open = true;
-		if (prompt) state._context.focusedPrompt = prompt;
 	}),
 	toggleChatDrawer: vi.fn(() => {
 		state._open = !state._open;

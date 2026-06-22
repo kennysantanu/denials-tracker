@@ -8,7 +8,6 @@
 	import DenialCopyModal from './DenialCopyModal.svelte';
 	import DenialNoteList from './DenialNoteList.svelte';
 	import { InsuranceNoteModal } from '$lib/components/modals';
-	import { openChatDrawer, updateChatContext } from '$lib/stores/chatContext.svelte';
 
 	type DenialRow = Database['public']['Tables']['denials']['Row'];
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
@@ -25,7 +24,6 @@
 		patientId: number;
 		insurances: InsuranceRow[];
 		labels: LabelRow[];
-		aiEnabled?: boolean;
 		searchQuery?: string;
 	}
 
@@ -35,7 +33,6 @@
 		patientId,
 		insurances,
 		labels,
-		aiEnabled = false,
 		searchQuery = ''
 	}: Props = $props();
 
@@ -43,10 +40,8 @@
 	let copying = $state(false);
 	let selectedInsurance = $state<InsuranceRow | null>(null);
 	let menuOpen = $state(false);
-	let canSummarize = $derived(aiEnabled && effectivePermissions['ai.summary']);
 	let canShowMenu = $derived(
-		canSummarize ||
-			effectivePermissions['denial.update'] ||
+		effectivePermissions['denial.update'] ||
 			effectivePermissions['denial.delete'] ||
 			effectivePermissions['denial.create']
 	);
@@ -57,12 +52,6 @@
 	let paidDisplay = $derived(
 		denial.paid_amount != null ? `$${denial.paid_amount.toFixed(2)}` : '—'
 	);
-
-	function handleSummarize() {
-		menuOpen = false;
-		updateChatContext({ denialId: denial.id, patientId });
-		openChatDrawer('Summarize this denial and its notes.');
-	}
 </script>
 
 <div class="rounded-lg border border-surface-300 bg-surface-50 p-4 shadow-sm">
@@ -203,15 +192,6 @@
 									}}
 								>
 									Copy
-								</button>
-							{/if}
-							{#if canSummarize}
-								<button
-									type="button"
-									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
-									onclick={handleSummarize}
-								>
-									Summary
 								</button>
 							{/if}
 							{#if effectivePermissions['denial.delete']}

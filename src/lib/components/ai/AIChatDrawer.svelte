@@ -5,17 +5,13 @@
 		isChatDrawerOpen,
 		closeChatDrawer
 	} from '$lib/stores/chatContext.svelte';
+	import { send } from '$lib/stores/chatStore.svelte';
 	import DOMPurify from 'dompurify';
 	import { marked } from 'marked';
 
 	interface ChatMessage {
 		role: 'user' | 'assistant';
 		content: string;
-	}
-
-	interface DenialChip {
-		id: number;
-		serviceStartDate: string;
 	}
 
 	let messages = $state<ChatMessage[]>([]);
@@ -69,19 +65,6 @@
 		}
 	});
 
-	let lastFocusedPrompt = $state('');
-
-	// Auto-fill focused prompt from context
-	$effect(() => {
-		if (open && context.focusedPrompt && context.focusedPrompt !== lastFocusedPrompt) {
-			lastFocusedPrompt = context.focusedPrompt;
-			queueMicrotask(() => {
-				input = context.focusedPrompt ?? '';
-				sendMessage();
-			});
-		}
-	});
-
 	// Auto-scroll on new messages
 	$effect(() => {
 		if (messages.length && messagesContainer) {
@@ -112,7 +95,7 @@
 					messages: apiMessages,
 					context: {
 						patientId: context.patientId,
-						denialId: context.denialId
+						pageData: context.pageData
 					}
 				})
 			});
@@ -168,30 +151,6 @@
 
 	async function copyToClipboard(text: string) {
 		await navigator.clipboard.writeText(text);
-	}
-
-	function formatDOS(dateStr: string): string {
-		if (!dateStr) return 'unknown';
-		const [y, m, d] = dateStr.split('-');
-		return `${m}/${d}/${y.slice(2)}`;
-	}
-
-	function buildPatientContextSnippet(): string {
-		const pd = context.pageData as Record<string, unknown> | undefined;
-		const name = (pd?.patientName as string) ?? 'this patient';
-		const dob = pd?.patientDob as string | undefined;
-		const open = (pd?.openDenialCount as number) ?? 0;
-		const closed = (pd?.closedDenialCount as number) ?? 0;
-		const dobStr = dob ? ` (DOB: ${dob})` : '';
-		return `Context: I'm viewing patient ${name}${dobStr} — ${open} open denial${open !== 1 ? 's' : ''}, ${closed} closed.`;
-	}
-
-	function buildDenialContextSnippet(denial: DenialChip): string {
-		return `Context: I'm focused on denial DOS ${formatDOS(denial.serviceStartDate)} (ID: #${denial.id}).`;
-	}
-
-	function prefillContext(text: string) {
-		input = text;
 	}
 
 	const quickPrompts = $derived(
@@ -292,7 +251,7 @@
 							{#each quickPrompts as prompt}
 								<button
 									type="button"
-									onclick={() => prefillContext(prompt)}
+									onclick={() => send(prompt)}
 									class="w-full rounded-base border border-surface-200 px-3 py-2 text-left text-xs text-surface-600 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700"
 								>
 									{prompt}
@@ -340,35 +299,6 @@
 				</div>
 			{/if}
 		</div>
-
-		<!-- Context chips -->
-		{#if context.patientId}
-			{@const pd = context.pageData as Record<string, unknown> | undefined}
-			{@const pageDenials = (pd?.denials as DenialChip[]) ?? []}
-			<div
-				class="flex flex-wrap items-center gap-1.5 border-t border-surface-100 bg-surface-50 px-3 py-1.5"
-			>
-				<span class="text-xs text-surface-400">Add context:</span>
-				<button
-					type="button"
-					onclick={() => prefillContext(buildPatientContextSnippet())}
-					class="rounded-full border border-surface-200 bg-white px-2.5 py-0.5 text-xs font-medium text-surface-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
-					title="Prefill with patient context"
-				>
-					📋 {pd?.patientName ?? 'Patient'}
-				</button>
-				{#each pageDenials as denial (denial.id)}
-					<button
-						type="button"
-						onclick={() => prefillContext(buildDenialContextSnippet(denial))}
-						class="rounded-full border border-surface-200 bg-white px-2.5 py-0.5 text-xs font-medium text-surface-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
-						title="Prefill with denial context"
-					>
-						🗒️ DOS {formatDOS(denial.serviceStartDate)}
-					</button>
-				{/each}
-			</div>
-		{/if}
 
 		<!-- Input -->
 		<div class="border-t border-surface-200 p-3">

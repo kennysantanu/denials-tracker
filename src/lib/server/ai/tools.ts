@@ -6,7 +6,6 @@ export interface ToolContext {
 	supabase: SupabaseClient<Database>;
 	userId: string;
 	patientId?: number;
-	denialId?: number;
 }
 
 // --- Tool definitions for OpenAI function calling ---

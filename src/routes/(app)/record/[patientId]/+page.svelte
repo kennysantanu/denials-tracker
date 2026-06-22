@@ -152,14 +152,30 @@
 			route: `/record/${data.patient.id}`,
 			patientId: data.patient.id,
 			pageData: {
-				patientName: `${data.patient.first_name} ${data.patient.last_name}`,
-				patientDob: data.patient.date_of_birth,
-				openDenialCount: openDenials.length,
-				closedDenialCount: closedDenials.length,
-				denials: openDenials.map((d: (typeof data.denials)[number]) => ({
-					id: d.id,
-					serviceStartDate: d.service_start_date ?? ''
-				}))
+				patient: {
+					id: data.patient.id,
+					first_name: data.patient.first_name,
+					last_name: data.patient.last_name,
+					date_of_birth: data.patient.date_of_birth,
+					note: data.patient.note,
+					created_at: data.patient.created_at
+				},
+				files: (data.patientFiles ?? []).map((f: any) => ({
+					name: f.name,
+					mimetype: f.mimetype,
+					size: f.size,
+					created_at: f.created_at
+				})),
+				denials: data.denials
+					.map((d: (typeof data.denials)[number]) => ({
+						id: d.id,
+						service_start_date: d.service_start_date,
+						is_closed: d.is_closed
+					}))
+					.sort((a: any, b: any) =>
+						(b.service_start_date ?? '').localeCompare(a.service_start_date ?? '')
+					)
+					.slice(0, 50)
 			}
 		});
 	});
@@ -548,7 +564,6 @@
 						insurances={data.allInsurances}
 						labels={data.allLabels}
 						effectivePermissions={data.effectivePermissions}
-						aiEnabled={data.aiEnabled}
 						{searchQuery}
 					/>
 				{/each}
@@ -587,7 +602,6 @@
 						insurances={data.allInsurances}
 						labels={data.allLabels}
 						effectivePermissions={data.effectivePermissions}
-						aiEnabled={data.aiEnabled}
 						{searchQuery}
 					/>
 				{/each}

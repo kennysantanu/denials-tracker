@@ -48,6 +48,65 @@ if (typeof process !== 'undefined' && process.versions?.node) {
 
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.`;
 
+function buildPageContextSnippet(
+	pageData: Record<string, unknown> | undefined
+): string | null {
+	if (!pageData) return null;
+
+	const lines: string[] = ['Current page context:'];
+
+	const route = pageData.route as string | undefined;
+	if (route) lines.push(`- Route: ${route}`);
+
+	const patient = pageData.patient as Record<string, unknown> | undefined;
+	if (patient) {
+		const name = `${patient.first_name ?? ''} ${patient.last_name ?? ''}`.trim();
+		const dob = patient.date_of_birth as string | undefined;
+		const patientId = patient.id as number | undefined;
+		const idStr = patientId != null ? `, ID: ${patientId}` : '';
+		const dobStr = dob ? ` (DOB: ${dob})` : '';
+		lines.push(`- Patient: ${name}${dobStr}${idStr}`);
+
+		const note = patient.note as string | undefined;
+		if (note) {
+			const truncated = note.length > 500 ? note.slice(0, 500) + '…' : note;
+			lines.push(`- Patient note: "${truncated}"`);
+		}
+	}
+
+	const files = pageData.files as Array<Record<string, unknown>> | undefined;
+	if (files && files.length > 0) {
+		const fileList = files.map(
+			(f) => `${f.name ?? 'unknown'} — ${f.mimetype ?? 'unknown'}, ${formatFileSize(f.size as number)}`
+		);
+		lines.push(`- Files: ${files.length} (${fileList.join('; ')})`);
+	}
+
+	const denials = pageData.denials as Array<Record<string, unknown>> | undefined;
+	if (denials && denials.length > 0) {
+		const total = denials.length;
+		const capped = total > 50 ? ' (showing 50)' : '';
+		lines.push(`- Denials (${total} total${capped}):`);
+		for (const d of denials) {
+			const dos = d.service_start_date as string ?? '?';
+			const closed = d.is_closed ? 'closed' : 'open';
+			lines.push(`  - #${d.id} | DOS: ${dos} | ${closed}`);
+		}
+		if (total > 50) {
+			lines.push(`  ... and ${total - 50} more — use query_denials to list them`);
+		}
+	}
+
+	return lines.join('\n');
+}
+
+function formatFileSize(bytes: number | undefined): string {
+	if (bytes == null) return '?';
+	if (bytes < 1024) return `${bytes}B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 export const POST: RequestHandler = async (event) => {
 	const { request, locals, url } = event;
 	const user = await locals.getUser();
@@ -78,7 +137,7 @@ export const POST: RequestHandler = async (event) => {
 
 	const body = await request.json();
 	const messages: ChatCompletionMessageParam[] = body.messages;
-	const contextData: { patientId?: number; denialId?: number } = body.context ?? {};
+	const contextData: { patientId?: number; pageData?: Record<string, unknown> } = body.context ?? {};
 
 	if (!Array.isArray(messages) || messages.length === 0) {
 		error(400, 'Messages array is required');
@@ -104,18 +163,24 @@ export const POST: RequestHandler = async (event) => {
 	const toolContext: ToolContext = {
 		supabase: locals.supabase,
 		userId: user.id,
-		patientId: contextData.patientId,
-		denialId: contextData.denialId
+		patientId: contextData.patientId
 	};
 
 	// Prepend system message
 	const promptResult = await getSystemPreference(locals.supabase, 'ai_chat_system_prompt');
 	const systemPrompt = promptResult.data?.value?.trim() || DEFAULT_SYSTEM_PROMPT;
 
-	const fullMessages: ChatCompletionMessageParam[] = [
-		{ role: 'system', content: systemPrompt },
-		...messages
+	const systemMessages: ChatCompletionMessageParam[] = [
+		{ role: 'system', content: systemPrompt }
 	];
+
+	// Inject route context as a second system message
+	const pageContext = buildPageContextSnippet(contextData.pageData);
+	if (pageContext) {
+		systemMessages.push({ role: 'system', content: pageContext });
+	}
+
+	const fullMessages: ChatCompletionMessageParam[] = [...systemMessages, ...messages];
 
 	// ── Streaming path ────────────────────────────────────────────
 	if (wantsStream) {
@@ -165,7 +230,7 @@ export const POST: RequestHandler = async (event) => {
 					try {
 						await locals.supabase.from('ai_interactions').insert({
 							user_id: user.id,
-							denial_id: contextData.denialId ?? null,
+							denial_id: null,
 							interaction_type: finalToolCalls?.length
 								? finalToolCalls[0].name.includes('summary')
 									? 'summary_tool'
@@ -240,7 +305,7 @@ export const POST: RequestHandler = async (event) => {
 			.from('ai_interactions')
 			.insert({
 				user_id: user.id,
-				denial_id: contextData.denialId ?? null,
+				denial_id: null,
 				interaction_type: result.toolCalls?.length
 					? result.toolCalls[0].name.includes('summary')
 						? 'summary_tool'
