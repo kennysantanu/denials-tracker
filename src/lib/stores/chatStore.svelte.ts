@@ -231,6 +231,10 @@ export async function send(text: string) {
 
 	abortController = new AbortController();
 
+	// requestAnimationFrame throttle (declared here for finally-block access)
+	let pendingDelta = '';
+	let rafId: number | null = null;
+
 	try {
 		// Persist user message
 		await apiFetch(`/api/v1/ai/threads/${threadId}/messages`, {
@@ -259,12 +263,13 @@ export async function send(text: string) {
 
 		bcPost({ type: 'message-added', threadId, message: userMsg });
 
-		// Call AI chat
+		// ── Streaming call ──────────────────────────────────────
+
 		const apiMessages = messages
 			.filter((m) => m.role === 'user' || m.role === 'assistant')
 			.map((m) => ({ role: m.role, content: m.content }));
 
-		const chatData = await apiFetch('/api/v1/ai/chat', {
+		const res = await fetch('/api/v1/ai/chat?stream=true', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			signal: abortController.signal,
@@ -277,31 +282,181 @@ export async function send(text: string) {
 			})
 		});
 
-		// Append assistant message
+		if (!res.ok) {
+			const errBody = await res.json().catch(() => null);
+			const msg = errBody?.error ?? `Request failed (${res.status})`;
+			const retryAfter =
+				res.status === 429
+					? parseInt(res.headers.get('Retry-After') ?? '0', 10) || undefined
+					: undefined;
+			throw new ApiError(msg, retryAfter);
+		}
+
+		// Create placeholder assistant message
 		const assistantMsgId = crypto.randomUUID();
 		const assistantMsg: ChatMessage = {
 			id: assistantMsgId,
 			role: 'assistant',
-			content: chatData.content as string,
+			content: '',
 			createdAt: new Date().toISOString(),
-			status: 'complete'
+			status: 'pending'
 		};
-		messages = [...messages, assistantMsg];
 
-		// Persist assistant message
-		await apiFetch(`/api/v1/ai/threads/${threadId}/messages`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				clientMessageId: assistantMsgId,
-				role: 'assistant',
-				content: chatData.content
-			})
-		});
+		// Insert placeholder after the last user message
+		const userMsgIdx = messages.findIndex((m) => m.id === userMsgId);
+		messages = [
+			...messages.slice(0, userMsgIdx + 1),
+			assistantMsg,
+			...messages.slice(userMsgIdx + 1)
+		];
+		status = 'streaming';
 
-		bcPost({ type: 'message-added', threadId, message: assistantMsg });
+		bcPost({ type: 'stream-started', threadId, messageId: assistantMsgId });
 
-		status = 'idle';
+		// Parse SSE stream
+		const reader = res.body!.getReader();
+		const decoder = new TextDecoder();
+		let buffer = '';
+
+		function flushDelta() {
+			if (pendingDelta) {
+				const idx = messages.findIndex((m) => m.id === assistantMsgId);
+				if (idx !== -1) {
+					const updated = { ...messages[idx], content: messages[idx].content + pendingDelta, status: 'streaming' as const };
+					messages = [...messages.slice(0, idx), updated, ...messages.slice(idx + 1)];
+				}
+				pendingDelta = '';
+			}
+			rafId = null;
+		}
+
+		function scheduleFlush() {
+			if (rafId === null && browser) {
+				rafId = requestAnimationFrame(() => flushDelta());
+			}
+		}
+
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+
+			buffer += decoder.decode(value, { stream: true });
+
+			// Split into complete SSE events (separated by \n\n)
+			const parts = buffer.split('\n\n');
+			buffer = parts.pop() ?? '';
+
+			for (const part of parts) {
+				if (!part.trim()) continue;
+
+				// Parse event type and data
+				const eventMatch = part.match(/^event: (.+)$/m);
+				const dataMatch = part.match(/^data: (.+)$/m);
+				if (!eventMatch || !dataMatch) continue;
+
+				const eventType = eventMatch[1];
+				let payload: Record<string, unknown>;
+				try {
+					payload = JSON.parse(dataMatch[1]);
+				} catch {
+					continue;
+				}
+
+				switch (eventType) {
+					case 'delta': {
+						pendingDelta += (payload.content as string) ?? '';
+						scheduleFlush();
+						break;
+					}
+					case 'tool_call_start': {
+						flushDelta();
+						const tcMsg: ChatMessage = {
+							id: crypto.randomUUID(),
+							role: 'tool',
+							content: '',
+							toolName: payload.name as string,
+							toolArgs: payload.args,
+							createdAt: new Date().toISOString(),
+							status: 'pending'
+						};
+						// Insert tool message before assistant placeholder
+						const aidx = messages.findIndex((m) => m.id === assistantMsgId);
+						messages = [
+							...messages.slice(0, aidx),
+							tcMsg,
+							...messages.slice(aidx)
+						];
+						break;
+					}
+					case 'tool_call_result': {
+						flushDelta();
+						// Update the matching tool message
+						messages = messages.map((m) => {
+							if (m.role === 'tool' && m.toolName === payload.name && m.status === 'pending') {
+								return {
+									...m,
+									content: (payload.result as string) ?? '',
+									status: 'complete' as const
+								};
+							}
+							return m;
+						});
+						break;
+					}
+					case 'done': {
+						flushDelta();
+						const idx = messages.findIndex((m) => m.id === assistantMsgId);
+						if (idx !== -1) {
+							const finalContent = (payload.content as string) ?? messages[idx].content;
+							const updated: ChatMessage = {
+								...messages[idx],
+								content: finalContent,
+								status: 'complete' as const
+							};
+							messages = [...messages.slice(0, idx), updated, ...messages.slice(idx + 1)];
+
+							// Persist assistant message
+							apiFetch(`/api/v1/ai/threads/${threadId}/messages`, {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({
+									clientMessageId: assistantMsgId,
+									role: 'assistant',
+									content: finalContent
+								})
+							}).catch(() => { /* best effort */ });
+
+							bcPost({ type: 'message-added', threadId, message: updated });
+						}
+						status = 'idle';
+						break;
+					}
+					case 'error': {
+						flushDelta();
+						error = { message: (payload.message as string) ?? 'AI stream failed' };
+						status = 'error';
+						// Mark assistant message as error
+						const eidx = messages.findIndex((m) => m.id === assistantMsgId);
+						if (eidx !== -1) {
+							const errMsg: ChatMessage = {
+								...messages[eidx],
+								status: 'error' as const
+							};
+							messages = [...messages.slice(0, eidx), errMsg, ...messages.slice(eidx + 1)];
+						}
+						break;
+					}
+					case 'round':
+						// Round indicator — no state change needed, UI can use it
+						break;
+				}
+			}
+		}
+
+		// Flush any remaining delta
+		flushDelta();
+
+		bcPost({ type: 'stream-ended', threadId, messageId: assistantMsgId });
 	} catch (err) {
 		if (err instanceof DOMException && err.name === 'AbortError') {
 			status = 'cancelled';
@@ -314,14 +469,17 @@ export async function send(text: string) {
 		}
 		status = 'error';
 	} finally {
+		if (rafId !== null) {
+			cancelAnimationFrame(rafId);
+			rafId = null;
+		}
 		abortController = null;
 	}
 }
 
 export function cancel() {
 	abortController?.abort();
-	status = 'idle';
-	abortController = null;
+	// Status is updated by the AbortError handler in send()
 }
 
 export async function retryLast() {

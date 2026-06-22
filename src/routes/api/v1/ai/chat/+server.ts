@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isAIConfigured } from '$lib/server/ai/client';
-import { callChat } from '$lib/server/ai/chat';
+import { callChat, callChatStream, type StreamEvent } from '$lib/server/ai/chat';
 import { aiToolDefinitions, toolPermissions, type ToolContext } from '$lib/server/ai/tools';
 import { logAudit } from '$lib/server/audit';
 import { getSystemPreference } from '$lib/server/db/preferences';
@@ -49,7 +49,7 @@ if (typeof process !== 'undefined' && process.versions?.node) {
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.`;
 
 export const POST: RequestHandler = async (event) => {
-	const { request, locals } = event;
+	const { request, locals, url } = event;
 	const user = await locals.getUser();
 	if (!user) error(401, 'Unauthorized');
 
@@ -84,6 +84,11 @@ export const POST: RequestHandler = async (event) => {
 		error(400, 'Messages array is required');
 	}
 
+	// Detect streaming mode
+	const wantsStream =
+		url.searchParams.get('stream') === 'true' ||
+		request.headers.get('Accept') === 'text/event-stream';
+
 	// Load user effective permissions (canonical keys, dual engine).
 	const effective = await loadEffectivePermissions(event);
 
@@ -112,6 +117,103 @@ export const POST: RequestHandler = async (event) => {
 		...messages
 	];
 
+	// ── Streaming path ────────────────────────────────────────────
+	if (wantsStream) {
+		const stream = callChatStream(locals.supabase, fullMessages, allowedTools, toolContext);
+
+		const body = new ReadableStream({
+			async start(controller) {
+				let finalContent = '';
+				let finalToolCalls: { name: string; args: Record<string, unknown>; result: string }[] | undefined;
+				let finalDurationMs = 0;
+				let finalModel = '';
+
+				function sse(event: StreamEvent) {
+					const data = JSON.stringify(event);
+					controller.enqueue(new TextEncoder().encode(`event: ${event.type}\ndata: ${data}\n\n`));
+				}
+
+				try {
+					for await (const event of stream) {
+						sse(event);
+
+						if (event.type === 'done') {
+							finalContent = event.content ?? '';
+							finalToolCalls = event.toolCalls;
+							finalDurationMs = event.durationMs ?? 0;
+							finalModel = event.model ?? '';
+						}
+					}
+
+					// Log audit
+					logAudit(
+						locals.supabase,
+						user.id,
+						'ai_chat',
+						'ai_interaction',
+						null,
+						{
+							messageCount: messages.length,
+							toolCalls: finalToolCalls?.map((t) => t.name) ?? [],
+							context: contextData
+						},
+						request
+					);
+
+					// Log to ai_interactions
+					const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
+					try {
+						await locals.supabase.from('ai_interactions').insert({
+							user_id: user.id,
+							denial_id: contextData.denialId ?? null,
+							interaction_type: finalToolCalls?.length
+								? finalToolCalls[0].name.includes('summary')
+									? 'summary_tool'
+									: finalToolCalls[0].name.includes('appeal')
+										? 'appeal_tool'
+										: finalToolCalls[0].name.includes('query')
+											? 'query_tool'
+											: 'chat'
+								: 'chat',
+							tool_name: finalToolCalls?.[0]?.name ?? null,
+							prompt_summary:
+								typeof lastUserMessage?.content === 'string'
+									? lastUserMessage.content.slice(0, 500)
+									: null,
+							response_summary: finalContent.slice(0, 500) || null,
+							model_used: finalModel || null,
+							tokens_used: null,
+							duration_ms: finalDurationMs
+						});
+					} catch (err) {
+						console.error('[ai/chat] Failed to log ai_interactions:', err);
+					}
+
+					controller.close();
+				} catch (err) {
+					const message = err instanceof Error ? err.message : 'AI stream failed';
+					console.error('[ai/chat] Stream error:', message);
+					const errorEvent: StreamEvent = { type: 'error', message };
+					controller.enqueue(
+						new TextEncoder().encode(
+							`event: error\ndata: ${JSON.stringify(errorEvent)}\n\n`
+						)
+					);
+					controller.close();
+				}
+			}
+		});
+
+		return new Response(body, {
+			headers: {
+				'Content-Type': 'text/event-stream',
+				'Cache-Control': 'no-cache',
+				Connection: 'keep-alive'
+			}
+		});
+	}
+
+	// ── Non-streaming path (existing) ─────────────────────────────
 	try {
 		const startTime = Date.now();
 		const result = await callChat(locals.supabase, fullMessages, allowedTools, toolContext);
