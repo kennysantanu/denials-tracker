@@ -32,6 +32,24 @@ vi.mock('$lib/stores/chatContext.svelte', () => ({
 	})
 }));
 
+vi.mock('$lib/stores/chatStore.svelte', () => ({
+	initChatStore: vi.fn(),
+	getThreads: vi.fn(() => []),
+	getActiveThreadId: vi.fn(() => null),
+	getMessages: vi.fn(() => []),
+	getStatus: vi.fn(() => 'idle'),
+	getError: vi.fn(() => null),
+	loadThreads: vi.fn(),
+	loadThread: vi.fn(),
+	startNewThread: vi.fn(),
+	send: vi.fn(),
+	cancel: vi.fn(),
+	retryLast: vi.fn(),
+	editAndResubmit: vi.fn(),
+	clearThread: vi.fn(),
+	copyMessage: vi.fn()
+}));
+
 function setLocalHistory(messages: Array<{ role: string; content: string }>) {
 	localStorage.setItem('aiChatHistory', JSON.stringify(messages));
 }

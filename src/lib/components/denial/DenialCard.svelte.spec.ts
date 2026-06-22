@@ -23,6 +23,24 @@ vi.mock('$lib/stores/chatContext.svelte', () => ({
 	updateChatContext: vi.fn()
 }));
 
+vi.mock('$lib/stores/chatStore.svelte', () => ({
+	initChatStore: vi.fn(),
+	getThreads: vi.fn(() => []),
+	getActiveThreadId: vi.fn(() => null),
+	getMessages: vi.fn(() => []),
+	getStatus: vi.fn(() => 'idle'),
+	getError: vi.fn(() => null),
+	loadThreads: vi.fn(),
+	loadThread: vi.fn(),
+	startNewThread: vi.fn(),
+	send: vi.fn(),
+	cancel: vi.fn(),
+	retryLast: vi.fn(),
+	editAndResubmit: vi.fn(),
+	clearThread: vi.fn(),
+	copyMessage: vi.fn()
+}));
+
 const baseDenial = {
 	id: 1,
 	patient_id: 10,
