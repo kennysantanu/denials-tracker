@@ -44,6 +44,7 @@
 		"vitest-browser-svelte": "^2.0.2"
 	},
 	"dependencies": {
+		"@lucide/svelte": "^1.21.0",
 		"@skeletonlabs/skeleton": "^4.15.1",
 		"@skeletonlabs/skeleton-svelte": "^4.15.1",
 		"@supabase/ssr": "^0.10.2",

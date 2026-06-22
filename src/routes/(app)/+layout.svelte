@@ -252,7 +252,7 @@
 
 	<!-- Mobile drawer overlay -->
 	{#if drawerOpen}
-		<div class="fixed inset-0 z-40 lg:hidden">
+		<div class="fixed inset-0 z-30 lg:hidden">
 			<!-- Backdrop -->
 			<div
 				role="presentation"
@@ -261,7 +261,7 @@
 			></div>
 			<!-- Drawer -->
 			<div
-				class="fixed top-0 left-0 z-50 flex h-full w-64 flex-col bg-white shadow-xl"
+				class="fixed top-0 left-0 z-40 flex h-full w-64 flex-col bg-white shadow-xl"
 				role="dialog"
 				aria-modal="true"
 				aria-label="Navigation menu"

@@ -21,7 +21,7 @@ export interface ChatMessage {
 	createdAt: string;
 }
 
-type StoreStatus = 'idle' | 'sending' | 'streaming' | 'error' | 'cancelled';
+export type StoreStatus = 'idle' | 'sending' | 'streaming' | 'error' | 'cancelled';
 
 interface StoreError {
 	message: string;

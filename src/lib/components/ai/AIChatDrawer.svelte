@@ -5,153 +5,53 @@
 		isChatDrawerOpen,
 		closeChatDrawer
 	} from '$lib/stores/chatContext.svelte';
-	import { send } from '$lib/stores/chatStore.svelte';
-	import DOMPurify from 'dompurify';
-	import { marked } from 'marked';
+	import {
+		initChatStore,
+		getMessages,
+		getThreads,
+		getActiveThreadId,
+		getStatus,
+		getError,
+		loadThread,
+		startNewThread,
+		send,
+		cancel,
+		copyMessage,
+		clearThread
+	} from '$lib/stores/chatStore.svelte';
+	import ChatHeader from './ChatHeader.svelte';
+	import ChatMessageList from './ChatMessageList.svelte';
+	import ChatMessage from './ChatMessage.svelte';
+	import ChatInput from './ChatInput.svelte';
+	import ChatEmptyState from './ChatEmptyState.svelte';
+	import ChatDrawerBackdrop from './ChatDrawerBackdrop.svelte';
+	import type { ChatMessage as ChatMessageType } from '$lib/stores/chatStore.svelte';
 
-	interface ChatMessage {
-		role: 'user' | 'assistant';
-		content: string;
-	}
+	// ── Local state ───────────────────────────────────────────────
 
-	let messages = $state<ChatMessage[]>([]);
-	let input = $state('');
-	let isLoading = $state(false);
-	let abortController = $state<AbortController | null>(null);
-	let messagesContainer: HTMLDivElement | undefined = $state();
 	let drawerWidth = $state(400);
 	let isSmallScreen = $state(false);
 	let isFullscreen = $state(false);
 	let isResizing = $state(false);
-	let hydrated = $state(false);
+	let dialogEl = $state<HTMLDivElement>();
+	let chatInputRef = $state<{ focus: () => void }>();
+	let previousFocus = $state<HTMLElement | null>(null);
 
-	/** Full-screen mode: always on small screens, or when user toggled it on desktop */
-	const fullscreenMode = $derived(isSmallScreen || isFullscreen);
+	// ── Reactively subscribe to stores ────────────────────────────
 
-	const open = $derived(isChatDrawerOpen());
 	const context = $derived(getChatContext());
+	const messages: ChatMessageType[] = $derived(getMessages());
+	const threads = $derived(getThreads());
+	const activeThreadId = $derived(getActiveThreadId());
+	const chatStatus = $derived(getStatus());
+	const chatError = $derived(getError());
+	const open = $derived(isChatDrawerOpen());
 
-	// Restore width, fullscreen preference, and chat history from localStorage
-	onMount(() => {
-		const savedWidth = localStorage.getItem('aiChatDrawerWidth');
-		if (savedWidth) drawerWidth = Math.max(320, Math.min(800, parseInt(savedWidth, 10)));
+	// ── Derived values ────────────────────────────────────────────
 
-		isFullscreen = localStorage.getItem('aiChatFullscreen') === 'true';
-
-		const savedHistory = localStorage.getItem('aiChatHistory');
-		if (savedHistory) {
-			try {
-				messages = JSON.parse(savedHistory);
-			} catch {
-				// ignore corrupt storage
-			}
-		}
-		hydrated = true;
-
-		const mq = window.matchMedia('(max-width: 640px)');
-		isSmallScreen = mq.matches;
-		const handler = (e: MediaQueryListEvent) => (isSmallScreen = e.matches);
-		mq.addEventListener('change', handler);
-		return () => mq.removeEventListener('change', handler);
-	});
-
-	// Persist chat history after hydration (prevents overwriting before load)
-	$effect(() => {
-		if (!hydrated) return;
-		if (messages.length > 0) {
-			localStorage.setItem('aiChatHistory', JSON.stringify(messages));
-		} else {
-			localStorage.removeItem('aiChatHistory');
-		}
-	});
-
-	// Auto-scroll on new messages
-	$effect(() => {
-		if (messages.length && messagesContainer) {
-			requestAnimationFrame(() => {
-				messagesContainer?.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
-			});
-		}
-	});
-
-	async function sendMessage() {
-		const text = input.trim();
-		if (!text || isLoading) return;
-
-		const userMessage: ChatMessage = { role: 'user', content: text };
-		messages = [...messages, userMessage];
-		input = '';
-		isLoading = true;
-		abortController = new AbortController();
-
-		try {
-			const apiMessages = messages.map((m) => ({ role: m.role, content: m.content }));
-
-			const res = await fetch('/api/v1/ai/chat', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				signal: abortController.signal,
-				body: JSON.stringify({
-					messages: apiMessages,
-					context: {
-						patientId: context.patientId,
-						pageData: context.pageData
-					}
-				})
-			});
-
-			if (!res.ok) {
-				const errData = await res.json().catch(() => null);
-				throw new Error(errData?.error ?? `Request failed (${res.status})`);
-			}
-
-			const data = await res.json();
-			messages = [...messages, { role: 'assistant', content: data.content }];
-		} catch (err: unknown) {
-			if (err instanceof DOMException && err.name === 'AbortError') return;
-			const msg = err instanceof Error ? err.message : 'An error occurred';
-			messages = [...messages, { role: 'assistant', content: `⚠️ ${msg}` }];
-		} finally {
-			isLoading = false;
-			abortController = null;
-		}
-	}
-
-	function cancelGeneration() {
-		abortController?.abort();
-		isLoading = false;
-		abortController = null;
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			sendMessage();
-		}
-	}
-
-	function clearChat() {
-		messages = [];
-		input = '';
-		localStorage.removeItem('aiChatHistory');
-	}
-
-	function toggleFullscreen() {
-		isFullscreen = !isFullscreen;
-		localStorage.setItem('aiChatFullscreen', String(isFullscreen));
-	}
-
-	function renderMarkdown(content: string): string {
-		const raw = marked.parse(content);
-		if (typeof raw === 'string') {
-			return DOMPurify.sanitize(raw);
-		}
-		return '';
-	}
-
-	async function copyToClipboard(text: string) {
-		await navigator.clipboard.writeText(text);
-	}
+	const fullscreenMode = $derived(isSmallScreen || isFullscreen);
+	const isStreaming = $derived(chatStatus === 'streaming' || chatStatus === 'sending');
+	const isEmpty = $derived(messages.length === 0);
 
 	const quickPrompts = $derived(
 		context.patientId
@@ -163,7 +63,97 @@
 			: []
 	);
 
-	// Resize handle — only active in side-panel mode
+	// ── Lifecycle ─────────────────────────────────────────────────
+
+	onMount(() => {
+		// Restore width + fullscreen prefs
+		const savedWidth = localStorage.getItem('aiChatDrawerWidth');
+		if (savedWidth) drawerWidth = Math.max(320, Math.min(800, parseInt(savedWidth, 10)));
+
+		isFullscreen = localStorage.getItem('aiChatFullscreen') === 'true';
+
+		// Init chat store (loads threads, restores active thread)
+		initChatStore();
+
+		// Media query for small screens
+		const mq = window.matchMedia('(max-width: 640px)');
+		isSmallScreen = mq.matches;
+		const handler = (e: MediaQueryListEvent) => (isSmallScreen = e.matches);
+		mq.addEventListener('change', handler);
+		return () => mq.removeEventListener('change', handler);
+	});
+
+	// Focus management: focus input on open, restore on close
+	$effect(() => {
+		if (open) {
+			previousFocus = document.activeElement as HTMLElement | null;
+			requestAnimationFrame(() => chatInputRef?.focus());
+		} else {
+			previousFocus?.focus();
+			previousFocus = null;
+		}
+	});
+
+	// ── Handlers ──────────────────────────────────────────────────
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			closeChatDrawer();
+			return;
+		}
+		// Focus trap
+		if (e.key === 'Tab' && dialogEl) {
+			const focusable = dialogEl.querySelectorAll<HTMLElement>(
+				'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+			);
+			if (focusable.length === 0) return;
+			const first = focusable[0];
+			const last = focusable[focusable.length - 1];
+			if (e.shiftKey && document.activeElement === first) {
+				e.preventDefault();
+				last?.focus();
+			} else if (!e.shiftKey && document.activeElement === last) {
+				e.preventDefault();
+				first?.focus();
+			}
+		}
+	}
+
+	function handleSend(text: string) {
+		send(text);
+	}
+
+	function handleCancel() {
+		cancel();
+	}
+
+	function handleClear() {
+		clearThread();
+	}
+
+	function handleCopy(messageId: string) {
+		copyMessage(messageId);
+	}
+
+	function handlePromptClick(prompt: string) {
+		send(prompt);
+	}
+
+	function handleToggleFullscreen() {
+		isFullscreen = !isFullscreen;
+		localStorage.setItem('aiChatFullscreen', String(isFullscreen));
+	}
+
+	function handleSelectThread(threadId: string) {
+		loadThread(threadId);
+	}
+
+	function handleNewChat() {
+		startNewThread();
+	}
+
+	// ── Resize handle (side-panel mode only) ─────────────────────
+
 	function onResizeStart(e: PointerEvent) {
 		if (fullscreenMode) return;
 		isResizing = true;
@@ -188,11 +178,23 @@
 </script>
 
 {#if open}
+	<!-- Backdrop for fullscreen/mobile -->
+	{#if fullscreenMode}
+		<ChatDrawerBackdrop onclick={closeChatDrawer} />
+	{/if}
+
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
+		bind:this={dialogEl}
 		class="z-50 flex flex-col bg-white {fullscreenMode
 			? 'fixed inset-0'
 			: 'fixed top-0 right-0 h-full border-l border-surface-200 shadow-xl'}"
 		style={fullscreenMode ? '' : `width: ${drawerWidth}px`}
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="ai-chat-title"
+		tabindex="-1"
+		onkeydown={handleKeydown}
 	>
 		<!-- Resize handle: side-panel mode only -->
 		{#if !fullscreenMode}
@@ -205,130 +207,46 @@
 		{/if}
 
 		<!-- Header -->
-		<div class="flex h-14 shrink-0 items-center justify-between border-b border-surface-200 px-4">
-			<h2 class="text-sm font-semibold text-surface-800">AI Assistant</h2>
-			<div class="flex items-center gap-1">
-				<button
-					type="button"
-					onclick={clearChat}
-					class="rounded p-1.5 text-surface-400 hover:bg-surface-100 hover:text-surface-600"
-					title="Clear chat"
-				>
-					🗑️
-				</button>
-				<!-- Fullscreen toggle: hidden on small screens (auto-fullscreen) -->
-				{#if !isSmallScreen}
-					<button
-						type="button"
-						onclick={toggleFullscreen}
-						class="rounded p-1.5 text-surface-400 hover:bg-surface-100 hover:text-surface-600"
-						title={isFullscreen ? 'Exit full screen' : 'Full screen'}
-					>
-						{isFullscreen ? '⤡' : '⤢'}
-					</button>
-				{/if}
-				<button
-					type="button"
-					onclick={closeChatDrawer}
-					class="rounded p-1.5 text-surface-400 hover:bg-surface-100 hover:text-surface-600"
-					title="Close"
-				>
-					✕
-				</button>
-			</div>
-		</div>
+		<ChatHeader
+			{threads}
+			{activeThreadId}
+			isFullscreen={isFullscreen}
+			showFullscreenToggle={!isSmallScreen}
+			onSelectThread={handleSelectThread}
+			onNewChat={handleNewChat}
+			onClear={handleClear}
+			onToggleFullscreen={handleToggleFullscreen}
+			onClose={closeChatDrawer}
+		/>
 
 		<!-- Messages -->
-		<div bind:this={messagesContainer} class="flex-1 space-y-4 overflow-y-auto p-4">
-			{#if messages.length === 0}
-				<div class="flex h-full flex-col items-center justify-center gap-4 px-2">
-					<p class="text-center text-sm text-surface-400">
-						Ask me about denials, appeals, or billing data.
-					</p>
-					{#if quickPrompts.length > 0}
-						<div class="w-full space-y-2">
-							<p class="text-center text-xs text-surface-400">Quick prompts:</p>
-							{#each quickPrompts as prompt}
-								<button
-									type="button"
-									onclick={() => send(prompt)}
-									class="w-full rounded-base border border-surface-200 px-3 py-2 text-left text-xs text-surface-600 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700"
-								>
-									{prompt}
-								</button>
-							{/each}
-						</div>
-					{/if}
-				</div>
-			{:else}
-				{#each messages as msg, i (i)}
-					<div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
-						<div
-							class="max-w-[85%] rounded-lg px-3 py-2 text-sm {msg.role === 'user'
-								? 'bg-primary-100 text-primary-900'
-								: 'bg-surface-100 text-surface-800'}"
-						>
-							{#if msg.role === 'assistant'}
-								<div class="prose prose-sm max-w-none">
-									{@html renderMarkdown(msg.content)}
-								</div>
-								<button
-									type="button"
-									onclick={() => copyToClipboard(msg.content)}
-									class="mt-1 text-xs text-surface-400 hover:text-surface-600"
-									title="Copy"
-								>
-									📋 Copy
-								</button>
-							{:else}
-								{msg.content}
-							{/if}
-						</div>
-					</div>
-				{/each}
-			{/if}
-			{#if isLoading}
-				<div class="flex justify-start">
-					<div class="rounded-lg bg-surface-100 px-3 py-2 text-sm text-surface-500">
-						<span class="inline-flex gap-1">
-							<span class="animate-bounce">●</span>
-							<span class="animate-bounce" style="animation-delay: 0.1s">●</span>
-							<span class="animate-bounce" style="animation-delay: 0.2s">●</span>
-						</span>
-					</div>
-				</div>
-			{/if}
-		</div>
+		<ChatMessageList {messages} {isStreaming} {isEmpty}>
+			{#snippet emptyState()}
+				<ChatEmptyState {quickPrompts} onPromptClick={handlePromptClick} />
+			{/snippet}
+			{#snippet children(args)}
+				<ChatMessage
+					message={args.message}
+					onCopy={handleCopy}
+				/>
+			{/snippet}
+		</ChatMessageList>
+
+		<!-- Error banner -->
+		{#if chatError}
+			<div class="border-t border-error-200 bg-error-50 px-4 py-2 text-sm text-error-600">
+				{chatError.message}
+			</div>
+		{/if}
 
 		<!-- Input -->
 		<div class="border-t border-surface-200 p-3">
-			{#if isLoading}
-				<button
-					type="button"
-					onclick={cancelGeneration}
-					class="w-full rounded-lg bg-error-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-error-700"
-				>
-					✕ Stop generating
-				</button>
-			{:else}
-				<div class="flex gap-2">
-					<textarea
-						bind:value={input}
-						onkeydown={handleKeydown}
-						placeholder="Type a message..."
-						rows={4}
-						class="flex-1 resize-none rounded-lg border border-surface-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-					></textarea>
-					<button
-						type="button"
-						onclick={sendMessage}
-						disabled={!input.trim()}
-						class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-					>
-						Send
-					</button>
-				</div>
-			{/if}
+			<ChatInput
+				bind:this={chatInputRef}
+				status={chatStatus}
+				onSend={handleSend}
+				onCancel={handleCancel}
+			/>
 		</div>
 	</div>
 {/if}

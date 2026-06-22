@@ -4,9 +4,14 @@ import { render } from 'vitest-browser-svelte';
 import AIChatDrawer from './AIChatDrawer.svelte';
 
 const { state } = vi.hoisted(() => {
-	const state: { _open: boolean; _context: Record<string, unknown> } = {
+	const state = {
 		_open: false,
-		_context: { route: '/dashboard' }
+		_context: { route: '/dashboard' } as Record<string, unknown>,
+		_chatMessages: [] as Array<{ id: string; role: string; content: string; status?: string; createdAt: string }>,
+		_chatThreads: [] as Array<{ id: string; title: string; lastMessageAt: string; archivedAt: null; createdAt: string }>,
+		_chatActiveThreadId: null as string | null,
+		_chatStatus: 'idle' as string,
+		_chatError: null as { message: string } | null
 	};
 	return { state };
 });
@@ -33,11 +38,11 @@ vi.mock('$lib/stores/chatContext.svelte', () => ({
 
 vi.mock('$lib/stores/chatStore.svelte', () => ({
 	initChatStore: vi.fn(),
-	getThreads: vi.fn(() => []),
-	getActiveThreadId: vi.fn(() => null),
-	getMessages: vi.fn(() => []),
-	getStatus: vi.fn(() => 'idle'),
-	getError: vi.fn(() => null),
+	getMessages: () => state._chatMessages,
+	getThreads: () => state._chatThreads,
+	getActiveThreadId: () => state._chatActiveThreadId,
+	getStatus: () => state._chatStatus,
+	getError: () => state._chatError,
 	loadThreads: vi.fn(),
 	loadThread: vi.fn(),
 	startNewThread: vi.fn(),
@@ -49,143 +54,83 @@ vi.mock('$lib/stores/chatStore.svelte', () => ({
 	copyMessage: vi.fn()
 }));
 
-function setLocalHistory(messages: Array<{ role: string; content: string }>) {
-	localStorage.setItem('aiChatHistory', JSON.stringify(messages));
+function makeMsg(role: string, content: string, status?: string) {
+	return {
+		id: crypto.randomUUID(),
+		role,
+		content,
+		status: status ?? 'complete',
+		createdAt: new Date().toISOString()
+	};
 }
 
 describe('AIChatDrawer.svelte', () => {
 	beforeEach(() => {
 		state._open = false;
 		state._context = { route: '/dashboard' };
-		localStorage.clear();
+		state._chatMessages = [];
+		state._chatThreads = [];
+		state._chatActiveThreadId = null;
+		state._chatStatus = 'idle';
+		state._chatError = null;
 	});
 
 	it('is not visible when drawer is closed', async () => {
 		render(AIChatDrawer);
-
-		await expect
-			.element(page.getByText('AI Assistant'))
-			.not.toBeInTheDocument();
+		await expect.element(page.getByText('AI Assistant')).not.toBeInTheDocument();
 	});
 
-	it('shows empty state prompt when open with no messages and no patient', async () => {
+	it('shows empty state when open with no messages', async () => {
 		state._open = true;
 		render(AIChatDrawer);
-
 		await expect
 			.element(page.getByText('Ask me about denials, appeals, or billing data.'))
 			.toBeInTheDocument();
-
-		// No quick prompts when patientId is absent
-		await expect
-			.element(page.getByText('Quick prompts:'))
-			.not.toBeInTheDocument();
 	});
 
-	it('shows quick prompt buttons when patientId is set', async () => {
+	it('shows quick prompts when patientId is set', async () => {
 		state._open = true;
 		state._context = { route: '/record/1', patientId: 1 };
 		render(AIChatDrawer);
-
 		await expect
 			.element(page.getByText("Summarize this patient's open denials"))
 			.toBeInTheDocument();
+	});
+
+	it('renders messages when present', async () => {
+		state._open = true;
+		state._chatMessages = [
+			makeMsg('user', 'Hello'),
+			makeMsg('assistant', 'Hi there! How can I help?')
+		];
+		render(AIChatDrawer);
+		await expect.element(page.getByText('Hello')).toBeInTheDocument();
+		await expect.element(page.getByText('Hi there! How can I help?')).toBeInTheDocument();
+	});
+
+	it('shows header action buttons', async () => {
+		state._open = true;
+		render(AIChatDrawer);
 		await expect
-			.element(page.getByText('Which denials need follow-up soon?'))
+			.element(page.getByRole('button', { name: 'Clear chat' }))
 			.toBeInTheDocument();
 		await expect
-			.element(page.getByText('Draft an appeal letter for the most recent denial'))
+			.element(page.getByRole('button', { name: 'Close' }))
 			.toBeInTheDocument();
 	});
 
-	it('renders a user message bubble', async () => {
+	it('shows stop button when streaming', async () => {
 		state._open = true;
-		setLocalHistory([{ role: 'user', content: 'Hello, can you help?' }]);
+		state._chatStatus = 'streaming';
+		state._chatMessages = [makeMsg('user', 'test')];
 		render(AIChatDrawer);
-
-		await expect
-			.element(page.getByText('Hello, can you help?'))
-			.toBeInTheDocument();
+		await expect.element(page.getByText('Stop generating')).toBeInTheDocument();
 	});
 
-	it('renders an assistant markdown message with copy button', async () => {
+	it('shows error banner when error present', async () => {
 		state._open = true;
-		setLocalHistory([
-			{
-				role: 'assistant',
-				content: 'Sure! Here is **bold text** and `inline code`.'
-			}
-		]);
+		state._chatError = { message: 'Something went wrong' };
 		render(AIChatDrawer);
-
-		// Markdown renders — bold text is visible (rendered as <strong>)
-		await expect
-			.element(page.getByText('bold text'))
-			.toBeInTheDocument();
-
-		// Markdown inline code is visible (rendered as <code>)
-		await expect
-			.element(page.getByText('inline code'))
-			.toBeInTheDocument();
-
-		// Copy button is present on assistant messages
-		await expect
-			.element(page.getByTitle('Copy'))
-			.toBeInTheDocument();
-	});
-
-	it('shows stop button and hides send button when loading', async () => {
-		state._open = true;
-
-		// Mock fetch to never resolve so we stay in loading state
-		vi.spyOn(globalThis, 'fetch').mockImplementation(
-			() => new Promise<Response>(() => {})
-		);
-
-		render(AIChatDrawer);
-
-		// Fill the textarea with a message
-		const textarea = page.getByRole('textbox');
-		await textarea.fill('Test message');
-
-		// Click Send to trigger loading state
-		await page.getByRole('button', { name: 'Send' }).click();
-
-		// Loading state replaces Send with Stop generating
-		await expect
-			.element(page.getByRole('button', { name: '✕ Stop generating' }))
-			.toBeInTheDocument();
-
-		// The bouncing dots indicator is present (3 animated dots)
-		await expect
-			.element(page.getByText('●').first())
-			.toBeInTheDocument();
-
-		vi.restoreAllMocks();
-	});
-
-	it('clears messages from localStorage via clear button', async () => {
-		state._open = true;
-		setLocalHistory([
-			{ role: 'user', content: 'old message' }
-		]);
-		render(AIChatDrawer);
-
-		// Click the clear chat button
-		await page.getByTitle('Clear chat').click();
-
-		// localStorage should be cleared
-		expect(localStorage.getItem('aiChatHistory')).toBeNull();
-	});
-
-	it('persists drawer width to localStorage on mount', async () => {
-		localStorage.setItem('aiChatDrawerWidth', '500');
-		state._open = true;
-		render(AIChatDrawer);
-
-		// Width is restored from localStorage — the panel is visible
-		await expect
-			.element(page.getByText('AI Assistant'))
-			.toBeInTheDocument();
+		await expect.element(page.getByText('Something went wrong')).toBeInTheDocument();
 	});
 });
