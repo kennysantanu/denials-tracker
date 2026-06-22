@@ -243,38 +243,87 @@ export type Database = {
           },
         ]
       }
+      chat_threads: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          last_message_at: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          title?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_threads_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
+          client_message_id: string | null
           content: string
           context_snapshot: Json | null
           created_at: string
+          deleted_at: string | null
           id: number
           role: string
           session_id: string
+          thread_id: string | null
           tool_name: string | null
           user_id: string
         }
         Insert: {
+          client_message_id?: string | null
           content: string
           context_snapshot?: Json | null
           created_at?: string
+          deleted_at?: string | null
           id?: number
           role: string
           session_id: string
+          thread_id?: string | null
           tool_name?: string | null
           user_id: string
         }
         Update: {
+          client_message_id?: string | null
           content?: string
           context_snapshot?: Json | null
           created_at?: string
+          deleted_at?: string | null
           id?: number
           role?: string
           session_id?: string
+          thread_id?: string | null
           tool_name?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "conversations_thread_id_fkey"
+            columns: ["thread_id"]
+            referencedRelation: "chat_threads"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "conversations_user_id_fkey"
             columns: ["user_id"]
