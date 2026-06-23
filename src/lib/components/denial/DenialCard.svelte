@@ -8,6 +8,7 @@
 	import DenialCopyModal from './DenialCopyModal.svelte';
 	import DenialNoteList from './DenialNoteList.svelte';
 	import { InsuranceNoteModal } from '$lib/components/modals';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
 	type DenialRow = Database['public']['Tables']['denials']['Row'];
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
@@ -147,9 +148,13 @@
 								? 'font-medium text-warning-600'
 								: 'text-warning-600'}
 					>
-						{isOverdue ? '⚠ Overdue · ' : diffDays <= 7 && !denial.is_closed ? '⚠ ' : ''}Follow-up: {formatDate(
-							denial.follow_up_date
-						)}
+						{#if isOverdue}
+							<TriangleAlert class="inline-block h-3.5 w-3.5 -translate-y-px" />
+							Overdue ·
+						{:else if diffDays <= 7 && !denial.is_closed}
+							<TriangleAlert class="inline-block h-3.5 w-3.5 -translate-y-px" />
+						{/if}
+						Follow-up: {formatDate(denial.follow_up_date)}
 					</span>
 				{/if}
 			</div>

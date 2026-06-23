@@ -2,6 +2,8 @@
 	import { Combobox } from '@skeletonlabs/skeleton-svelte';
 	import { ListCollection } from '@zag-js/collection';
 	import type { Database } from '$lib/supabase';
+	import X from '@lucide/svelte/icons/x';
+	import Check from '@lucide/svelte/icons/check';
 
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
 
@@ -61,15 +63,7 @@
 						class="ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full hover:bg-primary-200"
 						onclick={() => removeSelected(ins.id)}
 					>
-						<svg
-							class="h-2.5 w-2.5"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							stroke-width="3"
-						>
-							<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-						</svg>
+						<X class="h-2.5 w-2.5" strokeWidth={3} />
 					</button>
 				</span>
 			{/each}
@@ -109,15 +103,7 @@
 						class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-surface-100 data-highlighted:bg-surface-100"
 					>
 						<Combobox.ItemIndicator>
-							<svg
-								class="h-4 w-4 text-primary-600"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-								stroke-width="2"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-							</svg>
+							<Check class="h-4 w-4 text-primary-600" />
 						</Combobox.ItemIndicator>
 						<Combobox.ItemText>{ins.name}</Combobox.ItemText>
 					</Combobox.Item>

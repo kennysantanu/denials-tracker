@@ -7,6 +7,13 @@
 	import AIChatDrawer from '$lib/components/ai/AIChatDrawer.svelte';
 	import { Tabs, Toast } from '@skeletonlabs/skeleton-svelte';
 	import { toaster } from '$lib/toast';
+	import Menu from '@lucide/svelte/icons/menu';
+	import LogOut from '@lucide/svelte/icons/log-out';
+	import X from '@lucide/svelte/icons/x';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import CircleX from '@lucide/svelte/icons/circle-x';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import Info from '@lucide/svelte/icons/info';
 	import {
 		isChatDrawerOpen,
 		toggleChatDrawer,
@@ -26,12 +33,6 @@
 		{ href: '/setting', label: 'Settings' }
 	];
 
-	const toastTypeIcons: Record<string, string> = {
-		success: '✔',
-		error: '✖',
-		warning: '⚠',
-		info: 'ℹ'
-	};
 	const toastTypeIconColors: Record<string, string> = {
 		success: 'text-success-600',
 		error: 'text-error-600',
@@ -107,14 +108,7 @@
 					onclick={() => (drawerOpen = true)}
 					aria-label="Open navigation"
 				>
-					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 6h16M4 12h16M4 18h16"
-						/>
-					</svg>
+					<Menu class="h-6 w-6" />
 				</button>
 				<h1 class="text-2xl font-bold text-primary-500">Denials Tracker</h1>
 			</div>
@@ -225,21 +219,7 @@
 									class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-surface-700 hover:bg-surface-50"
 									role="menuitem"
 								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										class="h-4 w-4 shrink-0"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-										aria-hidden="true"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-										/>
-									</svg>
+									<LogOut class="h-4 w-4 shrink-0" aria-hidden="true" />
 									Sign Out
 								</button>
 							</form>
@@ -276,7 +256,7 @@
 						class="btn p-1 hover:preset-tonal"
 						aria-label="Close menu"
 					>
-						✕
+						<X class="h-5 w-5" />
 					</button>
 				</div>
 				<nav class="flex-1 space-y-1 px-3 py-4">
@@ -314,30 +294,28 @@
 		<Toast {toast} class={toastTypeStyles[toast.type ?? ''] ?? 'border-l-4 border-l-surface-400'}>
 			<div class="flex w-full flex-col gap-1">
 				<div class="flex items-center justify-between gap-2">
-					<div class="flex min-w-0 items-center gap-2">
-						<span
-							class="shrink-0 text-sm font-bold {toastTypeIconColors[toast.type ?? ''] ??
-								'text-surface-600'}">{toastTypeIcons[toast.type ?? ''] ?? '•'}</span
-						>
-						<Toast.Title class="text-sm font-semibold text-surface-900">{toast.title}</Toast.Title>
-					</div>
-					<Toast.CloseTrigger
-						class="shrink-0 rounded p-1 text-surface-500 transition-colors hover:bg-black/10 hover:text-surface-900"
-						aria-label="Dismiss"
+				<div class="flex min-w-0 items-center gap-2">
+					<span
+						class="shrink-0 {toastTypeIconColors[toast.type ?? ''] ?? 'text-surface-600'}"
 					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							class="size-4"
-							viewBox="0 0 20 20"
-							fill="currentColor"
-						>
-							<path
-								fill-rule="evenodd"
-								d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-								clip-rule="evenodd"
-							/>
-						</svg>
-					</Toast.CloseTrigger>
+						{#if toast.type === 'success'}
+							<CircleCheck class="h-4 w-4" />
+						{:else if toast.type === 'error'}
+							<CircleX class="h-4 w-4" />
+						{:else if toast.type === 'warning'}
+							<TriangleAlert class="h-4 w-4" />
+						{:else}
+							<Info class="h-4 w-4" />
+						{/if}
+					</span>
+					<Toast.Title class="text-sm font-semibold text-surface-900">{toast.title}</Toast.Title>
+				</div>
+				<Toast.CloseTrigger
+					class="shrink-0 rounded p-1 text-surface-500 transition-colors hover:bg-black/10 hover:text-surface-900"
+					aria-label="Dismiss"
+				>
+					<X class="size-4" />
+				</Toast.CloseTrigger>
 				</div>
 				{#if toast.description}
 					<Toast.Description class="pl-5 text-sm text-surface-700"

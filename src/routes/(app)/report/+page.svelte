@@ -7,6 +7,11 @@
 	import { formatDate } from '$lib/utils';
 	import { setChatContext } from '$lib/stores/chatContext.svelte';
 	import type { ReportRow } from '$lib/server/db/reports';
+	import Check from '@lucide/svelte/icons/check';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ArrowUp from '@lucide/svelte/icons/arrow-up';
+	import ArrowDown from '@lucide/svelte/icons/arrow-down';
 
 	let { data } = $props();
 
@@ -324,11 +329,6 @@
 	function sortAriaSort(key: SortKey): 'ascending' | 'descending' | 'none' {
 		if (sortKey !== key) return 'none';
 		return sortDir === 'asc' ? 'ascending' : 'descending';
-	}
-
-	function sortIndicator(key: SortKey): string {
-		if (sortKey !== key) return '';
-		return sortDir === 'asc' ? '↑' : '↓';
 	}
 
 	// -- client filters --------------------------------------------------------
@@ -775,6 +775,14 @@
 	<title>Report | Denials Tracker</title>
 </svelte:head>
 
+{#snippet sortIndicator(key: SortKey)}
+	{#if sortDir === 'asc'}
+		<ArrowUp class="h-3 w-3" />
+	{:else}
+		<ArrowDown class="h-3 w-3" />
+	{/if}
+{/snippet}
+
 <div class="space-y-6">
 	<!-- Page header -->
 	<header class="flex items-end justify-between gap-4">
@@ -974,21 +982,10 @@
 											item={ins}
 											class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-surface-100 data-highlighted:bg-surface-100"
 										>
-											<Combobox.ItemIndicator>
-												<svg
-													class="h-3.5 w-3.5 text-primary-600"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke="currentColor"
-													stroke-width="2.5"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														d="M5 13l4 4L19 7"
-													/></svg
-												>
-											</Combobox.ItemIndicator>
-											<Combobox.ItemText>{ins.name}</Combobox.ItemText>
+										<Combobox.ItemIndicator>
+											<Check class="h-3.5 w-3.5 text-primary-600" strokeWidth={2.5} />
+										</Combobox.ItemIndicator>
+										<Combobox.ItemText>{ins.name}</Combobox.ItemText>
 										</Combobox.Item>
 									{/each}
 									{#if filteredInsItems.length === 0}
@@ -1033,21 +1030,10 @@
 											item={lbl}
 											class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-surface-100 data-highlighted:bg-surface-100"
 										>
-											<Combobox.ItemIndicator>
-												<svg
-													class="h-3.5 w-3.5 text-primary-600"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke="currentColor"
-													stroke-width="2.5"
-													><path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														d="M5 13l4 4L19 7"
-													/></svg
-												>
-											</Combobox.ItemIndicator>
-											<Combobox.ItemText>
+										<Combobox.ItemIndicator>
+											<Check class="h-3.5 w-3.5 text-primary-600" strokeWidth={2.5} />
+										</Combobox.ItemIndicator>
+										<Combobox.ItemText>
 												<span
 													class="rounded-base px-2 py-0.5 text-xs"
 													style="background-color: {lbl.bg}; color: {lbl.txt};">{lbl.name}</span
@@ -1082,27 +1068,13 @@
 					class="-ml-1 btn btn-sm text-surface-500 hover:preset-tonal"
 					onclick={() => (showMoreFilters = !showMoreFilters)}
 				>
-					{#if showMoreFilters}
-						<svg
-							class="h-3 w-3"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							stroke-width="2"
-							><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg
-						>
-						Fewer filters
-					{:else}
-						<svg
-							class="h-3 w-3"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							stroke-width="2"
-							><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg
-						>
-						More filters
-					{/if}
+				{#if showMoreFilters}
+					<ChevronUp class="h-3 w-3" />
+					Fewer filters
+				{:else}
+					<ChevronDown class="h-3 w-3" />
+					More filters
+				{/if}
 				</button>
 
 				{#if showMoreFilters}
@@ -1177,14 +1149,7 @@
 			<Popover>
 				<Popover.Trigger class="ml-1 btn preset-tonal btn-sm">
 					Columns ({visibleCols.length})
-					<svg
-						class="ml-1 h-3 w-3 shrink-0"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						stroke-width="2"
-						><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg
-					>
+					<ChevronDown class="ml-1 h-3 w-3 shrink-0" />
 				</Popover.Trigger>
 				<Popover.Positioner class="z-50">
 					<Popover.Content
@@ -1238,7 +1203,7 @@
 						>
 							<button class="sort-btn" onclick={() => toggleSort('patient')}>
 								Patient{#if sortKey === 'patient'}
-									<span class="text-primary-500">{sortIndicator('patient')}</span>{/if}
+									<span class="text-primary-500">{@render sortIndicator('patient')}</span>{/if}
 							</button>
 						</th>
 					{/if}
@@ -1249,7 +1214,7 @@
 						>
 							<button class="sort-btn" onclick={() => toggleSort('service_date')}>
 								Service Date{#if sortKey === 'service_date'}
-									<span class="text-primary-500">{sortIndicator('service_date')}</span>{/if}
+									<span class="text-primary-500">{@render sortIndicator('service_date')}</span>{/if}
 							</button>
 						</th>
 					{/if}
@@ -1260,7 +1225,7 @@
 						>
 							<button class="sort-btn" onclick={() => toggleSort('follow_up_date')}>
 								Follow-up{#if sortKey === 'follow_up_date'}
-									<span class="text-primary-500">{sortIndicator('follow_up_date')}</span>{/if}
+									<span class="text-primary-500">{@render sortIndicator('follow_up_date')}</span>{/if}
 							</button>
 						</th>
 					{/if}
@@ -1271,7 +1236,7 @@
 						>
 							<button class="sort-btn" onclick={() => toggleSort('billed')}>
 								Billed{#if sortKey === 'billed'}
-									<span class="text-primary-500">{sortIndicator('billed')}</span>{/if}
+									<span class="text-primary-500">{@render sortIndicator('billed')}</span>{/if}
 							</button>
 						</th>
 					{/if}
@@ -1282,7 +1247,7 @@
 						>
 							<button class="sort-btn" onclick={() => toggleSort('insurances')}>
 								Insurance{#if sortKey === 'insurances'}
-									<span class="text-primary-500">{sortIndicator('insurances')}</span>{/if}
+									<span class="text-primary-500">{@render sortIndicator('insurances')}</span>{/if}
 							</button>
 						</th>
 					{/if}
@@ -1293,7 +1258,7 @@
 						>
 							<button class="sort-btn" onclick={() => toggleSort('labels')}>
 								Labels{#if sortKey === 'labels'}
-									<span class="text-primary-500">{sortIndicator('labels')}</span>{/if}
+									<span class="text-primary-500">{@render sortIndicator('labels')}</span>{/if}
 							</button>
 						</th>
 					{/if}
@@ -1304,7 +1269,7 @@
 						>
 							<button class="sort-btn" onclick={() => toggleSort('last_note')}>
 								Last Note{#if sortKey === 'last_note'}
-									<span class="text-primary-500">{sortIndicator('last_note')}</span>{/if}
+									<span class="text-primary-500">{@render sortIndicator('last_note')}</span>{/if}
 							</button>
 						</th>
 					{/if}
@@ -1315,7 +1280,7 @@
 						>
 							<button class="sort-btn" onclick={() => toggleSort('status')}>
 								Status{#if sortKey === 'status'}
-									<span class="text-primary-500">{sortIndicator('status')}</span>{/if}
+									<span class="text-primary-500">{@render sortIndicator('status')}</span>{/if}
 							</button>
 						</th>
 					{/if}

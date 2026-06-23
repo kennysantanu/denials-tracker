@@ -5,6 +5,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { formatDate } from '$lib/utils';
 	import { InsuranceCombobox, LabelPillSelect } from '$lib/components/ui';
+	import X from '@lucide/svelte/icons/x';
 
 	type DenialRow = Database['public']['Tables']['denials']['Row'];
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
@@ -103,7 +104,7 @@
 				onclick={onclose}
 				aria-label="Close"
 			>
-				✕
+				<X class="h-5 w-5" />
 			</button>
 		</div>
 

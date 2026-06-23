@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { invalidateAll } from '$app/navigation';
+	import X from '@lucide/svelte/icons/x';
 
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
 
@@ -35,14 +36,14 @@
 		<!-- Header -->
 		<div class="flex items-center justify-between border-b border-surface-200 px-5 py-4">
 			<h3 class="text-lg font-semibold">{insurance.name}</h3>
-			<button
-				type="button"
-				class="text-surface-400 hover:text-surface-700"
-				onclick={onclose}
-				aria-label="Close"
-			>
-				✕
-			</button>
+		<button
+			type="button"
+			class="text-surface-400 hover:text-surface-700"
+			onclick={onclose}
+			aria-label="Close"
+		>
+			<X class="h-5 w-5" />
+		</button>
 		</div>
 
 		<!-- Body -->

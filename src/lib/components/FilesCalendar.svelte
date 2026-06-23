@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { DateStatus } from '$lib/server/db/files';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
 	interface Props {
 		/** Currently selected date string (YYYY-MM-DD) */
@@ -120,9 +122,7 @@
 			onclick={prevMonth}
 			aria-label="Previous month"
 		>
-			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-			</svg>
+			<ChevronLeft class="h-5 w-5" />
 		</button>
 
 		<div class="flex items-center gap-3">
@@ -142,9 +142,7 @@
 			onclick={nextMonth}
 			aria-label="Next month"
 		>
-			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-			</svg>
+			<ChevronRight class="h-5 w-5" />
 		</button>
 	</div>
 

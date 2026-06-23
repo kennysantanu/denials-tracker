@@ -4,6 +4,11 @@
 	import { formatDate } from '$lib/utils';
 	import FilesCalendar from '$lib/components/FilesCalendar.svelte';
 	import { toastSuccess, toastError } from '$lib/toast';
+	import Eye from '@lucide/svelte/icons/eye';
+	import X from '@lucide/svelte/icons/x';
+	import ArrowUp from '@lucide/svelte/icons/arrow-up';
+	import ArrowDown from '@lucide/svelte/icons/arrow-down';
+	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
 
 	let { data } = $props();
 
@@ -182,12 +187,16 @@
 											class="inline-flex items-center gap-1 hover:text-surface-900"
 											onclick={() => toggleSort(key)}
 										>
-											{label}
-											{#if sortKey === key}
-												<span class="text-xs">{sortAsc ? '↑' : '↓'}</span>
+										{label}
+										{#if sortKey === key}
+											{#if sortAsc}
+												<ArrowUp class="h-3 w-3" />
 											{:else}
-												<span class="text-xs text-surface-400">↕</span>
+												<ArrowDown class="h-3 w-3" />
 											{/if}
+										{:else}
+											<ArrowUpDown class="h-3 w-3 text-surface-400" />
+										{/if}
 										</button>
 									</th>
 								{/each}
@@ -212,25 +221,7 @@
 												onclick={() => openPreview(file.name)}
 												class="shrink-0 rounded p-0.5 text-surface-400 hover:bg-surface-100 hover:text-surface-700"
 											>
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													class="h-4 w-4"
-													fill="none"
-													viewBox="0 0 24 24"
-													stroke="currentColor"
-													stroke-width="2"
-												>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-													/>
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-													/>
-												</svg>
+											<Eye class="h-4 w-4" />
 											</button>
 										</div>
 									</td>
@@ -310,16 +301,7 @@
 						}}
 						class="btn p-1 hover:preset-tonal"
 					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							class="h-5 w-5"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							stroke-width="2"
-						>
-							<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-						</svg>
+						<X class="h-5 w-5" />
 					</button>
 				</div>
 			</div>

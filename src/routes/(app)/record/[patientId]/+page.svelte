@@ -12,6 +12,8 @@
 		MultiSelectDropdown
 	} from '$lib/components/ui';
 	import { setChatContext } from '$lib/stores/chatContext.svelte';
+	import X from '@lucide/svelte/icons/x';
+	import Plus from '@lucide/svelte/icons/plus';
 
 	let { data } = $props();
 
@@ -348,7 +350,8 @@
 					filterServiceDates = [];
 				}}
 			>
-				✕ Clear
+				<X class="h-4 w-4" />
+				Clear
 			</button>
 		{/if}
 	</div>
@@ -378,9 +381,15 @@
 						showNewDenialForm = !showNewDenialForm;
 						if (showNewDenialForm) newDenialFollowUpDate = '';
 					}}
-				>
-					{showNewDenialForm ? '✕ Cancel' : '+ New Denial'}
-				</button>
+			>
+				{#if showNewDenialForm}
+					<X class="h-4 w-4" />
+					Cancel
+				{:else}
+					<Plus class="h-4 w-4" />
+					New Denial
+				{/if}
+			</button>
 			{/if}
 		</div>
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Database } from '$lib/supabase';
+	import Check from '@lucide/svelte/icons/check';
 
 	type LabelRow = Database['public']['Tables']['labels']['Row'];
 
@@ -46,15 +47,7 @@
 				onclick={() => toggle(label.id)}
 			>
 				{#if selectedIds.has(label.id)}
-					<svg
-						class="h-3 w-3"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						stroke-width="3"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-					</svg>
+					<Check class="h-3 w-3" strokeWidth={3} />
 				{/if}
 				{label.label_name}
 			</button>
