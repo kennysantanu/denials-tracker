@@ -11,10 +11,13 @@
 	<p class="text-center text-sm text-surface-400">
 		Ask me about denials, appeals, or billing data.
 	</p>
+	<p class="text-center text-xs text-surface-400">
+		I can analyze denials, draft appeals, and answer billing questions.
+	</p>
 	{#if quickPrompts.length > 0}
 		<div class="w-full space-y-2">
 			<p class="text-center text-xs text-surface-400">Quick prompts:</p>
-			{#each quickPrompts as prompt}
+			{#each quickPrompts as prompt (prompt)}
 				<button
 					type="button"
 					onclick={() => onPromptClick(prompt)}

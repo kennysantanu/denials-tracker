@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import {
 		getChatContext,
 		isChatDrawerOpen,
@@ -17,8 +18,11 @@
 		send,
 		cancel,
 		copyMessage,
-		clearThread
+		clearThread,
+		retryLast,
+		clearError
 	} from '$lib/stores/chatStore.svelte';
+	import { ConfirmDialog } from '$lib/components/ui';
 	import ChatHeader from './ChatHeader.svelte';
 	import ChatContextBar from './ChatContextBar.svelte';
 	import ChatMessageList from './ChatMessageList.svelte';
@@ -37,6 +41,9 @@
 	let dialogEl = $state<HTMLDivElement>();
 	let chatInputRef = $state<{ focus: () => void }>();
 	let previousFocus = $state<HTMLElement | null>(null);
+	let showClearConfirm = $state(false);
+	let touchStartX = $state(0);
+	let touchStartY = $state(0);
 
 	// ── Reactively subscribe to stores ────────────────────────────
 
@@ -54,14 +61,27 @@
 	const isStreaming = $derived(chatStatus === 'streaming' || chatStatus === 'sending');
 	const isEmpty = $derived(messages.length === 0);
 
-	const quickPrompts = $derived(
+	const patientPrompts = [
+		"Summarize this patient's open denials",
+		'Which denials need follow-up soon?',
+		'Draft an appeal letter for the most recent denial'
+	];
+
+	const generalPrompts = [
+		'Summarize recent denials across all patients',
+		'Which appeals are overdue?',
+		'Explain common denial reason codes',
+		"What's our denial rate trend?"
+	];
+
+	const quickPrompts = $derived(context.patientId ? patientPrompts : generalPrompts);
+
+	const inputPlaceholder = $derived(
 		context.patientId
-			? [
-					"Summarize this patient's open denials",
-					'Which denials need follow-up soon?',
-					'Draft an appeal letter for the most recent denial'
-				]
-			: []
+			? "Ask about this patient's denials…"
+			: context.pageData
+				? 'Ask about these records…'
+				: 'Ask about denials, appeals, or billing…'
 	);
 
 	// ── Lifecycle ─────────────────────────────────────────────────
@@ -92,6 +112,18 @@
 		} else {
 			previousFocus?.focus();
 			previousFocus = null;
+		}
+	});
+
+	// Toggle body cursor + selection lock while resizing
+	$effect(() => {
+		if (isResizing) {
+			document.body.style.cursor = 'col-resize';
+			document.body.style.userSelect = 'none';
+			return () => {
+				document.body.style.cursor = '';
+				document.body.style.userSelect = '';
+			};
 		}
 	});
 
@@ -128,12 +160,16 @@
 		cancel();
 	}
 
-	function handleClear() {
-		clearThread();
-	}
-
 	function handleCopy(messageId: string) {
 		copyMessage(messageId);
+	}
+
+	function handleRetry() {
+		retryLast();
+	}
+
+	function handleDismissError() {
+		clearError();
 	}
 
 	function handlePromptClick(prompt: string) {
@@ -153,7 +189,23 @@
 		startNewThread();
 	}
 
+	function handleRequestClear() {
+		showClearConfirm = true;
+	}
+
+	function handleConfirmClear() {
+		clearThread();
+		showClearConfirm = false;
+	}
+
+	function handleCancelClear() {
+		showClearConfirm = false;
+	}
+
 	// ── Resize handle (side-panel mode only) ─────────────────────
+
+	const MIN_WIDTH = 320;
+	const MAX_WIDTH = 1024;
 
 	function onResizeStart(e: PointerEvent) {
 		if (fullscreenMode) return;
@@ -163,7 +215,7 @@
 
 		function onMove(ev: PointerEvent) {
 			const delta = startX - ev.clientX;
-			drawerWidth = Math.max(320, Math.min(800, startWidth + delta));
+			drawerWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startWidth + delta));
 		}
 
 		function onUp() {
@@ -175,6 +227,40 @@
 
 		window.addEventListener('pointermove', onMove);
 		window.addEventListener('pointerup', onUp);
+	}
+
+	function handleResizeKeydown(e: KeyboardEvent) {
+		if (fullscreenMode) return;
+		const step = e.shiftKey ? 64 : 16;
+		if (e.key === 'ArrowLeft') {
+			drawerWidth = Math.max(MIN_WIDTH, drawerWidth + step);
+			localStorage.setItem('aiChatDrawerWidth', String(drawerWidth));
+			e.preventDefault();
+		} else if (e.key === 'ArrowRight') {
+			drawerWidth = Math.min(MAX_WIDTH, drawerWidth - step);
+			localStorage.setItem('aiChatDrawerWidth', String(drawerWidth));
+			e.preventDefault();
+		}
+	}
+
+	// ── Swipe-to-close (mobile/fullscreen only) ──────────────────
+
+	function onTouchStart(e: TouchEvent) {
+		if (!fullscreenMode || e.touches.length !== 1) return;
+		touchStartX = e.touches[0].clientX;
+		touchStartY = e.touches[0].clientY;
+	}
+
+	function onTouchEnd(e: TouchEvent) {
+		if (!fullscreenMode) return;
+		const touch = e.changedTouches[0];
+		if (!touch) return;
+		const deltaX = touch.clientX - touchStartX;
+		const deltaY = touch.clientY - touchStartY;
+		// Horizontal swipe right, dominant over vertical
+		if (deltaX > 80 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+			closeChatDrawer();
+		}
 	}
 </script>
 
@@ -188,7 +274,7 @@
 	<div
 		bind:this={dialogEl}
 		class="z-50 flex flex-col bg-white {fullscreenMode
-			? 'fixed inset-0'
+			? 'fixed top-0 right-0 left-0 h-dvh'
 			: 'fixed top-0 right-0 h-full border-l border-surface-200 shadow-xl'}"
 		style={fullscreenMode ? '' : `width: ${drawerWidth}px`}
 		role="dialog"
@@ -196,29 +282,45 @@
 		aria-labelledby="ai-chat-title"
 		tabindex="-1"
 		onkeydown={handleKeydown}
+		ontouchstart={onTouchStart}
+		ontouchend={onTouchEnd}
+		transition:fly={{ x: fullscreenMode ? 0 : 400, duration: 200 }}
 	>
 		<!-- Resize handle: side-panel mode only -->
 		{#if !fullscreenMode}
-			<button
-				type="button"
-				class="absolute top-0 left-0 h-full w-1.5 cursor-col-resize bg-transparent transition-colors hover:bg-primary-200"
-				onpointerdown={onResizeStart}
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+			<div
+				class="group justify-left absolute top-0 left-0 z-10 flex h-full w-2 cursor-col-resize items-center"
+				role="separator"
+				aria-orientation="vertical"
 				aria-label="Resize chat panel"
-			></button>
+				tabindex="0"
+				aria-valuenow={drawerWidth}
+				aria-valuemin={MIN_WIDTH}
+				aria-valuemax={MAX_WIDTH}
+				onpointerdown={onResizeStart}
+				onkeydown={handleResizeKeydown}
+			>
+				<!-- Visible indicator: thin line, brighter on hover -->
+				<div class="h-full w-0.5 rounded-full transition-colors group-hover:bg-primary-400"></div>
+			</div>
 		{/if}
 
-		<!-- Header -->
-		<ChatHeader
-			{threads}
-			{activeThreadId}
-			isFullscreen={isFullscreen}
-			showFullscreenToggle={!isSmallScreen}
-			onSelectThread={handleSelectThread}
-			onNewChat={handleNewChat}
-			onClear={handleClear}
-			onToggleFullscreen={handleToggleFullscreen}
-			onClose={closeChatDrawer}
-		/>
+		<!-- Header (with safe-area top inset on mobile) -->
+		<div class="pt-[env(safe-area-inset-top)]">
+			<ChatHeader
+				{threads}
+				{activeThreadId}
+				{isFullscreen}
+				showFullscreenToggle={!isSmallScreen}
+				onSelectThread={handleSelectThread}
+				onNewChat={handleNewChat}
+				onClear={handleRequestClear}
+				onToggleFullscreen={handleToggleFullscreen}
+				onClose={closeChatDrawer}
+			/>
+		</div>
 
 		<!-- Context indicator -->
 		<ChatContextBar {context} />
@@ -232,27 +334,62 @@
 				{@const prevMsg = args.index > 0 ? messages[args.index - 1] : null}
 				<ChatMessage
 					message={args.message}
-					showRoundDivider={args.message.role === 'tool' && prevMsg?.role === 'tool' && (args.message.round ?? 0) !== (prevMsg?.round ?? 0)}
+					showRoundDivider={args.message.role === 'tool' &&
+						prevMsg?.role === 'tool' &&
+						(args.message.round ?? 0) !== (prevMsg?.round ?? 0)}
 					onCopy={handleCopy}
+					onRetry={handleRetry}
 				/>
 			{/snippet}
 		</ChatMessageList>
 
 		<!-- Error banner -->
 		{#if chatError}
-			<div class="border-t border-error-200 bg-error-50 px-4 py-2 text-sm text-error-600">
-				{chatError.message}
+			<div
+				class="flex items-center justify-between gap-3 border-t border-error-200 bg-error-50 px-4 py-2 text-sm text-error-600"
+				role="alert"
+			>
+				<span class="min-w-0">
+					{chatError.message}
+					{#if chatError.retryAfter}
+						<span class="ml-1 whitespace-nowrap">— retry in {chatError.retryAfter}s</span>
+					{/if}
+				</span>
+				<div class="flex shrink-0 items-center gap-1">
+					<button type="button" class="btn preset-outlined-error-500 btn-sm" onclick={handleRetry}>
+						Retry
+					</button>
+					<button
+						type="button"
+						class="btn btn-sm hover:preset-tonal"
+						aria-label="Dismiss error"
+						onclick={handleDismissError}
+					>
+						×
+					</button>
+				</div>
 			</div>
 		{/if}
 
-		<!-- Input -->
-		<div class="border-t border-surface-200 p-3">
+		<!-- Input (with safe-area bottom inset on mobile) -->
+		<div class="border-t border-surface-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
 			<ChatInput
 				bind:this={chatInputRef}
 				status={chatStatus}
+				placeholder={inputPlaceholder}
 				onSend={handleSend}
 				onCancel={handleCancel}
 			/>
 		</div>
 	</div>
+
+	<!-- Clear conversation confirmation -->
+	<ConfirmDialog
+		open={showClearConfirm}
+		title="Clear conversation?"
+		message="This will delete all messages in the current thread."
+		confirmLabel="Clear"
+		onconfirm={handleConfirmClear}
+		oncancel={handleCancelClear}
+	/>
 {/if}

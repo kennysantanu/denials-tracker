@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { fade } from 'svelte/transition';
+
 	interface Props {
 		onclick: () => void;
 	}
@@ -14,4 +16,5 @@
 		if (e.key === 'Escape') onclick();
 	}}
 	role="presentation"
+	transition:fade={{ duration: 150 }}
 ></div>

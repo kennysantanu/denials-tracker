@@ -563,6 +563,10 @@ export async function copyMessage(messageId: string) {
 	}
 }
 
+export function clearError() {
+	error = null;
+}
+
 // ── Initialization ────────────────────────────────────────────────
 
 export function initChatStore() {

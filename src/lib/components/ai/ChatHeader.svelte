@@ -1,5 +1,6 @@
 <script lang="ts">
 	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Maximize2 from '@lucide/svelte/icons/maximize-2';
 	import Minimize2 from '@lucide/svelte/icons/minimize-2';
@@ -33,12 +34,20 @@
 </script>
 
 <div class="flex h-14 shrink-0 items-center justify-between border-b border-surface-200 px-4">
-	<div class="flex items-center gap-2 min-w-0">
+	<div class="flex flex-1 items-center gap-1 min-w-0">
 		<MessageSquare class="h-4 w-4 text-primary-500 shrink-0" />
-		<h2 id="ai-chat-title" class="text-sm font-semibold text-surface-800">AI Assistant</h2>
-		<ChatThreadSwitcher {threads} {activeThreadId} onSelect={onSelectThread} onNewChat={onNewChat} />
+		<h2 id="ai-chat-title" class="sr-only">AI Assistant</h2>
+		<ChatThreadSwitcher {threads} {activeThreadId} onSelect={onSelectThread} />
 	</div>
 	<div class="flex items-center gap-1 shrink-0">
+		<button
+			type="button"
+			class="btn btn-sm hover:preset-tonal"
+			aria-label="New chat"
+			onclick={onNewChat}
+		>
+			<Plus class="h-4 w-4" />
+		</button>
 		<button
 			type="button"
 			class="btn btn-sm hover:preset-tonal"

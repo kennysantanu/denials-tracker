@@ -13,7 +13,19 @@
 
 	const patient = $derived(context.pageData?.patient as PatientSummary | undefined);
 	const reportCount = $derived(context.pageData?.recordCount as number | undefined);
-	const route = $derived(context.route || '/');
+
+	const ROUTE_LABELS: Record<string, string> = {
+		'/dashboard': 'Dashboard',
+		'/record': 'Records',
+		'/report': 'Report',
+		'/report/kpis': 'KPIs',
+		'/file': 'Files',
+		'/file/view': 'File viewer',
+		'/setting': 'Settings',
+		'/signout': 'Sign out'
+	};
+
+	const routeLabel = $derived(ROUTE_LABELS[context.route] ?? context.route ?? '/');
 </script>
 
 <div class="flex items-center gap-2 border-b border-surface-200 bg-surface-50 px-4 py-1.5 text-xs">
@@ -31,6 +43,6 @@
 		</span>
 	{:else}
 		<Info class="h-3.5 w-3.5 shrink-0 text-surface-400" />
-		<span class="text-surface-500">General context — {route}</span>
+		<span class="text-surface-500">General context — {routeLabel}</span>
 	{/if}
 </div>

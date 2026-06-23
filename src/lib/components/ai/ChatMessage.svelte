@@ -3,7 +3,6 @@
 	import { marked } from 'marked';
 	import Copy from '@lucide/svelte/icons/copy';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
-	import Pencil from '@lucide/svelte/icons/pencil';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Loader2 from '@lucide/svelte/icons/loader-2';
 	import type { ChatMessage as ChatMessageType } from '$lib/stores/chatStore.svelte';
@@ -13,10 +12,9 @@
 		showRoundDivider?: boolean;
 		onCopy?: (id: string) => void;
 		onRetry?: () => void;
-		onEdit?: (id: string, text: string) => void;
 	}
 
-	let { message, showRoundDivider = false, onCopy, onRetry, onEdit }: Props = $props();
+	let { message, showRoundDivider = false, onCopy, onRetry }: Props = $props();
 
 	let toolExpanded = $state(false);
 	let reasoningEl = $state<HTMLDivElement>();
@@ -39,10 +37,6 @@
 
 	function handleRetry() {
 		onRetry?.();
-	}
-
-	function handleEdit() {
-		onEdit?.(message.id, message.content);
 	}
 </script>
 
@@ -104,14 +98,6 @@
 					onclick={handleCopy}
 				>
 					<Copy class="h-3.5 w-3.5" />
-				</button>
-				<button
-					type="button"
-					class="btn btn-sm hover:preset-tonal"
-					aria-label="Edit message"
-					onclick={handleEdit}
-				>
-					<Pencil class="h-3.5 w-3.5" />
 				</button>
 			</div>
 		</div>
