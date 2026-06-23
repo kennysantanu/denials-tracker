@@ -17,8 +17,9 @@ export interface ChatResult {
 }
 
 export interface StreamEvent {
-	type: 'delta' | 'tool_call_start' | 'tool_call_result' | 'round' | 'done' | 'error';
+	type: 'delta' | 'reasoning_delta' | 'tool_call_start' | 'tool_call_result' | 'round' | 'done' | 'error';
 	content?: string;
+	reasoning?: string;
 	id?: string;
 	name?: string;
 	args?: string;
@@ -175,6 +176,14 @@ export async function* callChatStream(
 			if (!delta) continue;
 
 			hasChoices = true;
+
+			// Reasoning content delta (DeepSeek extended thinking / o1 reasoning)
+			if ((delta as Record<string, unknown>).reasoning_content) {
+				yield {
+					type: 'reasoning_delta',
+					reasoning: (delta as Record<string, unknown>).reasoning_content as string
+				};
+			}
 
 			// Text content delta
 			if (delta.content) {

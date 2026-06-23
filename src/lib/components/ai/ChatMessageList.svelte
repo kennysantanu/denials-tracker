@@ -47,7 +47,7 @@
 		{@const lastMsg = messages[messages.length - 1]}
 		{#if lastMsg.role === 'user' || (lastMsg.role === 'assistant' && lastMsg.status === 'streaming')}
 			<!-- No extra loader — streaming content is handled by ChatMessage -->
-		{:else if !lastMsg.content}
+		{:else if !lastMsg.content && !lastMsg.reasoningContent}
 			<div class="flex justify-start">
 				<div class="text-surface-400 px-3 py-2 text-sm">
 					<Loader2 class="h-4 w-4 animate-spin inline" />

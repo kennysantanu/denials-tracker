@@ -14,6 +14,7 @@ export interface ChatMessage {
 	id: string;
 	role: 'user' | 'assistant' | 'tool';
 	content: string;
+	reasoningContent?: string;
 	toolName?: string;
 	toolArgs?: unknown;
 	toolResult?: string;
@@ -368,6 +369,17 @@ export async function send(text: string) {
 				}
 
 				switch (eventType) {
+					case 'reasoning_delta': {
+						const ridx = messages.findIndex((m) => m.id === assistantMsgId);
+						if (ridx !== -1) {
+							const updated = {
+								...messages[ridx],
+								reasoningContent: (messages[ridx].reasoningContent ?? '') + ((payload.reasoning as string) ?? '')
+							};
+							messages = [...messages.slice(0, ridx), updated, ...messages.slice(ridx + 1)];
+						}
+						break;
+					}
 					case 'delta': {
 						pendingDelta += (payload.content as string) ?? '';
 						scheduleFlush();
