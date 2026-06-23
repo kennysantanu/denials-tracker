@@ -60,7 +60,8 @@ export async function callChat(
 		const response = await client.chat.completions.create({
 			model,
 			messages: conversationMessages,
-			tools: useTools ? tools : undefined
+			tools: useTools ? tools : undefined,
+			reasoning_effort: 'low'
 		});
 
 		// Some OpenAI-compatible servers (Ollama, LM Studio, etc.) return empty choices
@@ -114,7 +115,8 @@ export async function callChat(
 	// Exhausted tool rounds — make one final call without tools
 	const finalResponse = await client.chat.completions.create({
 		model,
-		messages: conversationMessages
+		messages: conversationMessages,
+		reasoning_effort: 'low'
 	});
 
 	const finalChoice = finalResponse.choices?.[0];
@@ -158,7 +160,8 @@ export async function* callChatStream(
 			model,
 			messages: conversationMessages,
 			tools: useTools ? tools : undefined,
-			stream: true
+			stream: true,
+			reasoning_effort: 'low'
 			// stream_options is OpenAI-proprietary; omitted for LM Studio / Ollama compat
 		});
 
@@ -276,7 +279,8 @@ export async function* callChatStream(
 	// Exhausted tool rounds — final non-streaming call
 	const finalResponse = await client.chat.completions.create({
 		model,
-		messages: conversationMessages
+		messages: conversationMessages,
+		reasoning_effort: 'low'
 	});
 
 	const finalContent = finalResponse.choices?.[0]?.message?.content ?? '';
