@@ -20,6 +20,7 @@
 		clearThread
 	} from '$lib/stores/chatStore.svelte';
 	import ChatHeader from './ChatHeader.svelte';
+	import ChatContextBar from './ChatContextBar.svelte';
 	import ChatMessageList from './ChatMessageList.svelte';
 	import ChatMessage from './ChatMessage.svelte';
 	import ChatInput from './ChatInput.svelte';
@@ -218,6 +219,9 @@
 			onToggleFullscreen={handleToggleFullscreen}
 			onClose={closeChatDrawer}
 		/>
+
+		<!-- Context indicator -->
+		<ChatContextBar {context} />
 
 		<!-- Messages -->
 		<ChatMessageList {messages} {isStreaming} {isEmpty}>

@@ -17,7 +17,7 @@
 	import {
 		isChatDrawerOpen,
 		toggleChatDrawer,
-		setChatContext
+		updateChatContext
 	} from '$lib/stores/chatContext.svelte';
 
 	let { data, children } = $props();
@@ -58,9 +58,15 @@
 	// AI chat button: visible on all (app) pages when AI is enabled and user has ai.chat permission
 	let showAiButton = $derived(data.aiEnabled && data.effectivePermissions['ai.chat'] === true);
 
-	// Update chat context when route changes
-	$effect(() => {
-		setChatContext({ route: currentPath });
+	// Clear page-specific context on route change before page effects set it.
+	// $effect.pre runs in the pre-DOM phase, so it always precedes the page's
+	// $effect (post-DOM) — the page's context wins the final state.
+	$effect.pre(() => {
+		updateChatContext({
+			route: currentPath,
+			patientId: undefined,
+			pageData: undefined
+		});
 	});
 
 	function handleDrawerKeydown(e: KeyboardEvent) {

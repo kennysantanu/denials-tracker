@@ -5,7 +5,7 @@
 	import { Combobox, Popover } from '@skeletonlabs/skeleton-svelte';
 	import { ListCollection } from '@zag-js/collection';
 	import { formatDate } from '$lib/utils';
-	import { setChatContext } from '$lib/stores/chatContext.svelte';
+	import { updateChatContext } from '$lib/stores/chatContext.svelte';
 	import type { ReportRow } from '$lib/server/db/reports';
 	import Check from '@lucide/svelte/icons/check';
 	import ChevronUp from '@lucide/svelte/icons/chevron-up';
@@ -757,7 +757,7 @@
 	});
 
 	$effect(() => {
-		setChatContext({
+		updateChatContext({
 			route: '/report',
 			pageData: {
 				startDate,

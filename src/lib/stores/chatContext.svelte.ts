@@ -3,6 +3,8 @@
  * Provides page-level context to the AI chat drawer.
  */
 
+import { untrack } from 'svelte';
+
 export interface ChatContext {
 	/** Current route path */
 	route: string;
@@ -20,11 +22,17 @@ export function getChatContext(): ChatContext {
 }
 
 export function setChatContext(newContext: ChatContext): void {
-	context = newContext;
+	// untrack so callers inside $effect don't accidentally depend on `context`
+	untrack(() => {
+		context = newContext;
+	});
 }
 
 export function updateChatContext(partial: Partial<ChatContext>): void {
-	context = { ...context, ...partial };
+	// untrack the spread read so effect callers don't loop on read+write of `context`
+	untrack(() => {
+		context = { ...context, ...partial };
+	});
 }
 
 export function isChatDrawerOpen(): boolean {

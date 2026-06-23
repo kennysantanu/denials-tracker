@@ -97,6 +97,33 @@ describe('AIChatDrawer.svelte', () => {
 			.toBeInTheDocument();
 	});
 
+	it('context bar shows patient name when patient pageData is loaded', async () => {
+		state._open = true;
+		state._context = {
+			route: '/record/1',
+			patientId: 1,
+			pageData: { patient: { first_name: 'Ada', last_name: 'Lovelace' } }
+		};
+		render(AIChatDrawer);
+		await expect.element(page.getByText('Patient', { exact: true })).toBeInTheDocument();
+		await expect.element(page.getByText('Lovelace, Ada')).toBeInTheDocument();
+	});
+
+	it('context bar shows report record count on report page', async () => {
+		state._open = true;
+		state._context = { route: '/report', pageData: { recordCount: 42 } };
+		render(AIChatDrawer);
+		await expect.element(page.getByText('Report')).toBeInTheDocument();
+		await expect.element(page.getByText('42 records')).toBeInTheDocument();
+	});
+
+	it('context bar shows general context when no pageData', async () => {
+		state._open = true;
+		state._context = { route: '/dashboard' };
+		render(AIChatDrawer);
+		await expect.element(page.getByText('General context — /dashboard')).toBeInTheDocument();
+	});
+
 	it('renders messages when present', async () => {
 		state._open = true;
 		state._chatMessages = [

@@ -11,7 +11,7 @@
 		NoteEditor,
 		MultiSelectDropdown
 	} from '$lib/components/ui';
-	import { setChatContext } from '$lib/stores/chatContext.svelte';
+	import { updateChatContext } from '$lib/stores/chatContext.svelte';
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
 
@@ -150,7 +150,7 @@
 
 	// Set AI chat context for this patient
 	$effect(() => {
-		setChatContext({
+		updateChatContext({
 			route: `/record/${data.patient.id}`,
 			patientId: data.patient.id,
 			pageData: {
