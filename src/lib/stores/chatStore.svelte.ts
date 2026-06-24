@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { toastSuccess, toastError } from '$lib/toast';
 import { getChatContext } from '$lib/stores/chatContext.svelte';
+import { generateUUID } from '$lib/utils';
 
 export interface ChatThread {
 	id: string;
@@ -203,7 +204,7 @@ export function startNewThread() {
 	status = 'idle';
 	error = null;
 	messages = [];
-	activeThreadId = crypto.randomUUID();
+	activeThreadId = generateUUID();
 	saveActiveThreadToStorage(activeThreadId);
 	removeLegacyHistory();
 }
@@ -216,12 +217,12 @@ export async function send(text: string) {
 	// Ensure we have an active thread
 	let threadId = activeThreadId;
 	if (!threadId) {
-		threadId = crypto.randomUUID();
+		threadId = generateUUID();
 		activeThreadId = threadId;
 		saveActiveThreadToStorage(threadId);
 	}
 
-	const userMsgId = crypto.randomUUID();
+	const userMsgId = generateUUID();
 	const userMsg: ChatMessage = {
 		id: userMsgId,
 		role: 'user',
@@ -297,7 +298,7 @@ export async function send(text: string) {
 		}
 
 		// Create placeholder assistant message
-		const assistantMsgId = crypto.randomUUID();
+		const assistantMsgId = generateUUID();
 		const assistantMsg: ChatMessage = {
 			id: assistantMsgId,
 			role: 'assistant',
@@ -388,7 +389,7 @@ export async function send(text: string) {
 					case 'tool_call_start': {
 						flushDelta();
 						const tcMsg: ChatMessage = {
-							id: crypto.randomUUID(),
+							id: generateUUID(),
 							role: 'tool',
 							content: '',
 							toolName: payload.name as string,

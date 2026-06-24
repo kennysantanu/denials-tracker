@@ -2,6 +2,7 @@ import { page } from 'vitest/browser';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import AIChatDrawer from './AIChatDrawer.svelte';
+import { generateUUID } from '$lib/utils';
 
 const { state } = vi.hoisted(() => {
 	const state = {
@@ -56,7 +57,7 @@ vi.mock('$lib/stores/chatStore.svelte', () => ({
 
 function makeMsg(role: string, content: string, status?: string) {
 	return {
-		id: crypto.randomUUID(),
+		id: generateUUID(),
 		role,
 		content,
 		status: status ?? 'complete',
