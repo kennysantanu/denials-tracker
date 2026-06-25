@@ -17,14 +17,15 @@ const RECENT_TAIL_MESSAGES = 16;
 export function prepareLongThreadMessages(
 	messages: ChatCompletionMessageParam[],
 	modelContextWindow: number | null,
-	promptChars: number
+	promptChars: number,
+	options: { forceSummary?: boolean } = {}
 ): LongThreadResult {
 	const contextWindow = modelContextWindow ?? CONTEXT_WINDOW_FALLBACK;
 	const estimatedPromptTokens = Math.ceil((promptChars + estimateChars(messages)) / 4);
 	const exceedsCount = messages.length > MESSAGE_COUNT_THRESHOLD;
 	const exceedsWindow = estimatedPromptTokens > contextWindow * 0.6;
 
-	if (!exceedsCount && !exceedsWindow) {
+	if (!options.forceSummary && !exceedsCount && !exceedsWindow) {
 		return {
 			messages,
 			summary: null,
@@ -35,7 +36,10 @@ export function prepareLongThreadMessages(
 		};
 	}
 
-	const splitIndex = findSafeSplitIndex(messages, Math.max(0, messages.length - RECENT_TAIL_MESSAGES));
+	const splitIndex = findSafeSplitIndex(
+		messages,
+		Math.max(0, messages.length - RECENT_TAIL_MESSAGES)
+	);
 	const older = messages.slice(0, splitIndex);
 	const recent = messages.slice(splitIndex);
 	const summary = summarizeOlderMessages(older);
@@ -73,7 +77,8 @@ function summarizeOlderMessages(messages: ChatCompletionMessageParam[]): string 
 	const snippets: string[] = [];
 
 	for (const message of messages) {
-		const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
+		const content =
+			typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
 		if (!content) continue;
 		for (const fact of extractIdentifiers(content)) facts.add(fact);
 		const compact = content.replace(/\s+/g, ' ').slice(0, 240);
@@ -82,7 +87,9 @@ function summarizeOlderMessages(messages: ChatCompletionMessageParam[]): string 
 
 	const lines = [
 		'Older conversation summary. Preserve these identifiers and facts when relevant.',
-		...Array.from(facts).slice(0, 80).map((fact) => `- ${fact}`),
+		...Array.from(facts)
+			.slice(0, 80)
+			.map((fact) => `- ${fact}`),
 		...snippets.slice(-12).map((snippet) => `- ${snippet}`)
 	];
 

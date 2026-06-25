@@ -79,6 +79,11 @@ function inferContextWindow(model: string): number | null {
 	return null;
 }
 
+function isContextLengthError(err: unknown): boolean {
+	const message = err instanceof Error ? err.message : String(err);
+	return /context|token|maximum|too large|too long|length/i.test(message);
+}
+
 async function logStreamingInteraction(input: {
 	locals: App.Locals;
 	userId: string;
@@ -129,9 +134,7 @@ async function logStreamingInteraction(input: {
 				: 'chat',
 			tool_name: finalToolCalls?.[0]?.name ?? null,
 			prompt_summary:
-				typeof lastUserMessage?.content === 'string'
-					? lastUserMessage.content.slice(0, 500)
-					: null,
+				typeof lastUserMessage?.content === 'string' ? lastUserMessage.content.slice(0, 500) : null,
 			response_summary: finalContent.slice(0, 500) || null,
 			model_used: finalModel || null,
 			tokens_used: contextMeta.estimatedTokens,
@@ -206,8 +209,9 @@ export const POST: RequestHandler = async (event) => {
 	};
 
 	const promptResult = await getSystemPreference(locals.supabase, 'ai_chat_system_prompt');
+	const modelResult = await getSystemPreference(locals.supabase, 'ai_model_name');
 	const basePrompt = promptResult.data?.value?.trim() || DEFAULT_SYSTEM_PROMPT;
-	const modelName = typeof body.modelName === 'string' ? body.modelName : 'configured';
+	const modelName = modelResult.data?.value?.trim() || 'configured';
 	const modelContextWindow = inferContextWindow(modelName);
 	const pageContext = buildPageContextSnippet(contextData.pageData);
 
@@ -216,33 +220,46 @@ export const POST: RequestHandler = async (event) => {
 		runtime: { model: modelName, role: 'user', timezone: 'America/Los_Angeles' },
 		pageContext: pageContext.text
 	});
-	const longThread = prepareLongThreadMessages(messages, modelContextWindow, initialPrompt.length);
-	const systemPrompt = buildSystemPrompt({
-		base: basePrompt,
-		runtime: { model: modelName, role: 'user', timezone: 'America/Los_Angeles' },
-		pageContext: pageContext.text,
-		longThreadSummary: longThread.summary
-	});
 
-	const systemMessages: ChatCompletionMessageParam[] = [{ role: 'system', content: systemPrompt }];
-	const fullMessages: ChatCompletionMessageParam[] = [...systemMessages, ...longThread.messages];
-	const toolSchemaChars = JSON.stringify(allowedTools).length;
-	const historyChars = estimateChars(longThread.messages);
-	const contextMeta: ContextMeta = {
-		systemPromptChars: systemPrompt.length,
-		pageContextChars: pageContext.chars,
-		historyChars,
-		toolSchemaChars,
-		longThreadSummaryChars: longThread.summaryChars,
-		estimatedTokens: Math.ceil((systemPrompt.length + historyChars + toolSchemaChars) / 4),
-		modelContextWindow,
-		pageContextTruncated: pageContext.truncated,
-		longThreadSummaryUsed: longThread.used,
-		sourceMessageCount: longThread.sourceMessageCount,
-		estimatedTokensSaved: longThread.estimatedTokensSaved
-	};
+	function createAttempt(forceSummary = false) {
+		const longThread = prepareLongThreadMessages(
+			messages,
+			modelContextWindow,
+			initialPrompt.length,
+			{ forceSummary }
+		);
+		const systemPrompt = buildSystemPrompt({
+			base: basePrompt,
+			runtime: { model: modelName, role: 'user', timezone: 'America/Los_Angeles' },
+			pageContext: pageContext.text,
+			longThreadSummary: longThread.summary
+		});
+		const systemMessages: ChatCompletionMessageParam[] = [
+			{ role: 'system', content: systemPrompt }
+		];
+		const fullMessages: ChatCompletionMessageParam[] = [...systemMessages, ...longThread.messages];
+		const toolSchemaChars = JSON.stringify(allowedTools).length;
+		const historyChars = estimateChars(longThread.messages);
+		const contextMeta: ContextMeta = {
+			systemPromptChars: systemPrompt.length,
+			pageContextChars: pageContext.chars,
+			historyChars,
+			toolSchemaChars,
+			longThreadSummaryChars: longThread.summaryChars,
+			estimatedTokens: Math.ceil((systemPrompt.length + historyChars + toolSchemaChars) / 4),
+			modelContextWindow,
+			pageContextTruncated: pageContext.truncated,
+			longThreadSummaryUsed: longThread.used,
+			sourceMessageCount: longThread.sourceMessageCount,
+			estimatedTokensSaved: longThread.estimatedTokensSaved
+		};
 
-	const stream = callChatStream(locals.supabase, fullMessages, allowedTools, toolContext);
+		return {
+			contextMeta,
+			stream: callChatStream(locals.supabase, fullMessages, allowedTools, toolContext),
+			usedSummary: longThread.used
+		};
+	}
 
 	const responseBody = new ReadableStream({
 		async start(controller) {
@@ -257,10 +274,14 @@ export const POST: RequestHandler = async (event) => {
 				controller.enqueue(encoder.encode(`event: ${event.type}\ndata: ${data}\n\n`));
 			}
 
-			try {
-				sse({ type: 'context_meta', contextMeta } as ContextMetaEvent);
+			async function runAttempt(attempt: ReturnType<typeof createAttempt>) {
+				let contextMetaSent = false;
 
-				for await (const event of stream) {
+				for await (const event of attempt.stream) {
+					if (!contextMetaSent) {
+						sse({ type: 'context_meta', contextMeta: attempt.contextMeta } as ContextMetaEvent);
+						contextMetaSent = true;
+					}
 					sse(event);
 					if (event.type === 'done') {
 						finalContent = event.content ?? '';
@@ -268,6 +289,22 @@ export const POST: RequestHandler = async (event) => {
 						finalDurationMs = event.durationMs ?? 0;
 						finalModel = event.model ?? '';
 					}
+				}
+				if (!contextMetaSent) {
+					sse({ type: 'context_meta', contextMeta: attempt.contextMeta } as ContextMetaEvent);
+				}
+				return attempt.contextMeta;
+			}
+
+			try {
+				let attempt = createAttempt();
+				let contextMeta: ContextMeta;
+				try {
+					contextMeta = await runAttempt(attempt);
+				} catch (err) {
+					if (attempt.usedSummary || !isContextLengthError(err)) throw err;
+					attempt = createAttempt(true);
+					contextMeta = await runAttempt(attempt);
 				}
 
 				await logStreamingInteraction({

@@ -28,7 +28,7 @@ describe('buildApiMessages', () => {
 			{ role: 'user', content: 'Check denial 1' },
 			{
 				role: 'assistant',
-				content: 'Denial 1 is open',
+				content: null,
 				tool_calls: [
 					{
 						id: 'call_1',
@@ -37,7 +37,8 @@ describe('buildApiMessages', () => {
 					}
 				]
 			},
-			{ role: 'tool', tool_call_id: 'call_1', content: 'denial result' }
+			{ role: 'tool', tool_call_id: 'call_1', content: 'denial result' },
+			{ role: 'assistant', content: 'Denial 1 is open' }
 		]);
 	});
 
@@ -79,6 +80,51 @@ describe('buildApiMessages', () => {
 			'assistant',
 			'call_a',
 			'call_b'
+		]);
+	});
+
+	it('preserves separate tool-call rounds in one assistant turn', () => {
+		const built = buildApiMessages([
+			msg({ role: 'user', content: 'Do a multi-step lookup' }),
+			msg({ role: 'tool', toolCallId: 'call_a', content: 'result A', round: 0 }),
+			msg({ role: 'tool', toolCallId: 'call_b', content: 'result B', round: 1 }),
+			msg({
+				role: 'assistant',
+				content: 'Final answer',
+				toolCalls: [
+					{ id: 'call_a', name: 'query_denials', args: '{"q":"a"}' },
+					{ id: 'call_b', name: 'query_denials', args: '{"q":"b"}' }
+				]
+			})
+		]);
+
+		expect(built).toEqual([
+			{ role: 'user', content: 'Do a multi-step lookup' },
+			{
+				role: 'assistant',
+				content: null,
+				tool_calls: [
+					{
+						id: 'call_a',
+						type: 'function',
+						function: { name: 'query_denials', arguments: '{"q":"a"}' }
+					}
+				]
+			},
+			{ role: 'tool', tool_call_id: 'call_a', content: 'result A' },
+			{
+				role: 'assistant',
+				content: null,
+				tool_calls: [
+					{
+						id: 'call_b',
+						type: 'function',
+						function: { name: 'query_denials', arguments: '{"q":"b"}' }
+					}
+				]
+			},
+			{ role: 'tool', tool_call_id: 'call_b', content: 'result B' },
+			{ role: 'assistant', content: 'Final answer' }
 		]);
 	});
 });

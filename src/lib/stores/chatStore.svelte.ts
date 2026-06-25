@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { SvelteDate } from 'svelte/reactivity';
 import { toastSuccess, toastError } from '$lib/toast';
 import { getChatContext } from '$lib/stores/chatContext.svelte';
 import { generateUUID } from '$lib/utils';
@@ -102,9 +103,7 @@ function handleBcEvent(data: Record<string, unknown>) {
 				messages = [...messages, msg];
 			}
 			// Update thread list timestamp
-			threads = threads.map((t) =>
-				t.id === tid ? { ...t, lastMessageAt: msg.createdAt } : t
-			);
+			threads = threads.map((t) => (t.id === tid ? { ...t, lastMessageAt: msg.createdAt } : t));
 			break;
 		}
 		case 'stream-started':
@@ -116,6 +115,10 @@ function handleBcEvent(data: Record<string, unknown>) {
 
 function bcPost(data: Record<string, unknown>) {
 	getBc()?.postMessage(data);
+}
+
+function nowIso() {
+	return new SvelteDate().toISOString();
 }
 
 // ── Persistence helpers ──────────────────────────────────────────
@@ -252,7 +255,7 @@ export async function send(text: string) {
 		role: 'user',
 		content: text,
 		contextSnapshot: getChatContext(),
-		createdAt: new Date().toISOString()
+		createdAt: nowIso()
 	};
 
 	// Optimistic append
@@ -327,7 +330,7 @@ export async function send(text: string) {
 			id: assistantMsgId,
 			role: 'assistant',
 			content: '',
-			createdAt: new Date().toISOString(),
+			createdAt: nowIso(),
 			status: 'pending'
 		};
 
@@ -354,7 +357,11 @@ export async function send(text: string) {
 			if (pendingDelta) {
 				const idx = messages.findIndex((m) => m.id === assistantMsgId);
 				if (idx !== -1) {
-					const updated = { ...messages[idx], content: messages[idx].content + pendingDelta, status: 'streaming' as const };
+					const updated = {
+						...messages[idx],
+						content: messages[idx].content + pendingDelta,
+						status: 'streaming' as const
+					};
 					messages = [...messages.slice(0, idx), updated, ...messages.slice(idx + 1)];
 				}
 				pendingDelta = '';
@@ -400,7 +407,8 @@ export async function send(text: string) {
 						if (ridx !== -1) {
 							const updated = {
 								...messages[ridx],
-								reasoningContent: (messages[ridx].reasoningContent ?? '') + ((payload.reasoning as string) ?? '')
+								reasoningContent:
+									(messages[ridx].reasoningContent ?? '') + ((payload.reasoning as string) ?? '')
 							};
 							messages = [...messages.slice(0, ridx), updated, ...messages.slice(ridx + 1)];
 						}
@@ -424,18 +432,14 @@ export async function send(text: string) {
 							toolCallId,
 							toolName,
 							toolArgs,
-							createdAt: new Date().toISOString(),
+							createdAt: nowIso(),
 							status: 'pending',
 							round: currentRound,
 							maxRounds
 						};
 						// Insert tool message before assistant placeholder
 						const aidx = messages.findIndex((m) => m.id === assistantMsgId);
-						messages = [
-							...messages.slice(0, aidx),
-							tcMsg,
-							...messages.slice(aidx)
-						];
+						messages = [...messages.slice(0, aidx), tcMsg, ...messages.slice(aidx)];
 						break;
 					}
 					case 'tool_call_result': {
@@ -462,7 +466,7 @@ export async function send(text: string) {
 								toolResult: (payload.result as string) ?? '',
 								status: 'complete' as const
 							};
-							apiFetch(`/api/v1/ai/threads/${threadId}/messages`, {
+							await apiFetch(`/api/v1/ai/threads/${threadId}/messages`, {
 								method: 'POST',
 								headers: { 'Content-Type': 'application/json' },
 								body: JSON.stringify({
@@ -472,9 +476,11 @@ export async function send(text: string) {
 									toolName: persistedTool.toolName,
 									toolCallId: persistedTool.toolCallId,
 									toolArgs: persistedTool.toolArgs,
-									toolResult: persistedTool.toolResult
+									toolResult: persistedTool.toolResult,
+									round: persistedTool.round,
+									maxRounds: persistedTool.maxRounds
 								})
-							}).catch(() => {});
+							});
 						}
 						break;
 					}
@@ -496,7 +502,7 @@ export async function send(text: string) {
 							messages = [...messages.slice(0, idx), updated, ...messages.slice(idx + 1)];
 
 							// Persist assistant message
-							apiFetch(`/api/v1/ai/threads/${threadId}/messages`, {
+							await apiFetch(`/api/v1/ai/threads/${threadId}/messages`, {
 								method: 'POST',
 								headers: { 'Content-Type': 'application/json' },
 								body: JSON.stringify({
@@ -505,7 +511,7 @@ export async function send(text: string) {
 									content: finalContent,
 									toolCalls: currentTurnToolCalls
 								})
-							}).catch(() => { /* best effort */ });
+							});
 
 							bcPost({ type: 'message-added', threadId, message: updated });
 						}

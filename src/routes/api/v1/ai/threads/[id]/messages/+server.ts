@@ -15,7 +15,7 @@ export const GET: RequestHandler = async (event) => {
 	let query = locals.supabase
 		.from('conversations')
 		.select(
-			'id, client_message_id, role, content, tool_name, tool_call_id, tool_calls, tool_args, tool_result, context_snapshot, created_at'
+			'id, client_message_id, role, content, tool_name, tool_call_id, tool_calls, tool_args, tool_result, tool_round, tool_max_rounds, context_snapshot, created_at'
 		)
 		.eq('thread_id', threadId)
 		.is('deleted_at', null)
@@ -42,6 +42,8 @@ export const GET: RequestHandler = async (event) => {
 			toolCalls: m.tool_calls,
 			toolArgs: m.tool_args,
 			toolResult: m.tool_result,
+			round: m.tool_round,
+			maxRounds: m.tool_max_rounds,
 			contextSnapshot: m.context_snapshot,
 			createdAt: m.created_at
 		}))
@@ -57,7 +59,19 @@ export const POST: RequestHandler = async (event) => {
 	if (!threadId) error(400, 'Missing thread ID');
 
 	const body = await request.json();
-	const { clientMessageId, role, content, toolName, toolCallId, toolCalls, toolArgs, toolResult, contextSnapshot } = body as {
+	const {
+		clientMessageId,
+		role,
+		content,
+		toolName,
+		toolCallId,
+		toolCalls,
+		toolArgs,
+		toolResult,
+		round,
+		maxRounds,
+		contextSnapshot
+	} = body as {
 		clientMessageId: string;
 		role: string;
 		content: string;
@@ -66,6 +80,8 @@ export const POST: RequestHandler = async (event) => {
 		toolCalls?: Array<{ id: string; name: string; args: string }>;
 		toolArgs?: unknown;
 		toolResult?: unknown;
+		round?: number;
+		maxRounds?: number;
 		contextSnapshot?: unknown;
 	};
 
@@ -88,13 +104,11 @@ export const POST: RequestHandler = async (event) => {
 
 	if (!existingThread) {
 		const title = role === 'user' ? content.slice(0, 40) : 'New chat';
-		const { error: threadError } = await locals.supabase
-			.from('chat_threads')
-			.insert({
-				id: threadId,
-				user_id: user.id,
-				title
-			});
+		const { error: threadError } = await locals.supabase.from('chat_threads').insert({
+			id: threadId,
+			user_id: user.id,
+			title
+		});
 
 		if (threadError) {
 			return json({ error: 'Failed to create thread' }, { status: 500 });
@@ -114,6 +128,8 @@ export const POST: RequestHandler = async (event) => {
 		tool_calls: (toolCalls ?? null) as Json | null,
 		tool_args: (toolArgs ?? null) as Json | null,
 		tool_result: (toolResult ?? null) as Json | null,
+		tool_round: typeof round === 'number' ? round : null,
+		tool_max_rounds: typeof maxRounds === 'number' ? maxRounds : null,
 		context_snapshot: (contextSnapshot ?? null) as Json | null
 	};
 
@@ -121,7 +137,7 @@ export const POST: RequestHandler = async (event) => {
 		.from('conversations')
 		.insert(insertPayload)
 		.select(
-			'id, client_message_id, role, content, tool_name, tool_call_id, tool_calls, tool_args, tool_result, context_snapshot, created_at'
+			'id, client_message_id, role, content, tool_name, tool_call_id, tool_calls, tool_args, tool_result, tool_round, tool_max_rounds, context_snapshot, created_at'
 		)
 		.single();
 
@@ -131,7 +147,7 @@ export const POST: RequestHandler = async (event) => {
 			const { data: existing } = await locals.supabase
 				.from('conversations')
 				.select(
-					'id, client_message_id, role, content, tool_name, tool_call_id, tool_calls, tool_args, tool_result, context_snapshot, created_at'
+					'id, client_message_id, role, content, tool_name, tool_call_id, tool_calls, tool_args, tool_result, tool_round, tool_max_rounds, context_snapshot, created_at'
 				)
 				.eq('thread_id', threadId)
 				.eq('client_message_id', clientMessageId)
@@ -148,6 +164,8 @@ export const POST: RequestHandler = async (event) => {
 						toolCalls: existing.tool_calls,
 						toolArgs: existing.tool_args,
 						toolResult: existing.tool_result,
+						round: existing.tool_round,
+						maxRounds: existing.tool_max_rounds,
 						contextSnapshot: existing.context_snapshot,
 						createdAt: existing.created_at
 					}
@@ -173,6 +191,8 @@ export const POST: RequestHandler = async (event) => {
 			toolCalls: inserted.tool_calls,
 			toolArgs: inserted.tool_args,
 			toolResult: inserted.tool_result,
+			round: inserted.tool_round,
+			maxRounds: inserted.tool_max_rounds,
 			contextSnapshot: inserted.context_snapshot,
 			createdAt: inserted.created_at
 		}

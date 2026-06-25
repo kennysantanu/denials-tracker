@@ -9,12 +9,15 @@ export interface AiChatMessage {
 	content: string;
 	toolCallId?: string;
 	toolCalls?: Array<{ id: string; name: string; args: string }>;
+	round?: number;
 	createdAt: string;
 }
 
-function toAssistantToolCall(
-	toolCall: { id: string; name: string; args: string }
-): ChatCompletionMessageToolCall | null {
+function toAssistantToolCall(toolCall: {
+	id: string;
+	name: string;
+	args: string;
+}): ChatCompletionMessageToolCall | null {
 	if (!toolCall.id || !toolCall.name) return null;
 	return {
 		id: toolCall.id,
@@ -50,21 +53,35 @@ export function buildApiMessages(messages: AiChatMessage[]): ChatCompletionMessa
 				.filter((toolCall): toolCall is ChatCompletionMessageToolCall => toolCall !== null);
 
 			if (pairedToolCalls.length > 0) {
-				apiMessages.push({
-					role: 'assistant',
-					content: message.content || null,
-					tool_calls: pairedToolCalls
-				});
-
+				const toolCallsByRound = new Map<number, ChatCompletionMessageToolCall[]>();
 				for (const toolCall of pairedToolCalls) {
-					const toolMessage = byToolCallId.get(toolCall.id);
-					if (!toolMessage) continue;
+					const round = byToolCallId.get(toolCall.id)?.round ?? 0;
+					const roundToolCalls = toolCallsByRound.get(round) ?? [];
+					roundToolCalls.push(toolCall);
+					toolCallsByRound.set(round, roundToolCalls);
+				}
+
+				for (const [, roundToolCalls] of [...toolCallsByRound].sort(([a], [b]) => a - b)) {
 					apiMessages.push({
-						role: 'tool',
-						tool_call_id: toolCall.id,
-						content: toolMessage.content
+						role: 'assistant',
+						content: null,
+						tool_calls: roundToolCalls
 					});
-					emittedToolIds.add(toolCall.id);
+
+					for (const toolCall of roundToolCalls) {
+						const toolMessage = byToolCallId.get(toolCall.id);
+						if (!toolMessage) continue;
+						apiMessages.push({
+							role: 'tool',
+							tool_call_id: toolCall.id,
+							content: toolMessage.content
+						});
+						emittedToolIds.add(toolCall.id);
+					}
+				}
+
+				if (message.content.trim()) {
+					apiMessages.push({ role: 'assistant', content: message.content });
 				}
 			} else if (message.content.trim()) {
 				apiMessages.push({ role: 'assistant', content: message.content });

@@ -10,6 +10,22 @@ describe('prepareLongThreadMessages', () => {
 		expect(result.summary).toBeNull();
 	});
 
+	it('can force summary below threshold for context-length retries', () => {
+		const result = prepareLongThreadMessages(
+			Array.from({ length: 20 }, (_, i) => ({
+				role: i % 2 === 0 ? 'user' : 'assistant',
+				content: `message ${i} patient id 123 denial id 456`
+			})),
+			8192,
+			100,
+			{ forceSummary: true }
+		);
+
+		expect(result.used).toBe(true);
+		expect(result.summary).toContain('patient id 123');
+		expect(result.summary).toContain('denial id 456');
+	});
+
 	it('keeps a recent tail verbatim when summarizing', () => {
 		const messages: ChatCompletionMessageParam[] = Array.from({ length: 34 }, (_, i) => ({
 			role: i % 2 === 0 ? 'user' : 'assistant',
