@@ -288,7 +288,11 @@ export type Database = {
           role: string
           session_id: string
           thread_id: string | null
+          tool_args: Json | null
+          tool_call_id: string | null
+          tool_calls: Json | null
           tool_name: string | null
+          tool_result: Json | null
           user_id: string
         }
         Insert: {
@@ -301,7 +305,11 @@ export type Database = {
           role: string
           session_id: string
           thread_id?: string | null
+          tool_args?: Json | null
+          tool_call_id?: string | null
+          tool_calls?: Json | null
           tool_name?: string | null
+          tool_result?: Json | null
           user_id: string
         }
         Update: {
@@ -314,7 +322,11 @@ export type Database = {
           role?: string
           session_id?: string
           thread_id?: string | null
+          tool_args?: Json | null
+          tool_call_id?: string | null
+          tool_calls?: Json | null
           tool_name?: string | null
+          tool_result?: Json | null
           user_id?: string
         }
         Relationships: [

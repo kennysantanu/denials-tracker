@@ -8,11 +8,37 @@ const { state } = vi.hoisted(() => {
 	const state = {
 		_open: false,
 		_context: { route: '/dashboard' } as Record<string, unknown>,
-		_chatMessages: [] as Array<{ id: string; role: string; content: string; status?: string; createdAt: string }>,
-		_chatThreads: [] as Array<{ id: string; title: string; lastMessageAt: string; archivedAt: null; createdAt: string }>,
+		_chatMessages: [] as Array<{
+			id: string;
+			role: string;
+			content: string;
+			status?: string;
+			contextSnapshot?: unknown;
+			createdAt: string;
+		}>,
+		_chatThreads: [] as Array<{
+			id: string;
+			title: string;
+			lastMessageAt: string;
+			archivedAt: null;
+			createdAt: string;
+		}>,
 		_chatActiveThreadId: null as string | null,
 		_chatStatus: 'idle' as string,
-		_chatError: null as { message: string } | null
+		_chatError: null as { message: string } | null,
+		_contextMeta: null as null | {
+			estimatedTokens: number;
+			systemPromptChars: number;
+			pageContextChars: number;
+			historyChars: number;
+			toolSchemaChars: number;
+			longThreadSummaryChars: number;
+			modelContextWindow: number | null;
+			pageContextTruncated: boolean;
+			longThreadSummaryUsed: boolean;
+			sourceMessageCount: number;
+			estimatedTokensSaved: number;
+		}
 	};
 	return { state };
 });
@@ -44,6 +70,7 @@ vi.mock('$lib/stores/chatStore.svelte', () => ({
 	getActiveThreadId: () => state._chatActiveThreadId,
 	getStatus: () => state._chatStatus,
 	getError: () => state._chatError,
+	getContextMeta: () => state._contextMeta,
 	loadThreads: vi.fn(),
 	loadThread: vi.fn(),
 	startNewThread: vi.fn(),
@@ -52,7 +79,8 @@ vi.mock('$lib/stores/chatStore.svelte', () => ({
 	retryLast: vi.fn(),
 	editAndResubmit: vi.fn(),
 	clearThread: vi.fn(),
-	copyMessage: vi.fn()
+	copyMessage: vi.fn(),
+	clearError: vi.fn()
 }));
 
 function makeMsg(role: string, content: string, status?: string) {
@@ -74,6 +102,7 @@ describe('AIChatDrawer.svelte', () => {
 		state._chatActiveThreadId = null;
 		state._chatStatus = 'idle';
 		state._chatError = null;
+		state._contextMeta = null;
 	});
 
 	it('is not visible when drawer is closed', async () => {
@@ -122,7 +151,36 @@ describe('AIChatDrawer.svelte', () => {
 		state._open = true;
 		state._context = { route: '/dashboard' };
 		render(AIChatDrawer);
-		await expect.element(page.getByText('General context — /dashboard')).toBeInTheDocument();
+		await expect.element(page.getByText('General context - Dashboard')).toBeInTheDocument();
+	});
+
+	it('shows context token estimate when metadata is available', async () => {
+		state._open = true;
+		state._contextMeta = {
+			estimatedTokens: 1234,
+			systemPromptChars: 100,
+			pageContextChars: 50,
+			historyChars: 200,
+			toolSchemaChars: 300,
+			longThreadSummaryChars: 0,
+			modelContextWindow: null,
+			pageContextTruncated: false,
+			longThreadSummaryUsed: false,
+			sourceMessageCount: 2,
+			estimatedTokensSaved: 0
+		};
+		render(AIChatDrawer);
+		await expect.element(page.getByText('1,234 est. tokens')).toBeInTheDocument();
+	});
+
+	it('prompts before mixing patient contexts in a populated thread', async () => {
+		state._open = true;
+		state._context = { route: '/record/2', patientId: 2 };
+		state._chatMessages = [{ ...makeMsg('user', 'Hello'), contextSnapshot: { patientId: 1 } }];
+		render(AIChatDrawer);
+		await expect
+			.element(page.getByText('Continue this chat with the new patient context, or start a new chat?'))
+			.toBeInTheDocument();
 	});
 
 	it('renders messages when present', async () => {
@@ -142,9 +200,7 @@ describe('AIChatDrawer.svelte', () => {
 		await expect
 			.element(page.getByRole('button', { name: 'Clear chat' }))
 			.toBeInTheDocument();
-		await expect
-			.element(page.getByRole('button', { name: 'Close' }))
-			.toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: 'Close' })).toBeInTheDocument();
 	});
 
 	it('shows stop button when streaming', async () => {
@@ -152,7 +208,9 @@ describe('AIChatDrawer.svelte', () => {
 		state._chatStatus = 'streaming';
 		state._chatMessages = [makeMsg('user', 'test')];
 		render(AIChatDrawer);
-		await expect.element(page.getByText('Stop generating')).toBeInTheDocument();
+		await expect
+			.element(page.getByRole('button', { name: 'Stop generating' }))
+			.toBeInTheDocument();
 	});
 
 	it('shows error banner when error present', async () => {

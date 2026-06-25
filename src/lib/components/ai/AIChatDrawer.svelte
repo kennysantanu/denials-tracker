@@ -13,6 +13,7 @@
 		getActiveThreadId,
 		getStatus,
 		getError,
+		getContextMeta,
 		loadThread,
 		startNewThread,
 		send,
@@ -38,9 +39,6 @@
 	let isSmallScreen = $state(false);
 	let isFullscreen = $state(false);
 	let isResizing = $state(false);
-	let dialogEl = $state<HTMLDivElement>();
-	let chatInputRef = $state<{ focus: () => void }>();
-	let previousFocus = $state<HTMLElement | null>(null);
 	let showClearConfirm = $state(false);
 	let touchStartX = $state(0);
 	let touchStartY = $state(0);
@@ -53,13 +51,23 @@
 	const activeThreadId = $derived(getActiveThreadId());
 	const chatStatus = $derived(getStatus());
 	const chatError = $derived(getError());
+	const contextMeta = $derived(getContextMeta());
 	const open = $derived(isChatDrawerOpen());
+	let allowedMixedPatientThread = $state(false);
 
 	// ── Derived values ────────────────────────────────────────────
 
 	const fullscreenMode = $derived(isSmallScreen || isFullscreen);
 	const isStreaming = $derived(chatStatus === 'streaming' || chatStatus === 'sending');
 	const isEmpty = $derived(messages.length === 0);
+	const activeThreadPatientId = $derived(getThreadPatientId(messages));
+	const showPatientBoundaryPrompt = $derived(
+		messages.length > 0 &&
+			context.patientId != null &&
+			activeThreadPatientId != null &&
+			activeThreadPatientId !== context.patientId &&
+			!allowedMixedPatientThread
+	);
 
 	const patientPrompts = [
 		"Summarize this patient's open denials",
@@ -104,29 +112,6 @@
 		return () => mq.removeEventListener('change', handler);
 	});
 
-	// Focus management: focus input on open, restore on close
-	$effect(() => {
-		if (open) {
-			previousFocus = document.activeElement as HTMLElement | null;
-			requestAnimationFrame(() => chatInputRef?.focus());
-		} else {
-			previousFocus?.focus();
-			previousFocus = null;
-		}
-	});
-
-	// Toggle body cursor + selection lock while resizing
-	$effect(() => {
-		if (isResizing) {
-			document.body.style.cursor = 'col-resize';
-			document.body.style.userSelect = 'none';
-			return () => {
-				document.body.style.cursor = '';
-				document.body.style.userSelect = '';
-			};
-		}
-	});
-
 	// ── Handlers ──────────────────────────────────────────────────
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -135,6 +120,7 @@
 			return;
 		}
 		// Focus trap
+		const dialogEl = document.getElementById('ai-chat-dialog');
 		if (e.key === 'Tab' && dialogEl) {
 			const focusable = dialogEl.querySelectorAll<HTMLElement>(
 				'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -182,11 +168,22 @@
 	}
 
 	function handleSelectThread(threadId: string) {
+		allowedMixedPatientThread = false;
 		loadThread(threadId);
 	}
 
 	function handleNewChat() {
+		allowedMixedPatientThread = false;
 		startNewThread();
+	}
+
+	function handleContinuePatientThread() {
+		allowedMixedPatientThread = true;
+	}
+
+	function handleStartPatientThread() {
+		startNewThread();
+		allowedMixedPatientThread = false;
 	}
 
 	function handleRequestClear() {
@@ -210,6 +207,8 @@
 	function onResizeStart(e: PointerEvent) {
 		if (fullscreenMode) return;
 		isResizing = true;
+		document.body.style.cursor = 'col-resize';
+		document.body.style.userSelect = 'none';
 		const startX = e.clientX;
 		const startWidth = drawerWidth;
 
@@ -220,6 +219,8 @@
 
 		function onUp() {
 			isResizing = false;
+			document.body.style.cursor = '';
+			document.body.style.userSelect = '';
 			localStorage.setItem('aiChatDrawerWidth', String(drawerWidth));
 			window.removeEventListener('pointermove', onMove);
 			window.removeEventListener('pointerup', onUp);
@@ -262,6 +263,14 @@
 			closeChatDrawer();
 		}
 	}
+
+	function getThreadPatientId(threadMessages: ChatMessageType[]): number | null {
+		for (const message of threadMessages) {
+			const snapshot = message.contextSnapshot as { patientId?: number } | undefined;
+			if (typeof snapshot?.patientId === 'number') return snapshot.patientId;
+		}
+		return null;
+	}
 </script>
 
 {#if open}
@@ -272,7 +281,7 @@
 
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
-		bind:this={dialogEl}
+		id="ai-chat-dialog"
 		class="z-50 flex flex-col bg-white {fullscreenMode
 			? 'fixed top-0 right-0 left-0 h-dvh'
 			: 'fixed top-0 right-0 h-full border-l border-surface-200 shadow-xl'}"
@@ -288,7 +297,6 @@
 	>
 		<!-- Resize handle: side-panel mode only -->
 		{#if !fullscreenMode}
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="group justify-left absolute top-0 left-0 z-10 flex h-full w-2 cursor-col-resize items-center"
@@ -323,7 +331,29 @@
 		</div>
 
 		<!-- Context indicator -->
-		<ChatContextBar {context} />
+		<ChatContextBar {context} {contextMeta} />
+
+		{#if showPatientBoundaryPrompt}
+			<div
+				class="flex items-center justify-between gap-3 border-b border-warning-200 bg-warning-50 px-4 py-2 text-sm"
+			>
+				<span class="min-w-0 text-surface-800">
+					Continue this chat with the new patient context, or start a new chat?
+				</span>
+				<div class="flex shrink-0 items-center gap-2">
+					<button
+						type="button"
+						class="btn preset-filled-primary-500 btn-sm"
+						onclick={handleStartPatientThread}
+					>
+						Start new chat
+					</button>
+					<button type="button" class="btn preset-tonal btn-sm" onclick={handleContinuePatientThread}>
+						Continue here
+					</button>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Messages -->
 		<ChatMessageList {messages} {isStreaming} {isEmpty}>
@@ -374,7 +404,6 @@
 		<!-- Input (with safe-area bottom inset on mobile) -->
 		<div class="border-t border-surface-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
 			<ChatInput
-				bind:this={chatInputRef}
 				status={chatStatus}
 				placeholder={inputPlaceholder}
 				onSend={handleSend}

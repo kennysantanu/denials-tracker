@@ -2,6 +2,7 @@ import { browser } from '$app/environment';
 import { toastSuccess, toastError } from '$lib/toast';
 import { getChatContext } from '$lib/stores/chatContext.svelte';
 import { generateUUID } from '$lib/utils';
+import { buildApiMessages } from '$lib/ai/messages';
 
 export interface ChatThread {
 	id: string;
@@ -16,9 +17,12 @@ export interface ChatMessage {
 	role: 'user' | 'assistant' | 'tool';
 	content: string;
 	reasoningContent?: string;
+	toolCallId?: string;
+	toolCalls?: Array<{ id: string; name: string; args: string }>;
 	toolName?: string;
 	toolArgs?: unknown;
 	toolResult?: string;
+	contextSnapshot?: unknown;
 	status?: 'pending' | 'streaming' | 'complete' | 'error' | 'cancelled';
 	round?: number;
 	maxRounds?: number;
@@ -26,6 +30,20 @@ export interface ChatMessage {
 }
 
 export type StoreStatus = 'idle' | 'sending' | 'streaming' | 'error' | 'cancelled';
+
+export interface ContextMeta {
+	systemPromptChars: number;
+	pageContextChars: number;
+	historyChars: number;
+	toolSchemaChars: number;
+	longThreadSummaryChars: number;
+	estimatedTokens: number;
+	modelContextWindow: number | null;
+	pageContextTruncated: boolean;
+	longThreadSummaryUsed: boolean;
+	sourceMessageCount: number;
+	estimatedTokensSaved: number;
+}
 
 interface StoreError {
 	message: string;
@@ -39,6 +57,7 @@ let activeThreadId = $state<string | null>(null);
 let messages = $state<ChatMessage[]>([]);
 let status = $state<StoreStatus>('idle');
 let error = $state<StoreError | null>(null);
+let contextMeta = $state<ContextMeta | null>(null);
 
 let abortController = $state<AbortController | null>(null);
 let _bc: BroadcastChannel | null = null;
@@ -174,6 +193,10 @@ export function getError(): StoreError | null {
 	return error;
 }
 
+export function getContextMeta(): ContextMeta | null {
+	return contextMeta;
+}
+
 export async function loadThreads() {
 	error = null;
 	try {
@@ -203,6 +226,7 @@ export async function loadThread(threadId: string) {
 export function startNewThread() {
 	status = 'idle';
 	error = null;
+	contextMeta = null;
 	messages = [];
 	activeThreadId = generateUUID();
 	saveActiveThreadToStorage(activeThreadId);
@@ -227,6 +251,7 @@ export async function send(text: string) {
 		id: userMsgId,
 		role: 'user',
 		content: text,
+		contextSnapshot: getChatContext(),
 		createdAt: new Date().toISOString()
 	};
 
@@ -248,7 +273,8 @@ export async function send(text: string) {
 			body: JSON.stringify({
 				clientMessageId: userMsgId,
 				role: 'user',
-				content: text
+				content: text,
+				contextSnapshot: getChatContext()
 			})
 		});
 
@@ -270,9 +296,7 @@ export async function send(text: string) {
 
 		// ── Streaming call ──────────────────────────────────────
 
-		const apiMessages = messages
-			.filter((m) => m.role === 'user' || m.role === 'assistant')
-			.map((m) => ({ role: m.role, content: m.content }));
+		const apiMessages = buildApiMessages(messages);
 
 		const res = await fetch('/api/v1/ai/chat?stream=true', {
 			method: 'POST',
@@ -324,6 +348,7 @@ export async function send(text: string) {
 		let buffer = '';
 		let currentRound = 0;
 		let maxRounds = 5;
+		const currentTurnToolCalls: Array<{ id: string; name: string; args: string }> = [];
 
 		function flushDelta() {
 			if (pendingDelta) {
@@ -388,12 +413,17 @@ export async function send(text: string) {
 					}
 					case 'tool_call_start': {
 						flushDelta();
+						const toolCallId = (payload.id as string) || generateUUID();
+						const toolName = payload.name as string;
+						const toolArgs = (payload.args as string) ?? '';
+						currentTurnToolCalls.push({ id: toolCallId, name: toolName, args: toolArgs });
 						const tcMsg: ChatMessage = {
 							id: generateUUID(),
 							role: 'tool',
 							content: '',
-							toolName: payload.name as string,
-							toolArgs: payload.args,
+							toolCallId,
+							toolName,
+							toolArgs,
 							createdAt: new Date().toISOString(),
 							status: 'pending',
 							round: currentRound,
@@ -410,17 +440,46 @@ export async function send(text: string) {
 					}
 					case 'tool_call_result': {
 						flushDelta();
-						// Update the matching tool message
+						const toolCallId = payload.id as string;
+						const completedTool = messages.find(
+							(m) => m.role === 'tool' && m.toolCallId === toolCallId
+						);
 						messages = messages.map((m) => {
-							if (m.role === 'tool' && m.toolName === payload.name && m.status === 'pending') {
+							if (m.role === 'tool' && m.toolCallId === toolCallId) {
 								return {
 									...m,
 									content: (payload.result as string) ?? '',
+									toolResult: (payload.result as string) ?? '',
 									status: 'complete' as const
 								};
 							}
 							return m;
 						});
+						if (completedTool) {
+							const persistedTool = {
+								...completedTool,
+								content: (payload.result as string) ?? '',
+								toolResult: (payload.result as string) ?? '',
+								status: 'complete' as const
+							};
+							apiFetch(`/api/v1/ai/threads/${threadId}/messages`, {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({
+									clientMessageId: persistedTool.id,
+									role: 'tool',
+									content: persistedTool.content,
+									toolName: persistedTool.toolName,
+									toolCallId: persistedTool.toolCallId,
+									toolArgs: persistedTool.toolArgs,
+									toolResult: persistedTool.toolResult
+								})
+							}).catch(() => {});
+						}
+						break;
+					}
+					case 'context_meta': {
+						contextMeta = payload.contextMeta as ContextMeta;
 						break;
 					}
 					case 'done': {
@@ -431,6 +490,7 @@ export async function send(text: string) {
 							const updated: ChatMessage = {
 								...messages[idx],
 								content: finalContent,
+								toolCalls: currentTurnToolCalls,
 								status: 'complete' as const
 							};
 							messages = [...messages.slice(0, idx), updated, ...messages.slice(idx + 1)];
@@ -442,7 +502,8 @@ export async function send(text: string) {
 								body: JSON.stringify({
 									clientMessageId: assistantMsgId,
 									role: 'assistant',
-									content: finalContent
+									content: finalContent,
+									toolCalls: currentTurnToolCalls
 								})
 							}).catch(() => { /* best effort */ });
 

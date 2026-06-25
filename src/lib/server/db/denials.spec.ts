@@ -61,7 +61,7 @@ describe('getDenialsByPatient', () => {
 		const chain = sb._chain('denials');
 		expect(chain.select).toHaveBeenCalledWith('*');
 		expect(chain.eq).toHaveBeenCalledWith('patient_id', 10);
-		expect(chain.order).toHaveBeenCalledWith('created_at', { ascending: false });
+		expect(chain.order).toHaveBeenCalledWith('service_start_date', { ascending: false });
 	});
 
 	it('propagates Supabase error', async () => {

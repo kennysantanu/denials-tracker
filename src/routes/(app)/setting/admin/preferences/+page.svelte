@@ -110,8 +110,9 @@
 		</div>
 		<div class="mb-4 rounded-base border-l-4 border-primary-500 bg-primary-50 p-3">
 			<p class="text-sm text-surface-800">
-				AI features connect to a <strong>local AI server only</strong> (e.g. LM Studio, Ollama). No data
-				is sent to external cloud services.
+				AI features connect to a <strong>local AI server only</strong> (e.g. LM Studio, Ollama). The
+				chat backend must support OpenAI-compatible streaming chat completions with tool-call
+				deltas. No data is sent to external cloud services.
 			</p>
 		</div>
 
@@ -137,8 +138,9 @@
 					disabled={!canUpdate}
 				/>
 				<span class="text-xs text-surface-500">
-					Full OpenAI-compatible base URL — e.g. <code>http://localhost:1234/v1</code> (LM Studio)
-					or <code>http://localhost:11434/v1</code> (Ollama).
+					Full OpenAI-compatible base URL, with streaming enabled - e.g.
+					<code>http://localhost:1234/v1</code> (LM Studio) or
+					<code>http://localhost:11434/v1</code> (Ollama).
 				</span>
 			</label>
 			<label class="label">

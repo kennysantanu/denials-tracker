@@ -13,11 +13,27 @@ const NO_RESPONSE_ERROR =
 
 export interface ChatResult {
 	content: string;
-	toolCalls?: { name: string; args: Record<string, unknown>; result: string }[];
+	toolCalls?: ToolCallLog[];
+}
+
+export interface ToolCallLog {
+	id: string;
+	name: string;
+	args: Record<string, unknown>;
+	argsText: string;
+	result: string;
 }
 
 export interface StreamEvent {
-	type: 'delta' | 'reasoning_delta' | 'tool_call_start' | 'tool_call_result' | 'round' | 'done' | 'error';
+	type:
+		| 'delta'
+		| 'reasoning_delta'
+		| 'tool_call_start'
+		| 'tool_call_result'
+		| 'round'
+		| 'context_meta'
+		| 'done'
+		| 'error';
 	content?: string;
 	reasoning?: string;
 	id?: string;
@@ -29,7 +45,8 @@ export interface StreamEvent {
 	durationMs?: number;
 	tokensUsed?: number;
 	model?: string;
-	toolCalls?: { name: string; args: Record<string, unknown>; result: string }[];
+	toolCalls?: ToolCallLog[];
+	contextMeta?: unknown;
 	message?: string;
 }
 
@@ -99,8 +116,10 @@ export async function callChat(
 			const result = await executeToolCall(toolContext, fnCall.function.name, args);
 
 			toolLog.push({
+				id: fnCall.id,
 				name: fnCall.function.name,
 				args,
+				argsText: fnCall.function.arguments,
 				result
 			});
 
@@ -259,7 +278,7 @@ export async function* callChatStream(
 
 			const result = await executeToolCall(toolContext, tc.name, args);
 
-			toolLog.push({ name: tc.name, args, result });
+			toolLog.push({ id: tc.id, name: tc.name, args, argsText: tc.args, result });
 
 			yield {
 				type: 'tool_call_result',
