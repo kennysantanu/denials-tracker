@@ -35,7 +35,7 @@
 </script>
 
 <div
-	class="flex min-h-8 items-center justify-between gap-2 border-b border-surface-200 bg-surface-50 px-4 py-1.5 text-xs"
+	class="relative z-30 flex min-h-8 items-center justify-between gap-2 border-b border-surface-200 bg-surface-50 px-4 py-1.5 text-xs"
 >
 	<div class="flex min-w-0 items-center gap-2">
 		{#if context.patientId && patient}
@@ -58,18 +58,22 @@
 
 	{#if contextMeta && tokenLabel}
 		<Popover>
-			<Popover.Trigger class="btn btn-sm h-6 min-h-6 shrink-0 gap-1 px-2 hover:preset-tonal">
+			<Popover.Trigger class="btn h-6 min-h-6 shrink-0 gap-1 btn-sm px-2 hover:preset-tonal">
 				<Info class="h-3.5 w-3.5" />
 				<span>{tokenLabel}</span>
 			</Popover.Trigger>
-			<Popover.Positioner class="z-50">
-				<Popover.Content class="w-64 rounded-container border border-surface-200 bg-white p-3 shadow-lg">
+			<Popover.Positioner class="z-[70]">
+				<Popover.Content
+					class="relative z-[70] w-64 rounded-container border border-surface-200 bg-white p-3 shadow-lg"
+				>
 					<div class="space-y-1 text-xs text-surface-700">
 						<div class="flex justify-between gap-3">
 							<span>System</span><span>{contextMeta.systemPromptChars.toLocaleString()} chars</span>
 						</div>
 						<div class="flex justify-between gap-3">
-							<span>Page context</span><span>{contextMeta.pageContextChars.toLocaleString()} chars</span>
+							<span>Page context</span><span
+								>{contextMeta.pageContextChars.toLocaleString()} chars</span
+							>
 						</div>
 						<div class="flex justify-between gap-3">
 							<span>History</span><span>{contextMeta.historyChars.toLocaleString()} chars</span>
@@ -78,11 +82,15 @@
 							<span>Tools</span><span>{contextMeta.toolSchemaChars.toLocaleString()} chars</span>
 						</div>
 						<div class="flex justify-between gap-3">
-							<span>Summary</span><span>{contextMeta.longThreadSummaryChars.toLocaleString()} chars</span>
+							<span>Summary</span><span
+								>{contextMeta.longThreadSummaryChars.toLocaleString()} chars</span
+							>
 						</div>
 						{#if contextMeta.modelContextWindow}
 							<div class="flex justify-between gap-3 border-t border-surface-100 pt-1">
-								<span>Window</span><span>{contextMeta.modelContextWindow.toLocaleString()} tokens</span>
+								<span>Window</span><span
+									>{contextMeta.modelContextWindow.toLocaleString()} tokens</span
+								>
 							</div>
 						{/if}
 					</div>

@@ -8,6 +8,8 @@ import { getOpenAIClient } from './client';
 import { executeToolCall, type ToolContext } from './tools';
 
 const MAX_TOOL_ROUNDS = 5;
+const TOOL_RESULT_CONTINUATION =
+	'Use the tool results above to continue answering the original user request. If more information is required, call another allowed tool.';
 
 export interface ToolCallLog {
 	id: string;
@@ -186,6 +188,11 @@ export async function* callChatStream(
 				content: result
 			});
 		}
+
+		conversationMessages.push({
+			role: 'user',
+			content: TOOL_RESULT_CONTINUATION
+		});
 	}
 
 	// Exhausted tool rounds — make one final streaming call without more tools.

@@ -72,7 +72,7 @@
 	});
 </script>
 
-<div class="relative flex-1 overflow-hidden">
+<div class="relative z-0 flex-1 overflow-hidden">
 	<div
 		bind:this={container}
 		class="h-full space-y-4 overflow-y-auto p-4"
@@ -97,8 +97,8 @@
 				<!-- No extra loader — streaming content is handled by ChatMessage -->
 			{:else if !lastMsg.content && !lastMsg.reasoningContent}
 				<div class="flex justify-start">
-					<div class="text-surface-400 px-3 py-2 text-sm">
-						<Loader2 class="h-4 w-4 animate-spin inline" />
+					<div class="px-3 py-2 text-sm text-surface-400">
+						<Loader2 class="inline h-4 w-4 animate-spin" />
 					</div>
 				</div>
 			{/if}

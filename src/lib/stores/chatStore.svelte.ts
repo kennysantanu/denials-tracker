@@ -114,11 +114,22 @@ function handleBcEvent(data: Record<string, unknown>) {
 }
 
 function bcPost(data: Record<string, unknown>) {
-	getBc()?.postMessage(data);
+	const bc = getBc();
+	if (!bc) return;
+
+	try {
+		bc.postMessage(structuredClone(data));
+	} catch {
+		bc.postMessage(JSON.parse(JSON.stringify(data)));
+	}
 }
 
 function nowIso() {
 	return new SvelteDate().toISOString();
+}
+
+function plainContextSnapshot() {
+	return JSON.parse(JSON.stringify($state.snapshot(getChatContext())));
 }
 
 // ── Persistence helpers ──────────────────────────────────────────
@@ -250,11 +261,12 @@ export async function send(text: string) {
 	}
 
 	const userMsgId = generateUUID();
+	const contextSnapshot = plainContextSnapshot();
 	const userMsg: ChatMessage = {
 		id: userMsgId,
 		role: 'user',
 		content: text,
-		contextSnapshot: getChatContext(),
+		contextSnapshot,
 		createdAt: nowIso()
 	};
 
@@ -277,7 +289,7 @@ export async function send(text: string) {
 				clientMessageId: userMsgId,
 				role: 'user',
 				content: text,
-				contextSnapshot: getChatContext()
+				contextSnapshot
 			})
 		});
 
