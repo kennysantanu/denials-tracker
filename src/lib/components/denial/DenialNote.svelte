@@ -153,7 +153,7 @@
 				<div class="relative">
 					<button
 						type="button"
-						class="btn preset-outlined-surface-500 btn-sm px-1.5"
+						class="btn hover:bg-surface-200-800"
 						title="Note actions"
 						onclick={toggleMenu}
 					>

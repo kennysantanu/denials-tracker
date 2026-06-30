@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { goto, invalidateAll } from '$app/navigation';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { formatDate } from '$lib/utils';
 	import { marked } from 'marked';
@@ -235,10 +234,10 @@
 							allowExistingFiles={false}
 						/>
 						<div class="flex gap-2">
-							<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+							<button type="submit" class="btn preset-filled-primary-500">Save</button>
 							<button
 								type="button"
-								class="btn preset-outlined-surface-500 btn-sm"
+								class="btn preset-outlined-surface-500"
 								onclick={() => {
 									editingNote = false;
 									noteText = data.patient.note ?? '';
@@ -257,7 +256,7 @@
 				<div class="relative shrink-0">
 					<button
 						type="button"
-						class="btn preset-outlined-surface-500 btn-sm px-1.5"
+						class="btn hover:bg-surface-200-800"
 						title="Patient actions"
 						onclick={() => (patientMenuOpen = !patientMenuOpen)}
 					>
@@ -342,7 +341,7 @@
 		{#if isFiltering}
 			<button
 				type="button"
-				class="btn shrink-0 btn-sm hover:preset-tonal"
+				class="btn shrink-0 hover:preset-tonal"
 				onclick={() => {
 					searchQuery = '';
 					filterLabelIds = [];
@@ -381,15 +380,15 @@
 						showNewDenialForm = !showNewDenialForm;
 						if (showNewDenialForm) newDenialFollowUpDate = '';
 					}}
-			>
-				{#if showNewDenialForm}
-					<X class="h-4 w-4" />
-					Cancel
-				{:else}
-					<Plus class="h-4 w-4" />
-					New Denial
-				{/if}
-			</button>
+				>
+					{#if showNewDenialForm}
+						<X class="h-4 w-4" />
+						Cancel
+					{:else}
+						<Plus class="h-4 w-4" />
+						New Denial
+					{/if}
+				</button>
 			{/if}
 		</div>
 
