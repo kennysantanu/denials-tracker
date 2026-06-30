@@ -62,7 +62,9 @@ export async function* callChatStream(
 		return;
 	}
 
-	const { client, model } = ai;
+	const { client, model, reasoningEffort } = ai;
+	const reasoningEffortParams =
+		reasoningEffort === undefined ? {} : { reasoning_effort: reasoningEffort };
 	const toolLog: ToolCallLog[] = [];
 	const conversationMessages: ChatCompletionMessageParam[] = [...messages];
 	let toolsSupported = true;
@@ -76,7 +78,7 @@ export async function* callChatStream(
 			messages: conversationMessages,
 			tools: useTools ? tools : undefined,
 			stream: true,
-			reasoning_effort: 'low'
+			...reasoningEffortParams
 			// stream_options is OpenAI-proprietary; omitted for LM Studio / Ollama compat
 		});
 
@@ -200,7 +202,7 @@ export async function* callChatStream(
 		model,
 		messages: conversationMessages,
 		stream: true,
-		reasoning_effort: 'low'
+		...reasoningEffortParams
 	});
 
 	let finalContent = '';

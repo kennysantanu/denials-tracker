@@ -13,12 +13,14 @@
 		aiBaseUrl: data.aiBaseUrl,
 		aiModelName: data.aiModelName,
 		idleTimeoutMinutes: data.idleTimeoutMinutes,
-		aiChatSystemPrompt: data.aiChatSystemPrompt
+		aiChatSystemPrompt: data.aiChatSystemPrompt,
+		aiReasoningEffort: data.aiReasoningEffort
 	}));
 	let aiBaseUrl = $state(initialData.aiBaseUrl ?? '');
 	let aiModelName = $state(initialData.aiModelName ?? '');
 	let idleTimeout = $state(initialData.idleTimeoutMinutes ?? 15);
 	let aiChatPrompt = $state(initialData.aiChatSystemPrompt ?? '');
+	let aiReasoningEffort = $state(initialData.aiReasoningEffort ?? 'low');
 	let permissions = $derived((page.data as any).effectivePermissions ?? {});
 	let canUpdate = $derived(
 		permissions['system_preferences.update'] === true ||
@@ -159,6 +161,41 @@
 						Save AI settings
 					</button>
 				</div>
+			{/if}
+		</form>
+
+		<form
+			method="POST"
+			action="?/saveAIReasoningEffort"
+			use:enhance={() =>
+				async ({ result, update }) => {
+					handleResult()({ result });
+					await update();
+				}}
+			class="mt-4 flex flex-col gap-3 border-t border-surface-200 pt-4 sm:flex-row sm:items-end"
+		>
+			<label class="label flex-1">
+				<span class="label-text">Thinking level</span>
+				<select
+					id="ai_reasoning_effort"
+					name="ai_reasoning_effort"
+					bind:value={aiReasoningEffort}
+					class="select max-w-xs"
+					disabled={!canUpdate}
+				>
+					<option value="provider_default">Provider default</option>
+					<option value="none">None</option>
+					<option value="low">Low</option>
+					<option value="medium">Medium</option>
+					<option value="high">High</option>
+				</select>
+				<span class="text-xs text-surface-500">
+					Controls the chat assistant reasoning effort. Provider default omits the
+					<code>reasoning_effort</code> parameter.
+				</span>
+			</label>
+			{#if canUpdate}
+				<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
 			{/if}
 		</form>
 

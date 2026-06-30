@@ -4,6 +4,10 @@ import { createClient } from '@supabase/supabase-js';
 import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
 import { logAudit } from '$lib/server/audit';
 import {
+	AI_REASONING_EFFORT_OPTIONS,
+	normalizeAIReasoningEffort
+} from '$lib/server/ai/reasoning';
+import {
 	getSystemPreferences,
 	getSystemPreference,
 	setSystemPreference,
@@ -29,13 +33,15 @@ export const load: PageServerLoad = async (event) => {
 		aiBaseUrlResult,
 		aiModelNameResult,
 		idleTimeoutResult,
-		aiChatPromptResult
+		aiChatPromptResult,
+		aiReasoningEffortResult
 	] = await Promise.all([
 		getSystemPreferences(locals.supabase),
 		getSystemPreference(locals.supabase, 'ai_base_url'),
 		getSystemPreference(locals.supabase, 'ai_model_name'),
 		getSystemPreference(locals.supabase, 'idle_timeout_minutes'),
-		getSystemPreference(locals.supabase, 'ai_chat_system_prompt')
+		getSystemPreference(locals.supabase, 'ai_chat_system_prompt'),
+		getSystemPreference(locals.supabase, 'ai_reasoning_effort')
 	]);
 
 	// Filter out managed prefs from the generic list
@@ -52,7 +58,8 @@ export const load: PageServerLoad = async (event) => {
 			? parseInt(idleTimeoutResult.data.value, 10)
 			: 15,
 		maxIdleTimeout,
-		aiChatSystemPrompt: aiChatPromptResult.data?.value ?? ''
+		aiChatSystemPrompt: aiChatPromptResult.data?.value ?? '',
+		aiReasoningEffort: normalizeAIReasoningEffort(aiReasoningEffortResult.data?.value)
 	};
 };
 
@@ -143,6 +150,41 @@ export const actions: Actions = {
 			'preference',
 			'ai_config',
 			{ aiBaseUrl: !!aiBaseUrl, aiModelName: !!aiModelName },
+			request
+		);
+
+		return { success: true };
+	},
+
+	saveAIReasoningEffort: async (event) => {
+		const { request, locals } = event;
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'system_preferences.update', { resourceType: 'preference' });
+
+		const formData = await request.formData();
+		const value = (formData.get('ai_reasoning_effort') as string)?.trim() || '';
+
+		if (!(AI_REASONING_EFFORT_OPTIONS as readonly string[]).includes(value)) {
+			return fail(400, { error: 'Invalid AI thinking level' });
+		}
+
+		const { error } = await setSystemPreference(
+			getAdminClient(),
+			'ai_reasoning_effort',
+			value,
+			'string'
+		);
+		if (error) return fail(500, { error: error.message });
+
+		logAudit(
+			locals.supabase,
+			user.id,
+			'update',
+			'preference',
+			'ai_reasoning_effort',
+			{ value },
 			request
 		);
 

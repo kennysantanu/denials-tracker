@@ -12,7 +12,8 @@ export const MANAGED_PREFERENCE_NAMES: ReadonlySet<string> = new Set([
 	'ai_model_name',
 	'ai_enabled',
 	'idle_timeout_minutes',
-	'ai_chat_system_prompt'
+	'ai_chat_system_prompt',
+	'ai_reasoning_effort'
 ]);
 
 export function getSystemPreferences(supabase: SupabaseClient<Database>) {
