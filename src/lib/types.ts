@@ -47,7 +47,6 @@ export type Permission =
 	| 'ai.summary'
 	| 'ai.appeal'
 	| 'ai.chat'
-	| 'ai.rewrite'
 	| 'user.read'
 	| 'user.create'
 	| 'user.update'

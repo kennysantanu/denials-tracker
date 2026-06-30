@@ -29,15 +29,13 @@ export const load: PageServerLoad = async (event) => {
 		aiBaseUrlResult,
 		aiModelNameResult,
 		idleTimeoutResult,
-		aiChatPromptResult,
-		aiRewritePromptResult
+		aiChatPromptResult
 	] = await Promise.all([
 		getSystemPreferences(locals.supabase),
 		getSystemPreference(locals.supabase, 'ai_base_url'),
 		getSystemPreference(locals.supabase, 'ai_model_name'),
 		getSystemPreference(locals.supabase, 'idle_timeout_minutes'),
-		getSystemPreference(locals.supabase, 'ai_chat_system_prompt'),
-		getSystemPreference(locals.supabase, 'ai_rewrite_system_prompt')
+		getSystemPreference(locals.supabase, 'ai_chat_system_prompt')
 	]);
 
 	// Filter out managed prefs from the generic list
@@ -54,8 +52,7 @@ export const load: PageServerLoad = async (event) => {
 			? parseInt(idleTimeoutResult.data.value, 10)
 			: 15,
 		maxIdleTimeout,
-		aiChatSystemPrompt: aiChatPromptResult.data?.value ?? '',
-		aiRewriteSystemPrompt: aiRewritePromptResult.data?.value ?? ''
+		aiChatSystemPrompt: aiChatPromptResult.data?.value ?? ''
 	};
 };
 
@@ -176,37 +173,6 @@ export const actions: Actions = {
 			'update',
 			'preference',
 			'ai_chat_system_prompt',
-			{ cleared: !value },
-			request
-		);
-
-		return { success: true };
-	},
-
-	saveAIRewritePrompt: async (event) => {
-		const { request, locals } = event;
-		const user = await locals.getUser();
-		if (!user) redirect(303, '/signin');
-
-		await requirePermission(event, 'system_preferences.update', { resourceType: 'preference' });
-
-		const formData = await request.formData();
-		const value = (formData.get('ai_rewrite_system_prompt') as string)?.trim() || null;
-
-		const { error } = await setSystemPreference(
-			getAdminClient(),
-			'ai_rewrite_system_prompt',
-			value,
-			'string'
-		);
-		if (error) return fail(500, { error: error.message });
-
-		logAudit(
-			locals.supabase,
-			user.id,
-			'update',
-			'preference',
-			'ai_rewrite_system_prompt',
 			{ cleared: !value },
 			request
 		);

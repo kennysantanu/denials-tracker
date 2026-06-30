@@ -7,23 +7,18 @@
 	const DEFAULT_CHAT_PROMPT =
 		'You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.';
 
-	const DEFAULT_REWRITE_PROMPT =
-		'You are a professional medical billing assistant. Rewrite the following note to be clear, concise, and professional. Use proper medical billing terminology where appropriate. Return only the rewritten note text, with no explanations, prefixes, or surrounding quotes.';
-
 	let { data } = $props();
 
 	const initialData = untrack(() => ({
 		aiBaseUrl: data.aiBaseUrl,
 		aiModelName: data.aiModelName,
 		idleTimeoutMinutes: data.idleTimeoutMinutes,
-		aiChatSystemPrompt: data.aiChatSystemPrompt,
-		aiRewriteSystemPrompt: data.aiRewriteSystemPrompt
+		aiChatSystemPrompt: data.aiChatSystemPrompt
 	}));
 	let aiBaseUrl = $state(initialData.aiBaseUrl ?? '');
 	let aiModelName = $state(initialData.aiModelName ?? '');
 	let idleTimeout = $state(initialData.idleTimeoutMinutes ?? 15);
 	let aiChatPrompt = $state(initialData.aiChatSystemPrompt ?? '');
-	let aiRewritePrompt = $state(initialData.aiRewriteSystemPrompt ?? '');
 	let permissions = $derived((page.data as any).effectivePermissions ?? {});
 	let canUpdate = $derived(
 		permissions['system_preferences.update'] === true ||
@@ -215,44 +210,6 @@
 				{/if}
 			</form>
 
-			<!-- Rewrite prompt -->
-			<form
-				method="POST"
-				action="?/saveAIRewritePrompt"
-				use:enhance={() =>
-					async ({ result, update }) => {
-						handleResult()({ result });
-						await update();
-					}}
-				class="space-y-2"
-			>
-				<label class="label">
-					<span class="label-text">Note rewrite prompt</span>
-					<textarea
-						id="ai_rewrite_system_prompt"
-						name="ai_rewrite_system_prompt"
-						bind:value={aiRewritePrompt}
-						rows="4"
-						placeholder={DEFAULT_REWRITE_PROMPT}
-						class="textarea font-mono"
-						disabled={!canUpdate}
-					></textarea>
-				</label>
-				{#if canUpdate}
-					<div class="flex items-center gap-2">
-						<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
-						{#if aiRewritePrompt}
-							<button
-								type="button"
-								class="btn preset-tonal btn-sm"
-								onclick={() => (aiRewritePrompt = '')}
-							>
-								Reset to default
-							</button>
-						{/if}
-					</div>
-				{/if}
-			</form>
 		</div>
 	</section>
 

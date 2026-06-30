@@ -1,11 +1,9 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { Database } from '$lib/supabase';
 	import type { DateStatus } from '$lib/server/db/files';
 	import FilesCalendar from '$lib/components/FilesCalendar.svelte';
-	import { isAIAvailable } from '$lib/stores/aiConfig';
-	import { onMount } from 'svelte';
-	import Loader2 from '@lucide/svelte/icons/loader-2';
-	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import type { Attachment } from 'svelte/attachments';
 	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import X from '@lucide/svelte/icons/x';
 	import Paperclip from '@lucide/svelte/icons/paperclip';
@@ -177,59 +175,9 @@
 		}
 	}
 
-	// AI rewrite state
-	let aiAvailable = $state(false);
-	let rewriting = $state(false);
-	let preRewriteText = $state<string | null>(null);
-	let rewrittenText = $state<string | null>(null);
-
-	// Clear undo once the user edits after a rewrite
-	$effect(() => {
-		if (rewrittenText !== null && value !== rewrittenText) {
-			preRewriteText = null;
-			rewrittenText = null;
-		}
-	});
-
-	onMount(async () => {
-		aiAvailable = await isAIAvailable();
-	});
-
-	async function rewriteNote() {
-		if (!value.trim()) return;
-		rewriting = true;
-		try {
-			const res = await fetch('/api/v1/ai/rewrite', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ text: value })
-			});
-			if (!res.ok) {
-				const data = await res.json().catch(() => ({}));
-				throw new Error(data.message || `Error ${res.status}`);
-			}
-			const data = await res.json();
-			preRewriteText = value;
-			rewrittenText = data.rewritten;
-			value = data.rewritten;
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'AI rewrite failed';
-			// Surface error inline without importing toast (keep NoteEditor dependency-light)
-			rewriteError = msg;
-			setTimeout(() => (rewriteError = ''), 5000);
-		} finally {
-			rewriting = false;
-		}
-	}
-
-	let rewriteError = $state('');
-
-	function undoRewrite() {
-		if (preRewriteText !== null) {
-			value = preRewriteText;
-			preRewriteText = null;
-			rewrittenText = null;
-		}
+	function downloadPreviewFile() {
+		if (!previewFile) return;
+		window.location.href = previewFile.url;
 	}
 
 	/** Call this from the parent after a successful form submission to reset internal state */
@@ -237,24 +185,19 @@
 		selectedExistingFiles = [];
 		filesToRemove = [];
 		showExistingPicker = false;
-		preRewriteText = null;
-		rewrittenText = null;
-		rewriteError = '';
 	}
 
-	function autoresize(node: HTMLTextAreaElement) {
+	const autoresize: Attachment<HTMLTextAreaElement> = (node) => {
 		function resize() {
 			node.style.height = 'auto';
 			node.style.height = node.scrollHeight + 'px';
 		}
 		node.addEventListener('input', resize);
 		resize();
-		return {
-			destroy() {
-				node.removeEventListener('input', resize);
-			}
+		return () => {
+			node.removeEventListener('input', resize);
 		};
-	}
+	};
 </script>
 
 <!-- Hidden inputs for form submission -->
@@ -277,26 +220,6 @@
 		<label for="note-editor-{name}" class="block text-sm font-medium">
 			Note {#if required}<span class="text-red-500">*</span>{/if}
 		</label>
-		{#if aiAvailable}
-			<button
-				type="button"
-				class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors
-					{rewriting || !value.trim()
-					? 'cursor-not-allowed text-surface-300'
-					: 'text-primary-600 hover:bg-primary-50 hover:text-primary-800'}"
-				disabled={rewriting || !value.trim()}
-				onclick={rewriteNote}
-				aria-label="Rewrite note with AI"
-			>
-				{#if rewriting}
-					<Loader2 class="h-3 w-3 animate-spin" />
-					Rewriting…
-				{:else}
-					<Sparkles class="h-3 w-3" />
-					Rewrite
-				{/if}
-			</button>
-		{/if}
 	</div>
 	<textarea
 		id="note-editor-{name}"
@@ -305,23 +228,9 @@
 		rows="1"
 		{placeholder}
 		bind:value
-		disabled={rewriting}
-		use:autoresize
+		{@attach autoresize}
 		class="w-full resize-none overflow-hidden rounded border border-surface-300 px-3 py-2 text-sm placeholder:text-surface-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none disabled:bg-surface-50 disabled:text-surface-400"
 	></textarea>
-	{#if rewriteError}
-		<p class="mt-1 text-xs text-red-600">{rewriteError}</p>
-	{/if}
-	{#if preRewriteText !== null}
-		<button
-			type="button"
-			class="mt-1 inline-flex items-center gap-1 text-xs text-surface-500 hover:text-surface-800 hover:underline"
-			onclick={undoRewrite}
-		>
-			<Undo2 class="h-3 w-3" />
-			Undo rewrite
-		</button>
-	{/if}
 </div>
 
 <!-- Already-attached files (edit mode) -->
@@ -523,7 +432,6 @@
 
 <!-- Preview Dialog -->
 {#if previewLoading || previewError || previewFile}
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
 		role="dialog"
 		aria-modal="true"
@@ -554,7 +462,7 @@
 				<div class="flex items-center gap-2">
 					{#if previewFile}
 						<a
-							href="/file/view?name={encodeURIComponent(previewFile.name)}"
+							href={resolve(`/file/view?name=${encodeURIComponent(previewFile.name)}`)}
 							class="rounded-md border border-surface-300 px-3 py-1.5 text-xs font-medium text-surface-700 hover:bg-surface-50"
 						>
 							Open Full View
@@ -597,13 +505,13 @@
 					{:else}
 						<div class="flex h-64 flex-col items-center justify-center gap-4 text-surface-600">
 							<p>Preview not available for this file type.</p>
-							<a
-								href={previewFile.url}
-								download={displayFileName(previewFile.name)}
+							<button
+								type="button"
+								onclick={downloadPreviewFile}
 								class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
 							>
 								Download File
-							</a>
+							</button>
 						</div>
 					{/if}
 				{/if}
