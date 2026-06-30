@@ -72,7 +72,7 @@
 	});
 </script>
 
-<div class="relative z-0 flex-1 overflow-hidden">
+<div class="relative flex-1 overflow-hidden">
 	<div
 		bind:this={container}
 		class="h-full space-y-4 overflow-y-auto p-4"
@@ -108,7 +108,7 @@
 	{#if !isAtBottom && !isEmpty}
 		<button
 			type="button"
-			class="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-base border border-surface-200 bg-white px-3 py-1.5 text-xs font-medium text-surface-600 shadow-md transition-colors hover:border-primary-300 hover:text-primary-700"
+			class="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-base border border-surface-200 bg-white px-3 py-1.5 text-xs font-medium text-surface-600 shadow-md transition-colors hover:border-primary-300 hover:text-primary-700"
 			onclick={() => scrollToBottom(true)}
 			transition:fly={{ y: 8, duration: 150 }}
 		>

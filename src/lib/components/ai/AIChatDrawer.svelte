@@ -282,7 +282,7 @@
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
 		id="ai-chat-dialog"
-		class="z-50 flex flex-col bg-white {fullscreenMode
+		class="flex flex-col bg-white {fullscreenMode
 			? 'fixed top-0 right-0 left-0 h-dvh'
 			: 'fixed top-0 right-0 h-full border-l border-surface-200 shadow-xl'}"
 		style={fullscreenMode ? '' : `width: ${drawerWidth}px`}
@@ -348,7 +348,11 @@
 					>
 						Start new chat
 					</button>
-					<button type="button" class="btn preset-tonal btn-sm" onclick={handleContinuePatientThread}>
+					<button
+						type="button"
+						class="btn preset-tonal btn-sm"
+						onclick={handleContinuePatientThread}
+					>
 						Continue here
 					</button>
 				</div>

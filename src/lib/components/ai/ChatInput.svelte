@@ -101,7 +101,7 @@
 		{#if isBusy}
 			<button
 				type="button"
-				class="btn preset-tonal-error"
+				class="btn self-stretch preset-tonal-error"
 				aria-label="Stop generating"
 				onclick={handleCancel}
 			>
@@ -110,7 +110,7 @@
 		{:else}
 			<button
 				type="button"
-				class="btn preset-filled-primary-500"
+				class="btn self-stretch preset-filled-primary-500"
 				aria-label="Send message"
 				onclick={handleSend}
 				disabled={!canSend}
@@ -123,6 +123,10 @@
 		<div class="flex items-center justify-between gap-2">
 			<span class="text-xs {overLimit ? 'text-error-500' : 'text-surface-400'}">
 				{charCount}/4000
+
+				{#if overLimit}
+					(Message exceeds 4000 characters)
+				{/if}
 			</span>
 
 			{#if isBusy}
@@ -144,7 +148,3 @@
 		</div>
 	{/if}
 </div>
-
-{#if overLimit}
-	<p class="mt-1 text-xs text-error-500">Message exceeds 4000 characters</p>
-{/if}

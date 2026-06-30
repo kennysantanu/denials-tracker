@@ -35,7 +35,7 @@
 </script>
 
 <div
-	class="relative z-30 flex min-h-8 items-center justify-between gap-2 border-b border-surface-200 bg-surface-50 px-4 py-1.5 text-xs"
+	class="relative flex min-h-8 items-center justify-between gap-2 border-b border-surface-200 bg-surface-50 px-4 py-1.5 text-xs"
 >
 	<div class="flex min-w-0 items-center gap-2">
 		{#if context.patientId && patient}
@@ -62,7 +62,7 @@
 				<Info class="h-3.5 w-3.5" />
 				<span>{tokenLabel}</span>
 			</Popover.Trigger>
-			<Popover.Positioner class="z-[70]">
+			<Popover.Positioner>
 				<Popover.Content
 					class="relative z-[70] w-64 rounded-container border border-surface-200 bg-white p-3 shadow-lg"
 				>
