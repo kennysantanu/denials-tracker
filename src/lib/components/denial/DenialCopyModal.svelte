@@ -81,7 +81,7 @@
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="relative z-50 w-full max-w-xl overflow-y-auto rounded-xl bg-white shadow-2xl"
+		class="relative z-50 w-full max-w-xl overflow-y-auto card bg-white shadow-2xl"
 		style="max-height: 90vh;"
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={(e) => e.stopPropagation()}
@@ -189,18 +189,26 @@
 					<span class="label-text text-sm font-medium">Follow-up Date</span>
 					<input type="date" name="follow_up_date" class="input" bind:value={followUpDate} />
 					<div class="mt-1.5 flex flex-wrap gap-1">
-						{#each [{ label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
+						{#each [{ label: 'Today', days: 0 }, { label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
 							<button
 								type="button"
 								onclick={() => (followUpDate = dateFromToday(preset.days))}
-								class="rounded-full border border-surface-300 px-2.5 py-0.5 text-xs font-medium text-surface-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 {followUpDate ===
-								dateFromToday(preset.days)
-									? 'border-primary-500 bg-primary-50 text-primary-700'
-									: ''}"
+								class="btn btn-sm {followUpDate === dateFromToday(preset.days)
+									? 'preset-tonal-primary'
+									: 'preset-outlined-surface-500'}"
 							>
 								{preset.label}
 							</button>
 						{/each}
+						<button
+							type="button"
+							onclick={() => (followUpDate = '')}
+							class="btn btn-sm {followUpDate === ''
+								? 'preset-tonal-primary'
+								: 'preset-outlined-surface-500'}"
+						>
+							Clear
+						</button>
 					</div>
 				</div>
 			</div>
@@ -220,7 +228,7 @@
 			{/if}
 
 			<!-- Notes to copy -->
-			<div class="rounded-lg border border-surface-200 bg-surface-50 p-3">
+			<div class="card border border-surface-200 bg-surface-50 p-3">
 				<p class="mb-2 text-sm font-medium text-surface-700">Notes to copy</p>
 				{#if sourceNotes.length === 0}
 					<p class="text-xs text-surface-500">No notes on the source denial.</p>
@@ -243,8 +251,8 @@
 
 			<!-- Actions -->
 			<div class="flex gap-2 border-t border-surface-200 pt-3">
-				<button type="submit" class="btn preset-filled-primary-500 btn-sm">Copy Denial</button>
-				<button type="button" class="btn preset-outlined-surface-500 btn-sm" onclick={onclose}>
+				<button type="submit" class="btn preset-filled-primary-500">Copy Denial</button>
+				<button type="button" class="btn preset-outlined-surface-500" onclick={onclose}>
 					Cancel
 				</button>
 			</div>

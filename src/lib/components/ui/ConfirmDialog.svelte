@@ -24,7 +24,7 @@
 		role="presentation"
 	>
 		<div
-			class="card w-full max-w-md border border-surface-200 bg-white p-6 shadow-xl"
+			class="w-full max-w-md card border border-surface-200 bg-white p-6 shadow-xl"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="confirm-dialog-title"
@@ -34,10 +34,10 @@
 			</h2>
 			<p class="mt-2 text-sm text-surface-600">{message}</p>
 			<div class="mt-6 flex justify-end gap-2">
-				<button type="button" class="btn preset-tonal btn-sm" onclick={oncancel}>
+				<button type="button" class="btn preset-tonal" onclick={oncancel}>
 					{cancelLabel}
 				</button>
-				<button type="button" class="btn preset-filled-error-500 btn-sm" onclick={onconfirm}>
+				<button type="button" class="btn preset-filled-error-500" onclick={onconfirm}>
 					{confirmLabel}
 				</button>
 			</div>

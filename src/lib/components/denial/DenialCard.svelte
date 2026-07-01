@@ -55,7 +55,7 @@
 	);
 </script>
 
-<div class="rounded-lg border border-surface-300 bg-surface-50 p-4 shadow-sm">
+<div class="s card border border-surface-200 p-4">
 	{#if editing}
 		<DenialEditForm {denial} {insurances} {labels} {patientId} oncancel={() => (editing = false)} />
 	{:else}
@@ -172,7 +172,7 @@
 					{#if menuOpen}
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<div
-							class="absolute right-0 z-10 mt-1 min-w-32 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
+							class="absolute right-0 z-10 mt-1 min-w-32 border border-surface-200 bg-white py-1 shadow-lg"
 							onmouseleave={() => (menuOpen = false)}
 						>
 							{#if effectivePermissions['denial.update']}

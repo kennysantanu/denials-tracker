@@ -124,18 +124,26 @@
 			<span class="label-text text-sm font-medium">Follow-up Date</span>
 			<input type="date" name="follow_up_date" class="input" bind:value={followUpDate} />
 			<div class="mt-1.5 flex flex-wrap gap-1">
-				{#each [{ label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
+				{#each [{ label: 'Today', days: 0 }, { label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
 					<button
 						type="button"
 						onclick={() => (followUpDate = dateFromToday(preset.days))}
-						class="rounded-full border border-surface-300 px-2.5 py-0.5 text-xs font-medium text-surface-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 {followUpDate ===
-						dateFromToday(preset.days)
-							? 'border-primary-500 bg-primary-50 text-primary-700'
-							: ''}"
+						class="btn btn-sm {followUpDate === dateFromToday(preset.days)
+							? 'preset-tonal-primary'
+							: 'preset-outlined-surface-500'}"
 					>
 						{preset.label}
 					</button>
 				{/each}
+				<button
+					type="button"
+					onclick={() => (followUpDate = '')}
+					class="btn btn-sm {followUpDate === ''
+						? 'preset-tonal-primary'
+						: 'preset-outlined-surface-500'}"
+				>
+					Clear
+				</button>
 			</div>
 		</div>
 
@@ -168,8 +176,8 @@
 
 	<!-- Actions -->
 	<div class="flex gap-2 pt-2">
-		<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
-		<button type="button" class="btn preset-outlined-surface-500 btn-sm" onclick={oncancel}>
+		<button type="submit" class="btn preset-filled-primary-500">Save</button>
+		<button type="button" class="btn preset-outlined-surface-500" onclick={oncancel}>
 			Cancel
 		</button>
 	</div>

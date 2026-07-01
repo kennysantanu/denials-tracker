@@ -36,14 +36,14 @@
 		<!-- Header -->
 		<div class="flex items-center justify-between border-b border-surface-200 px-5 py-4">
 			<h3 class="text-lg font-semibold">{insurance.name}</h3>
-		<button
-			type="button"
-			class="text-surface-400 hover:text-surface-700"
-			onclick={onclose}
-			aria-label="Close"
-		>
-			<X class="h-5 w-5" />
-		</button>
+			<button
+				type="button"
+				class="text-surface-400 hover:text-surface-700"
+				onclick={onclose}
+				aria-label="Close"
+			>
+				<X class="h-5 w-5" />
+			</button>
 		</div>
 
 		<!-- Body -->
@@ -78,10 +78,10 @@
 						bind:value={noteText}
 					></textarea>
 					<div class="flex gap-2">
-						<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+						<button type="submit" class="btn preset-filled-primary-500">Save</button>
 						<button
 							type="button"
-							class="btn preset-outlined-surface-500 btn-sm"
+							class="btn preset-outlined-surface-500"
 							onclick={() => {
 								editMode = false;
 							}}
@@ -103,7 +103,7 @@
 					{#if canEdit}
 						<button
 							type="button"
-							class="btn preset-outlined-primary-500 btn-sm"
+							class="btn preset-outlined-primary-500"
 							onclick={() => {
 								noteText = insurance.note ?? '';
 								editMode = true;

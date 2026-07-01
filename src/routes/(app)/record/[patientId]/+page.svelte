@@ -336,12 +336,12 @@
 			type="search"
 			placeholder="Search notes…"
 			bind:value={searchQuery}
-			class="input min-w-24 flex-1"
+			class="input min-w-24 flex-1 self-stretch hover:ring-surface-500"
 		/>
 		{#if isFiltering}
 			<button
 				type="button"
-				class="btn shrink-0 hover:preset-tonal"
+				class="btn shrink-0 self-stretch hover:preset-tonal"
 				onclick={() => {
 					searchQuery = '';
 					filterLabelIds = [];
@@ -375,7 +375,9 @@
 			{#if data.effectivePermissions['denial.create']}
 				<button
 					type="button"
-					class="btn {showNewDenialForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
+					class="btn {showNewDenialForm
+						? 'preset-tonal'
+						: 'preset-outlined-surface-200-800 hover:preset-outlined-surface-500'}"
 					onclick={() => {
 						showNewDenialForm = !showNewDenialForm;
 						if (showNewDenialForm) newDenialFollowUpDate = '';
@@ -487,7 +489,7 @@
 								class="input"
 							/>
 							<div class="mt-1.5 flex flex-wrap gap-1">
-								{#each [{ label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
+								{#each [{ label: 'Today', days: 0 }, { label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
 									<button
 										type="button"
 										onclick={() => (newDenialFollowUpDate = dateFromToday(preset.days))}
@@ -498,6 +500,15 @@
 										{preset.label}
 									</button>
 								{/each}
+								<button
+									type="button"
+									onclick={() => (newDenialFollowUpDate = '')}
+									class="btn btn-sm {newDenialFollowUpDate === ''
+										? 'preset-tonal-primary'
+										: 'preset-outlined-surface-500'}"
+								>
+									Clear
+								</button>
 							</div>
 						</div>
 						<div class="flex items-center gap-2 self-end py-2">

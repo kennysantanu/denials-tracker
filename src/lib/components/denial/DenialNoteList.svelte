@@ -29,10 +29,10 @@
 		{#if effectivePermissions['note.create'] && !showForm}
 			<button
 				type="button"
-				class="btn preset-outlined-primary-500 btn-sm"
+				class="btn preset-outlined-surface-200-800 btn-sm hover:preset-outlined-surface-500"
 				onclick={() => (showForm = true)}
 			>
-				Add Note
+				+ Add Note
 			</button>
 		{/if}
 	</div>
