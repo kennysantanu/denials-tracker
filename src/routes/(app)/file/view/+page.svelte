@@ -6,7 +6,8 @@
 		FileRelatedClaims,
 		FileViewHeader,
 		FileSiblingList,
-		FileSiblingDrawer
+		FileSiblingDrawer,
+		FileViewMobileTabs
 	} from '$lib/components/file';
 
 	let { data } = $props();
@@ -51,10 +52,21 @@
 			/>
 		{/if}
 
+		<!-- Mobile tabs (below md) -->
+		<FileViewMobileTabs
+			fileName={data.fileName}
+			signedUrl={data.signedUrl}
+			fileRecord={data.fileRecord}
+			{canEdit}
+			{canDelete}
+			siblings={data.siblings}
+		/>
+
+		<!-- Tablet (md) and desktop (xl) layout -->
 		<div
-			class="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)_minmax(300px,360px)]"
+			class="hidden gap-6 md:grid md:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)_minmax(300px,360px)]"
 		>
-			<!-- Files column (desktop only; tablet/mobile navigation handled separately) -->
+			<!-- Files column (desktop only; tablet uses the header's Files drawer) -->
 			<div
 				class="hidden xl:sticky xl:top-20 xl:block xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto"
 			>

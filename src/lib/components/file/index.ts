@@ -4,3 +4,4 @@ export { default as FileRelatedClaims } from './FileRelatedClaims.svelte';
 export { default as FileViewHeader } from './FileViewHeader.svelte';
 export { default as FileSiblingList } from './FileSiblingList.svelte';
 export { default as FileSiblingDrawer } from './FileSiblingDrawer.svelte';
+export { default as FileViewMobileTabs } from './FileViewMobileTabs.svelte';
