@@ -4,6 +4,7 @@ import {
 	createSignedUrl,
 	getFileByName,
 	getRelatedClaims,
+	getFileViewSiblings,
 	updateFileMetadata,
 	deleteFile
 } from '$lib/server/db/files';
@@ -24,18 +25,49 @@ export const load: PageServerLoad = async (event) => {
 		redirect(303, '/file');
 	}
 
-	const [signedUrlResult, fileResult, claimsResult] = await Promise.all([
+	const fileResult = await getFileByName(locals.supabase, name);
+
+	if (fileResult.error || !fileResult.data) {
+		return {
+			signedUrl: null,
+			fileName: name,
+			fileRecord: null,
+			relatedClaims: [] as Awaited<ReturnType<typeof getRelatedClaims>>['data'],
+			siblings: [] as Awaited<ReturnType<typeof getFileViewSiblings>>['data'],
+			currentIndex: -1,
+			previousFileName: null as string | null,
+			nextFileName: null as string | null,
+			backUrl: '/file',
+			error: 'File not found'
+		};
+	}
+
+	const uploadDate = fileResult.data.created_at.split('T')[0];
+	const backUrl = `/file?date=${uploadDate}`;
+
+	const [signedUrlResult, claimsResult, siblingsResult] = await Promise.all([
 		createSignedUrl(locals.supabase, name, 60),
-		getFileByName(locals.supabase, name),
-		getRelatedClaims(locals.supabase, name)
+		getRelatedClaims(locals.supabase, name),
+		getFileViewSiblings(locals.supabase, uploadDate)
 	]);
+
+	const siblings = siblingsResult.data ?? [];
+	const currentIndex = siblings.findIndex((file) => file.name === name);
+	const previousFileName = currentIndex > 0 ? siblings[currentIndex - 1].name : null;
+	const nextFileName =
+		currentIndex >= 0 && currentIndex < siblings.length - 1 ? siblings[currentIndex + 1].name : null;
 
 	if (signedUrlResult.error || !signedUrlResult.data?.signedUrl) {
 		return {
 			signedUrl: null,
 			fileName: name,
-			fileRecord: null,
-			relatedClaims: [] as typeof claimsResult.data,
+			fileRecord: fileResult.data,
+			relatedClaims: claimsResult.data ?? [],
+			siblings,
+			currentIndex,
+			previousFileName,
+			nextFileName,
+			backUrl,
 			error: 'Could not generate file URL'
 		};
 	}
@@ -45,10 +77,16 @@ export const load: PageServerLoad = async (event) => {
 	return {
 		signedUrl: signedUrlResult.data.signedUrl,
 		fileName: name,
-		fileRecord: fileResult.data ?? null,
-		relatedClaims: claimsResult.data ?? []
+		fileRecord: fileResult.data,
+		relatedClaims: claimsResult.data ?? [],
+		siblings,
+		currentIndex,
+		previousFileName,
+		nextFileName,
+		backUrl
 	};
 };
+
 
 export const actions: Actions = {
 	updateFileInfo: async (event) => {
