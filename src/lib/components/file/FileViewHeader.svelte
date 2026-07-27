@@ -6,10 +6,18 @@
 		nextFileName: string | null;
 		currentIndex: number;
 		totalSiblings: number;
+		onOpenFiles?: () => void;
 	}
 
-	let { fileName, backUrl, previousFileName, nextFileName, currentIndex, totalSiblings }: Props =
-		$props();
+	let {
+		fileName,
+		backUrl,
+		previousFileName,
+		nextFileName,
+		currentIndex,
+		totalSiblings,
+		onOpenFiles
+	}: Props = $props();
 
 	function extractFileName(path: string): string {
 		return path.split('/').pop() ?? path;
@@ -36,6 +44,15 @@
 	<div class="flex shrink-0 items-center gap-2">
 		{#if position}
 			<span class="text-sm text-surface-500">{position}</span>
+		{/if}
+		{#if onOpenFiles}
+			<button
+				type="button"
+				class="btn hidden preset-outlined-surface-500 btn-sm md:inline-flex xl:hidden"
+				onclick={onOpenFiles}
+			>
+				Files
+			</button>
 		{/if}
 		{#if previousFileName}
 			<a href={viewHref(previousFileName)} class="btn preset-outlined-surface-500 btn-sm">

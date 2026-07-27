@@ -5,7 +5,8 @@
 		FileInfoPanel,
 		FileRelatedClaims,
 		FileViewHeader,
-		FileSiblingList
+		FileSiblingList,
+		FileSiblingDrawer
 	} from '$lib/components/file';
 
 	let { data } = $props();
@@ -15,6 +16,8 @@
 	);
 	const canEdit = $derived(effectivePermissions['file.update'] === true);
 	const canDelete = $derived(effectivePermissions['file.delete'] === true);
+
+	let filesDrawerOpen = $state(false);
 </script>
 
 <svelte:head>
@@ -37,10 +40,19 @@
 			nextFileName={data.nextFileName}
 			currentIndex={data.currentIndex}
 			totalSiblings={data.siblings.length}
+			onOpenFiles={() => (filesDrawerOpen = true)}
 		/>
 
+		{#if filesDrawerOpen}
+			<FileSiblingDrawer
+				siblings={data.siblings}
+				currentFileName={data.fileName}
+				onclose={() => (filesDrawerOpen = false)}
+			/>
+		{/if}
+
 		<div
-			class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)_minmax(300px,360px)]"
+			class="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)_minmax(300px,360px)]"
 		>
 			<!-- Files column (desktop only; tablet/mobile navigation handled separately) -->
 			<div
