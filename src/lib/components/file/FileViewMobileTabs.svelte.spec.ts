@@ -38,7 +38,8 @@ describe('FileViewMobileTabs.svelte', () => {
 			fileRecord: fileRecord as any,
 			canEdit: true,
 			canDelete: true,
-			siblings: siblings as any
+			siblings: siblings as any,
+			relatedClaims: []
 		});
 
 		const documentTab = page.getByRole('tab', { name: 'Document' });
@@ -55,7 +56,8 @@ describe('FileViewMobileTabs.svelte', () => {
 			fileRecord: fileRecord as any,
 			canEdit: true,
 			canDelete: true,
-			siblings: siblings as any
+			siblings: siblings as any,
+			relatedClaims: []
 		});
 
 		const infoTab = page.getByRole('tab', { name: 'File Info' });

@@ -55,7 +55,9 @@ export const load: PageServerLoad = async (event) => {
 	const currentIndex = siblings.findIndex((file) => file.name === name);
 	const previousFileName = currentIndex > 0 ? siblings[currentIndex - 1].name : null;
 	const nextFileName =
-		currentIndex >= 0 && currentIndex < siblings.length - 1 ? siblings[currentIndex + 1].name : null;
+		currentIndex >= 0 && currentIndex < siblings.length - 1
+			? siblings[currentIndex + 1].name
+			: null;
 
 	if (signedUrlResult.error || !signedUrlResult.data?.signedUrl) {
 		return {
@@ -86,7 +88,6 @@ export const load: PageServerLoad = async (event) => {
 		backUrl
 	};
 };
-
 
 export const actions: Actions = {
 	updateFileInfo: async (event) => {

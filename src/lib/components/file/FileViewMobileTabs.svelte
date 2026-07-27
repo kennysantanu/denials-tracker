@@ -2,10 +2,13 @@
 	import FileSiblingList from './FileSiblingList.svelte';
 	import FileDocumentViewer from './FileDocumentViewer.svelte';
 	import FileInfoPanel from './FileInfoPanel.svelte';
+	import FileRelatedClaims from './FileRelatedClaims.svelte';
 	import type { FileViewSibling } from '$lib/server/db/files';
+	import type { getRelatedClaims } from '$lib/server/db/files';
 	import type { Database } from '$lib/supabase';
 
 	type FilesRow = Database['public']['Tables']['files']['Row'];
+	type RelatedClaims = NonNullable<Awaited<ReturnType<typeof getRelatedClaims>>['data']>;
 
 	interface Props {
 		fileName: string;
@@ -14,9 +17,11 @@
 		canEdit: boolean;
 		canDelete: boolean;
 		siblings: FileViewSibling[];
+		relatedClaims: RelatedClaims;
 	}
 
-	let { fileName, signedUrl, fileRecord, canEdit, canDelete, siblings }: Props = $props();
+	let { fileName, signedUrl, fileRecord, canEdit, canDelete, siblings, relatedClaims }: Props =
+		$props();
 
 	type TabId = 'files' | 'document' | 'info';
 	const tabs: { id: TabId; label: string }[] = [
@@ -98,10 +103,11 @@
 		id="file-view-panel-info"
 		aria-labelledby="file-view-tab-info"
 		hidden={activeTab !== 'info'}
-		class="py-4"
+		class="space-y-6 py-4"
 	>
 		{#if fileRecord}
 			<FileInfoPanel {fileName} {fileRecord} {canEdit} {canDelete} />
 		{/if}
+		<FileRelatedClaims {relatedClaims} />
 	</div>
 </div>

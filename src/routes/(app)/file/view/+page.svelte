@@ -60,6 +60,7 @@
 			{canEdit}
 			{canDelete}
 			siblings={data.siblings}
+			relatedClaims={data.relatedClaims}
 		/>
 
 		<!-- Tablet (md) and desktop (xl) layout -->
@@ -81,8 +82,8 @@
 				<FileDocumentViewer fileName={data.fileName} signedUrl={data.signedUrl} />
 			</div>
 
-			<!-- File Info column -->
-			<div class="xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
+			<!-- File Info column (File Info + Related Claims) -->
+			<div class="space-y-6 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
 				{#if data.fileRecord}
 					<FileInfoPanel
 						fileName={data.fileName}
@@ -91,10 +92,8 @@
 						{canDelete}
 					/>
 				{/if}
+				<FileRelatedClaims relatedClaims={data.relatedClaims} />
 			</div>
 		</div>
-
-		<!-- Related Claims -->
-		<FileRelatedClaims relatedClaims={data.relatedClaims} />
 	{/if}
 </div>
