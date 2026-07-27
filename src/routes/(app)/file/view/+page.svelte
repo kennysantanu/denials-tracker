@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { FileDocumentViewer, FileInfoPanel, FileRelatedClaims } from '$lib/components/file';
-
-	function extractFileName(path: string): string {
-		return path.split('/').pop() ?? path;
-	}
+	import {
+		FileDocumentViewer,
+		FileInfoPanel,
+		FileRelatedClaims,
+		FileViewHeader,
+		FileSiblingList
+	} from '$lib/components/file';
 
 	let { data } = $props();
 
@@ -19,7 +21,7 @@
 	<title>{data.fileName} | Denials Tracker</title>
 </svelte:head>
 
-<div class="mx-auto max-w-5xl space-y-6">
+<div class="mx-auto max-w-[1600px] space-y-6">
 	{#if data.error}
 		<div class="rounded-base border border-error-200 bg-error-50 px-6 py-10 text-center">
 			<p class="text-error-700">{data.error}</p>
@@ -28,23 +30,47 @@
 			</a>
 		</div>
 	{:else if data.signedUrl}
-		<!-- Header -->
-		<div class="flex items-center justify-between">
-			<h1 class="truncate text-2xl font-bold text-surface-900">{extractFileName(data.fileName)}</h1>
-			<div class="flex items-center gap-3">
-				<a href="/file" class="text-sm text-primary-600 hover:underline">&larr; Back to Files</a>
+		<FileViewHeader
+			fileName={data.fileName}
+			backUrl={data.backUrl}
+			previousFileName={data.previousFileName}
+			nextFileName={data.nextFileName}
+			currentIndex={data.currentIndex}
+			totalSiblings={data.siblings.length}
+		/>
+
+		<div
+			class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)_minmax(300px,360px)]"
+		>
+			<!-- Files column (desktop only; tablet/mobile navigation handled separately) -->
+			<div
+				class="hidden xl:sticky xl:top-20 xl:block xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto"
+			>
+				<div class="card border border-surface-200 bg-white p-3">
+					<h2 class="mb-2 px-2 text-sm font-semibold text-surface-600">Files</h2>
+					<FileSiblingList siblings={data.siblings} currentFileName={data.fileName} />
+				</div>
+			</div>
+
+			<!-- Document column -->
+			<div class="min-w-0">
+				<FileDocumentViewer fileName={data.fileName} signedUrl={data.signedUrl} />
+			</div>
+
+			<!-- File Info column -->
+			<div class="xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
+				{#if data.fileRecord}
+					<FileInfoPanel
+						fileName={data.fileName}
+						fileRecord={data.fileRecord}
+						{canEdit}
+						{canDelete}
+					/>
+				{/if}
 			</div>
 		</div>
 
-		<!-- File Info -->
-		{#if data.fileRecord}
-			<FileInfoPanel fileName={data.fileName} fileRecord={data.fileRecord} {canEdit} {canDelete} />
-		{/if}
-
 		<!-- Related Claims -->
 		<FileRelatedClaims relatedClaims={data.relatedClaims} />
-
-		<!-- File Preview -->
-		<FileDocumentViewer fileName={data.fileName} signedUrl={data.signedUrl} />
 	{/if}
 </div>
