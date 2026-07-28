@@ -48,7 +48,7 @@
 	});
 </script>
 
-<div class="card border border-surface-200 bg-white">
+<div class="@container card border border-surface-200 bg-white">
 	<form
 		method="POST"
 		action="?/updateFileInfo"
@@ -74,43 +74,38 @@
 		}}
 	>
 		<input type="hidden" name="name" value={fileName} />
-		<div class="space-y-4 p-6">
-			<h2 class="text-lg font-semibold text-surface-800">File Info</h2>
-
+		<div class="space-y-2 px-4 py-3">
 			{#if editFileInfo}
 				<!-- Edit Mode -->
-				<div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-					<div>
-						<span class="text-xs font-medium text-surface-500">File Path</span>
-						<p class="mt-1 text-sm text-surface-800">{fileName}</p>
+				<h2 class="text-sm font-semibold text-surface-600">File Info</h2>
+				<dl class="space-y-1.5 text-sm">
+					<div class="flex items-center justify-between gap-2">
+						<dt class="shrink-0 text-xs font-medium text-surface-500">File Path</dt>
+						<dd class="truncate text-right text-surface-800" title={fileName}>{fileName}</dd>
 					</div>
-					<div>
-						<span class="text-xs font-medium text-surface-500">Upload Date</span>
-						<p class="mt-1 text-sm text-surface-800">
-							{formatDate(fileRecord.created_at)}
-						</p>
+					<div class="flex items-center justify-between gap-2">
+						<dt class="shrink-0 text-xs font-medium text-surface-500">Uploaded</dt>
+						<dd class="text-right text-surface-800">{formatDate(fileRecord.created_at)}</dd>
 					</div>
-					<div>
-						<span class="text-xs font-medium text-surface-500">Size</span>
-						<p class="mt-1 text-sm text-surface-800">
-							{formatBytes(fileRecord.size ?? 0)}
-						</p>
+					<div class="flex items-center justify-between gap-2">
+						<dt class="shrink-0 text-xs font-medium text-surface-500">Size</dt>
+						<dd class="text-right text-surface-800">{formatBytes(fileRecord.size ?? 0)}</dd>
 					</div>
-					<div>
-						<label for="status-select" class="text-xs font-medium text-surface-500">Status</label>
-						<select id="status-select" name="status" bind:value={editStatus} class="select mt-1">
-							{#each fileStatusOptions as option (option)}
-								<option value={option}>{option}</option>
-							{/each}
-						</select>
-					</div>
+				</dl>
+				<div>
+					<label for="status-select" class="text-xs font-medium text-surface-500">Status</label>
+					<select id="status-select" name="status" bind:value={editStatus} class="select mt-1">
+						{#each fileStatusOptions as option (option)}
+							<option value={option}>{option}</option>
+						{/each}
+					</select>
 				</div>
 				<div>
 					<label for="note-input" class="text-xs font-medium text-surface-500">Note</label>
-					<textarea id="note-input" name="note" rows="3" bind:value={editNote} class="mt-1 textarea"
+					<textarea id="note-input" name="note" rows="2" bind:value={editNote} class="mt-1 textarea"
 					></textarea>
 				</div>
-				<div class="flex items-center justify-between">
+				<div class="flex flex-col gap-3 @sm:flex-row @sm:items-center @sm:justify-between">
 					<div class="flex gap-2">
 						<button type="submit" class="btn preset-filled-primary-500"> Save </button>
 						<button
@@ -127,24 +122,26 @@
 					</div>
 					{#if canDelete}
 						{#if confirmDelete}
-							<div class="flex items-center gap-2">
+							<div class="flex flex-col items-start gap-2 @sm:flex-row @sm:items-center">
 								<span class="text-sm text-error-700">Delete this file permanently?</span>
-								<button
-									type="submit"
-									formaction="?/deleteFile"
-									disabled={isDeleting}
-									class="btn preset-filled-error-500"
-								>
-									{isDeleting ? 'Deleting…' : 'Yes, delete'}
-								</button>
-								<button
-									type="button"
-									disabled={isDeleting}
-									class="btn preset-outlined-surface-500"
-									onclick={() => (confirmDelete = false)}
-								>
-									Cancel
-								</button>
+								<div class="flex gap-2">
+									<button
+										type="submit"
+										formaction="?/deleteFile"
+										disabled={isDeleting}
+										class="btn preset-filled-error-500"
+									>
+										{isDeleting ? 'Deleting…' : 'Yes, delete'}
+									</button>
+									<button
+										type="button"
+										disabled={isDeleting}
+										class="btn preset-outlined-surface-500"
+										onclick={() => (confirmDelete = false)}
+									>
+										Cancel
+									</button>
+								</div>
 							</div>
 						{:else}
 							<button
@@ -158,63 +155,36 @@
 					{/if}
 				</div>
 			{:else}
-				<!-- View Mode -->
-				<div class="grid grid-cols-2 gap-4 sm:grid-cols-5">
-					<div>
-						<span class="text-xs font-medium text-surface-500">File Path</span>
-						<p class="mt-1 text-sm text-surface-800">{fileName}</p>
-					</div>
-					<div>
-						<span class="text-xs font-medium text-surface-500">Upload Date</span>
-						<p class="mt-1 text-sm text-surface-800">
-							{formatDate(fileRecord.created_at)}
-						</p>
-					</div>
-					<div>
-						<span class="text-xs font-medium text-surface-500">Size</span>
-						<p class="mt-1 text-sm text-surface-800">
-							{formatBytes(fileRecord.size ?? 0)}
-						</p>
-					</div>
-					<div>
-						<span class="text-xs font-medium text-surface-500">File Type</span>
-						<p class="mt-1 text-sm text-surface-800">
-							{fileRecord.mimetype ?? 'Unknown'}
-						</p>
-					</div>
-					<div>
-						<span class="text-xs font-medium text-surface-500">Status</span>
-						<p class="mt-1 text-sm">
-							<span
-								class="badge {fileStatus === 'Completed'
-									? 'preset-tonal-success'
-									: fileStatus === 'In Progress'
-										? 'preset-tonal-warning'
-										: 'preset-tonal-surface'}"
-							>
-								{fileStatus}
-							</span>
-						</p>
-					</div>
-				</div>
-				{#if meta.note}
-					<div>
-						<span class="text-xs font-medium text-surface-500">Note</span>
-						<p class="mt-1 text-sm whitespace-pre-wrap text-surface-700">
-							{meta.note}
-						</p>
-					</div>
-				{/if}
-				{#if canEdit}
-					<div>
+				<!-- View Mode: compact single-row summary -->
+				<div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+					<span
+						class="badge shrink-0 {fileStatus === 'Completed'
+							? 'preset-tonal-success'
+							: fileStatus === 'In Progress'
+								? 'preset-tonal-warning'
+								: 'preset-tonal-surface'}"
+					>
+						{fileStatus}
+					</span>
+					<span class="min-w-0 truncate text-surface-700" title={fileName}>{fileName}</span>
+					<span class="shrink-0 text-surface-500">{formatDate(fileRecord.created_at)}</span>
+					<span class="shrink-0 text-surface-500">{formatBytes(fileRecord.size ?? 0)}</span>
+					<span class="shrink-0 text-surface-500">{fileRecord.mimetype ?? 'Unknown'}</span>
+					{#if canEdit}
 						<button
 							type="button"
-							class="btn preset-outlined-primary-500"
+							class="ml-auto btn shrink-0 preset-outlined-primary-500 btn-sm"
 							onclick={() => (editFileInfo = true)}
 						>
 							Edit
 						</button>
-					</div>
+					{/if}
+				</div>
+				{#if meta.note}
+					<p class="truncate text-sm text-surface-700" title={meta.note}>
+						<span class="text-xs font-medium text-surface-500">Note:</span>
+						{meta.note}
+					</p>
 				{/if}
 			{/if}
 		</div>

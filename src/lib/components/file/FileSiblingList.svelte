@@ -48,18 +48,15 @@
 					>
 						<span class="flex items-center justify-between gap-2">
 							<span class="min-w-0 flex-1 truncate">{extractFileName(file.name)}</span>
-							<span class="shrink-0 text-xs text-surface-400">
-								{formatTime(file.created_at)}
+							<span
+								class="badge w-fit {status === 'Completed'
+									? 'preset-tonal-success'
+									: status === 'In Progress'
+										? 'preset-tonal-warning'
+										: 'preset-tonal-surface'}"
+							>
+								{status}
 							</span>
-						</span>
-						<span
-							class="badge w-fit {status === 'Completed'
-								? 'preset-tonal-success'
-								: status === 'In Progress'
-									? 'preset-tonal-warning'
-									: 'preset-tonal-surface'}"
-						>
-							{status}
 						</span>
 					</a>
 				</li>

@@ -64,6 +64,6 @@ describe('FileViewMobileTabs.svelte', () => {
 		await infoTab.click();
 
 		await expect.element(infoTab).toHaveAttribute('aria-selected', 'true');
-		await expect.element(page.getByRole('heading', { name: 'File Info' })).toBeInTheDocument();
+		await expect.element(page.getByText(fileRecord.name)).toBeInTheDocument();
 	});
 });

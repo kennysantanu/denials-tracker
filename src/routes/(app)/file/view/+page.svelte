@@ -44,6 +44,18 @@
 			onOpenFiles={() => (filesDrawerOpen = true)}
 		/>
 
+		<!-- File Info: compact summary bar, directly under the header, above everything else -->
+		{#if data.fileRecord}
+			<div class="hidden md:block">
+				<FileInfoPanel
+					fileName={data.fileName}
+					fileRecord={data.fileRecord}
+					{canEdit}
+					{canDelete}
+				/>
+			</div>
+		{/if}
+
 		{#if filesDrawerOpen}
 			<FileSiblingDrawer
 				siblings={data.siblings}
@@ -68,9 +80,7 @@
 			class="hidden gap-6 md:grid md:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)_minmax(300px,360px)]"
 		>
 			<!-- Files column (desktop only; tablet uses the header's Files drawer) -->
-			<div
-				class="hidden xl:sticky xl:top-20 xl:block xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto"
-			>
+			<div class="hidden xl:sticky xl:top-20 xl:block">
 				<div class="card border border-surface-200 bg-white p-3">
 					<h2 class="mb-2 px-2 text-sm font-semibold text-surface-600">Files</h2>
 					<FileSiblingList siblings={data.siblings} currentFileName={data.fileName} />
@@ -82,17 +92,12 @@
 				<FileDocumentViewer fileName={data.fileName} signedUrl={data.signedUrl} />
 			</div>
 
-			<!-- File Info column (File Info + Related Claims) -->
-			<div class="space-y-6 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto">
-				{#if data.fileRecord}
-					<FileInfoPanel
-						fileName={data.fileName}
-						fileRecord={data.fileRecord}
-						{canEdit}
-						{canDelete}
-					/>
-				{/if}
-				<FileRelatedClaims relatedClaims={data.relatedClaims} />
+			<!-- Related Claims column -->
+			<div class="xl:sticky xl:top-20">
+				<div class="card border border-surface-200 bg-white p-3">
+					<h2 class="mb-2 px-2 text-sm font-semibold text-surface-600">Related Claims</h2>
+					<FileRelatedClaims relatedClaims={data.relatedClaims} />
+				</div>
 			</div>
 		</div>
 	{/if}

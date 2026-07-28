@@ -21,9 +21,9 @@
 
 <div class="overflow-hidden rounded-base border border-surface-200">
 	{#if isImage}
-		<img src={signedUrl} alt={fileName} class="max-h-[80vh] w-full object-contain" />
+		<img src={signedUrl} alt={fileName} class="max-h-[85vh] w-full object-contain" />
 	{:else if isPdf}
-		<iframe src={signedUrl} title={fileName} class="h-[80vh] w-full"></iframe>
+		<iframe src={signedUrl} title={fileName} class="h-[85vh] w-full"></iframe>
 		<div class="border-t border-surface-200 px-4 py-2 text-center">
 			<a
 				href={signedUrl}
