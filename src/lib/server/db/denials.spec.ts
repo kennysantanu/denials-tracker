@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
 	getDenialsByPatient,
+	findExactDenialByServiceDates,
 	createDenial,
 	updateDenial,
 	deleteDenial
@@ -20,7 +21,10 @@ function createMockSupabase(overrides: Record<string, Record<string, unknown>> =
 		update: vi.fn().mockReturnThis(),
 		delete: vi.fn().mockReturnThis(),
 		eq: vi.fn().mockReturnThis(),
+		is: vi.fn().mockReturnThis(),
+		limit: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
+		maybeSingle: vi.fn().mockResolvedValue({ data: { id: 1 }, error: null }),
 		single: vi.fn().mockResolvedValue({ data: mockDenial, error: null })
 	};
 
@@ -35,6 +39,7 @@ function createMockSupabase(overrides: Record<string, Record<string, unknown>> =
 				chain[key] = vi.fn().mockReturnThis();
 			}
 			chain.single = vi.fn().mockResolvedValue({ data: mockDenial, error: null });
+			chain.maybeSingle = vi.fn().mockResolvedValue({ data: { id: 1 }, error: null });
 			chain.order = vi.fn().mockResolvedValue({ data: [mockDenial], error: null });
 			if (overrides[table]) {
 				Object.assign(chain, overrides[table]);
@@ -74,6 +79,28 @@ describe('getDenialsByPatient', () => {
 
 		const result = await getDenialsByPatient(sb as any, 10);
 		expect(result.error).toEqual(mockError);
+	});
+});
+
+describe('findExactDenialByServiceDates', () => {
+	it('matches a denial with no service end date', async () => {
+		const sb = createMockSupabase();
+		await findExactDenialByServiceDates(sb as any, 10, '2026-06-01', null);
+
+		const chain = sb._chain('denials');
+		expect(chain.eq).toHaveBeenCalledWith('patient_id', 10);
+		expect(chain.eq).toHaveBeenCalledWith('service_start_date', '2026-06-01');
+		expect(chain.is).toHaveBeenCalledWith('service_end_date', null);
+		expect(chain.limit).toHaveBeenCalledWith(1);
+	});
+
+	it('matches a denial with the same service end date', async () => {
+		const sb = createMockSupabase();
+		await findExactDenialByServiceDates(sb as any, 10, '2026-06-01', '2026-06-05');
+
+		const chain = sb._chain('denials');
+		expect(chain.eq).toHaveBeenCalledWith('service_end_date', '2026-06-05');
+		expect(chain.is).not.toHaveBeenCalled();
 	});
 });
 

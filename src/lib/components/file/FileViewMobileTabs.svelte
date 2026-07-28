@@ -3,6 +3,7 @@
 	import FileDocumentViewer from './FileDocumentViewer.svelte';
 	import FileInfoPanel from './FileInfoPanel.svelte';
 	import FileRelatedClaims from './FileRelatedClaims.svelte';
+	import FileAddDenialForm from './FileAddDenialForm.svelte';
 	import type { FileViewSibling } from '$lib/server/db/files';
 	import type { getRelatedClaims } from '$lib/server/db/files';
 	import type { Database } from '$lib/supabase';
@@ -16,12 +17,25 @@
 		fileRecord: FilesRow | null;
 		canEdit: boolean;
 		canDelete: boolean;
+		canCreateDenial: boolean;
+		canCreatePatient: boolean;
+		canCreateNote: boolean;
 		siblings: FileViewSibling[];
 		relatedClaims: RelatedClaims;
 	}
 
-	let { fileName, signedUrl, fileRecord, canEdit, canDelete, siblings, relatedClaims }: Props =
-		$props();
+	let {
+		fileName,
+		signedUrl,
+		fileRecord,
+		canEdit,
+		canDelete,
+		canCreateDenial,
+		canCreatePatient,
+		canCreateNote,
+		siblings,
+		relatedClaims
+	}: Props = $props();
 
 	type TabId = 'files' | 'document' | 'info';
 	const tabs: { id: TabId; label: string }[] = [
@@ -108,6 +122,7 @@
 		{#if fileRecord}
 			<FileInfoPanel {fileName} {fileRecord} {canEdit} {canDelete} />
 		{/if}
+		<FileAddDenialForm {fileName} {canCreateDenial} {canCreatePatient} {canCreateNote} />
 		<FileRelatedClaims {relatedClaims} />
 	</div>
 </div>

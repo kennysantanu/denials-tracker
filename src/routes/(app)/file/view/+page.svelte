@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { resolve } from '$app/paths';
 	import {
 		FileDocumentViewer,
 		FileInfoPanel,
@@ -7,7 +8,8 @@
 		FileViewHeader,
 		FileSiblingList,
 		FileSiblingDrawer,
-		FileViewMobileTabs
+		FileViewMobileTabs,
+		FileAddDenialForm
 	} from '$lib/components/file';
 
 	let { data } = $props();
@@ -17,6 +19,9 @@
 	);
 	const canEdit = $derived(effectivePermissions['file.update'] === true);
 	const canDelete = $derived(effectivePermissions['file.delete'] === true);
+	const canCreateDenial = $derived(effectivePermissions['denial.create'] === true);
+	const canCreatePatient = $derived(effectivePermissions['patient.create'] === true);
+	const canCreateNote = $derived(effectivePermissions['note.create'] === true);
 
 	let filesDrawerOpen = $state(false);
 </script>
@@ -29,7 +34,7 @@
 	{#if data.error}
 		<div class="rounded-base border border-error-200 bg-error-50 px-6 py-10 text-center">
 			<p class="text-error-700">{data.error}</p>
-			<a href="/file" class="mt-4 inline-block text-sm text-primary-600 hover:underline">
+			<a href={resolve('/file')} class="mt-4 inline-block text-sm text-primary-600 hover:underline">
 				&larr; Back to Files
 			</a>
 		</div>
@@ -71,6 +76,9 @@
 			fileRecord={data.fileRecord}
 			{canEdit}
 			{canDelete}
+			{canCreateDenial}
+			{canCreatePatient}
+			{canCreateNote}
 			siblings={data.siblings}
 			relatedClaims={data.relatedClaims}
 		/>
@@ -93,9 +101,15 @@
 			</div>
 
 			<!-- Related Claims column -->
-			<div class="xl:sticky xl:top-20">
+			<div class="space-y-4 xl:sticky xl:top-20">
 				<div class="card border border-surface-200 bg-white p-3">
 					<h2 class="mb-2 px-2 text-sm font-semibold text-surface-600">Related Claims</h2>
+					<FileAddDenialForm
+						fileName={data.fileName}
+						{canCreateDenial}
+						{canCreatePatient}
+						{canCreateNote}
+					/>
 					<FileRelatedClaims relatedClaims={data.relatedClaims} />
 				</div>
 			</div>

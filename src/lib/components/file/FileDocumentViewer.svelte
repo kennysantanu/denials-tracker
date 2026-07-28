@@ -24,16 +24,6 @@
 		<img src={signedUrl} alt={fileName} class="max-h-[85vh] w-full object-contain" />
 	{:else if isPdf}
 		<iframe src={signedUrl} title={fileName} class="h-[85vh] w-full"></iframe>
-		<div class="border-t border-surface-200 px-4 py-2 text-center">
-			<a
-				href={signedUrl}
-				target="_blank"
-				rel="noopener noreferrer"
-				class="text-sm text-primary-600 hover:underline"
-			>
-				Open PDF in new tab
-			</a>
-		</div>
 	{:else}
 		<div class="px-6 py-10 text-center">
 			<p class="text-surface-600">Preview is not available for this file type.</p>

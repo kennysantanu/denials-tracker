@@ -16,6 +16,25 @@ export async function getDenialsByPatient(
 		.order('service_start_date', { ascending: false });
 }
 
+export async function findExactDenialByServiceDates(
+	supabase: SupabaseClient<Database>,
+	patientId: number,
+	serviceStartDate: string,
+	serviceEndDate: string | null
+) {
+	let query = supabase
+		.from('denials')
+		.select('id')
+		.eq('patient_id', patientId)
+		.eq('service_start_date', serviceStartDate);
+
+	query = serviceEndDate
+		? query.eq('service_end_date', serviceEndDate)
+		: query.is('service_end_date', null);
+
+	return query.limit(1).maybeSingle();
+}
+
 export async function createDenial(
 	supabase: SupabaseClient<Database>,
 	data: DenialsInsert,

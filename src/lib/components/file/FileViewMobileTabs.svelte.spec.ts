@@ -38,6 +38,9 @@ describe('FileViewMobileTabs.svelte', () => {
 			fileRecord: fileRecord as any,
 			canEdit: true,
 			canDelete: true,
+			canCreateDenial: true,
+			canCreatePatient: true,
+			canCreateNote: true,
 			siblings: siblings as any,
 			relatedClaims: []
 		});
@@ -56,6 +59,9 @@ describe('FileViewMobileTabs.svelte', () => {
 			fileRecord: fileRecord as any,
 			canEdit: true,
 			canDelete: true,
+			canCreateDenial: true,
+			canCreatePatient: true,
+			canCreateNote: true,
 			siblings: siblings as any,
 			relatedClaims: []
 		});
