@@ -21,9 +21,9 @@
 
 <div class="overflow-hidden rounded-base border border-surface-200">
 	{#if isImage}
-		<img src={signedUrl} alt={fileName} class="max-h-[85vh] w-full object-contain" />
+		<img src={signedUrl} alt={fileName} class="max-h-[80vh] w-full object-contain" />
 	{:else if isPdf}
-		<iframe src={signedUrl} title={fileName} class="h-[85vh] w-full"></iframe>
+		<iframe src={signedUrl} title={fileName} class="h-[80vh] w-full"></iframe>
 	{:else}
 		<div class="px-6 py-10 text-center">
 			<p class="text-surface-600">Preview is not available for this file type.</p>

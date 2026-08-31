@@ -106,20 +106,6 @@
 					></textarea>
 				</div>
 				<div class="flex flex-col gap-3 @sm:flex-row @sm:items-center @sm:justify-between">
-					<div class="flex gap-2">
-						<button type="submit" class="btn preset-filled-primary-500"> Save </button>
-						<button
-							type="button"
-							class="btn preset-outlined-surface-500"
-							onclick={() => {
-								editFileInfo = false;
-								editStatus = meta.status ?? 'New';
-								editNote = meta.note ?? '';
-							}}
-						>
-							Cancel
-						</button>
-					</div>
 					{#if canDelete}
 						{#if confirmDelete}
 							<div class="flex flex-col items-start gap-2 @sm:flex-row @sm:items-center">
@@ -153,39 +139,52 @@
 							</button>
 						{/if}
 					{/if}
-				</div>
-			{:else}
-				<!-- View Mode: compact single-row summary -->
-				<div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
-					<span
-						class="badge shrink-0 {fileStatus === 'Completed'
-							? 'preset-tonal-success'
-							: fileStatus === 'In Progress'
-								? 'preset-tonal-warning'
-								: 'preset-tonal-surface'}"
-					>
-						{fileStatus}
-					</span>
-					<span class="min-w-0 truncate text-surface-700" title={fileName}>{fileName}</span>
-					<span class="shrink-0 text-surface-500">{formatDate(fileRecord.created_at)}</span>
-					<span class="shrink-0 text-surface-500">{formatBytes(fileRecord.size ?? 0)}</span>
-					<span class="shrink-0 text-surface-500">{fileRecord.mimetype ?? 'Unknown'}</span>
-					{#if canEdit}
+					<div class="flex gap-2">
+						<button type="submit" class="btn preset-filled-primary-500"> Save </button>
 						<button
 							type="button"
-							class="ml-auto btn shrink-0 preset-outlined-primary-500 btn-sm"
-							onclick={() => (editFileInfo = true)}
+							class="btn preset-outlined-surface-500"
+							onclick={() => {
+								editFileInfo = false;
+								editStatus = meta.status ?? 'New';
+								editNote = meta.note ?? '';
+							}}
 						>
-							Edit
+							Cancel
 						</button>
-					{/if}
+					</div>
 				</div>
-				{#if meta.note}
-					<p class="truncate text-sm text-surface-700" title={meta.note}>
-						<span class="text-xs font-medium text-surface-500">Note:</span>
-						{meta.note}
-					</p>
-				{/if}
+			{:else}
+				<!-- View Mode -->
+				<div class="space-y-2">
+					<h2 class="text-sm font-semibold text-surface-600">File Info</h2>
+					{#if meta.note}
+						<p class="truncate text-sm text-surface-700" title={meta.note}>
+							<span class="text-xs font-medium text-surface-500">Note:</span>
+							{meta.note}
+						</p>
+					{/if}
+					<div class="flex items-center justify-between gap-2">
+						<span
+							class="badge shrink-0 {fileStatus === 'Completed'
+								? 'preset-tonal-success'
+								: fileStatus === 'In Progress'
+									? 'preset-tonal-warning'
+									: 'preset-tonal-surface'}"
+						>
+							{fileStatus}
+						</span>
+						{#if canEdit}
+							<button
+								type="button"
+								class="ml-auto btn shrink-0 preset-outlined-primary-500 btn-sm"
+								onclick={() => (editFileInfo = true)}
+							>
+								Edit
+							</button>
+						{/if}
+					</div>
+				</div>
 			{/if}
 		</div>
 	</form>

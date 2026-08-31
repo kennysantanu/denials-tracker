@@ -5,7 +5,6 @@
 		FileDocumentViewer,
 		FileInfoPanel,
 		FileRelatedClaims,
-		FileViewHeader,
 		FileSiblingList,
 		FileSiblingDrawer,
 		FileViewMobileTabs,
@@ -24,13 +23,23 @@
 	const canCreateNote = $derived(effectivePermissions['note.create'] === true);
 
 	let filesDrawerOpen = $state(false);
+
+	function viewHref(name: string): string {
+		return `/file/view?name=${encodeURIComponent(name)}`;
+	}
+
+	const position = $derived(
+		data.currentIndex >= 0 && data.siblings.length > 0
+			? `${data.currentIndex + 1} of ${data.siblings.length}`
+			: null
+	);
 </script>
 
 <svelte:head>
 	<title>{data.fileName} | Denials Tracker</title>
 </svelte:head>
 
-<div class="mx-auto max-w-[1600px] space-y-6">
+<div class="mx-auto max-w-7xl space-y-6">
 	{#if data.error}
 		<div class="rounded-base border border-error-200 bg-error-50 px-6 py-10 text-center">
 			<p class="text-error-700">{data.error}</p>
@@ -39,27 +48,47 @@
 			</a>
 		</div>
 	{:else if data.signedUrl}
-		<FileViewHeader
-			fileName={data.fileName}
-			backUrl={data.backUrl}
-			previousFileName={data.previousFileName}
-			nextFileName={data.nextFileName}
-			currentIndex={data.currentIndex}
-			totalSiblings={data.siblings.length}
-			onOpenFiles={() => (filesDrawerOpen = true)}
-		/>
+		<div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+			<!-- Breadcrumb -->
+			<nav class="mb-4 flex items-center gap-1.5 text-sm text-surface-500" aria-label="Breadcrumb">
+				<a href="/file" class="hover:text-primary-600 hover:underline">Files</a>
+				<span>/</span>
+				<span class="font-medium text-surface-800">{data.fileName}</span>
+			</nav>
 
-		<!-- File Info: compact summary bar, directly under the header, above everything else -->
-		{#if data.fileRecord}
-			<div class="hidden md:block">
-				<FileInfoPanel
-					fileName={data.fileName}
-					fileRecord={data.fileRecord}
-					{canEdit}
-					{canDelete}
-				/>
+			<div class="flex shrink-0 items-center gap-2">
+				{#if position}
+					<span class="text-sm text-surface-500">{position}</span>
+				{/if}
+				{#if filesDrawerOpen !== undefined}
+					<button
+						type="button"
+						class="btn hidden preset-outlined-surface-500 btn-sm md:inline-flex"
+						onclick={() => (filesDrawerOpen = true)}
+					>
+						Files
+					</button>
+				{/if}
+				{#if data.previousFileName}
+					<a href={viewHref(data.previousFileName)} class="btn preset-outlined-surface-500 btn-sm">
+						Previous
+					</a>
+				{:else}
+					<span class="pointer-events-none btn preset-outlined-surface-500 btn-sm opacity-40">
+						Previous
+					</span>
+				{/if}
+				{#if data.nextFileName}
+					<a href={viewHref(data.nextFileName)} class="btn preset-outlined-surface-500 btn-sm">
+						Next
+					</a>
+				{:else}
+					<span class="pointer-events-none btn preset-outlined-surface-500 btn-sm opacity-40">
+						Next
+					</span>
+				{/if}
 			</div>
-		{/if}
+		</div>
 
 		{#if filesDrawerOpen}
 			<FileSiblingDrawer
@@ -85,23 +114,22 @@
 
 		<!-- Tablet (md) and desktop (xl) layout -->
 		<div
-			class="hidden gap-6 md:grid md:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)_minmax(300px,360px)]"
+			class="hidden gap-6 md:grid md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[minmax(300px,400px)_minmax(0,1fr)]"
 		>
-			<!-- Files column (desktop only; tablet uses the header's Files drawer) -->
-			<div class="hidden xl:sticky xl:top-20 xl:block">
-				<div class="card border border-surface-200 bg-white p-3">
-					<h2 class="mb-2 px-2 text-sm font-semibold text-surface-600">Files</h2>
-					<FileSiblingList siblings={data.siblings} currentFileName={data.fileName} />
-				</div>
-			</div>
-
-			<!-- Document column -->
-			<div class="min-w-0">
-				<FileDocumentViewer fileName={data.fileName} signedUrl={data.signedUrl} />
-			</div>
-
 			<!-- Related Claims column -->
 			<div class="space-y-4 xl:sticky xl:top-20">
+				<!-- File Info -->
+				{#if data.fileRecord}
+					<div>
+						<FileInfoPanel
+							fileName={data.fileName}
+							fileRecord={data.fileRecord}
+							{canEdit}
+							{canDelete}
+						/>
+					</div>
+				{/if}
+
 				<div class="card border border-surface-200 bg-white p-3">
 					<h2 class="mb-2 px-2 text-sm font-semibold text-surface-600">Related Claims</h2>
 					<FileAddDenialForm
@@ -112,6 +140,11 @@
 					/>
 					<FileRelatedClaims relatedClaims={data.relatedClaims} />
 				</div>
+			</div>
+
+			<!-- Document column -->
+			<div class="min-w-0">
+				<FileDocumentViewer fileName={data.fileName} signedUrl={data.signedUrl} />
 			</div>
 		</div>
 	{/if}
