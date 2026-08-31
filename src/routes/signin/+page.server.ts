@@ -35,7 +35,7 @@ function resolveClientIp(
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = await locals.getUser();
-	if (user) redirect(303, '/dashboard');
+	if (user) redirect(303, '/record');
 
 	const form = await superValidate(zod(signInSchema));
 	return { form };
@@ -100,6 +100,6 @@ export const actions: Actions = {
 		} = await supabase.auth.getUser();
 		logAudit(supabase, user?.id ?? null, 'login', 'session', null, { email }, request, ipAddress);
 
-		redirect(303, '/dashboard');
+		redirect(303, '/record');
 	}
 };

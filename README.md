@@ -121,6 +121,7 @@ instance-specific values, so the same image / bundle deploys anywhere.
 | `ORIGIN`                    |    ✅    | Public URL of the app (`https://...`)                       |
 | `DATABASE_URL`              |    ⚠️    | Only needed when running migrations (`migrate` profile)     |
 | `SUPABASE_INTERNAL_URL`     | optional | Docker-internal Supabase URL (set automatically by overlay) |
+| `BODY_SIZE_LIMIT`           | optional | App upload request limit for `adapter-node` (`50M` default) |
 
 ---
 

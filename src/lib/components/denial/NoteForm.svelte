@@ -43,8 +43,8 @@
 	<NoteEditor bind:this={noteEditor} required placeholder="Enter note..." />
 
 	<div class="flex gap-2">
-		<button type="submit" class="btn preset-filled-primary-500 btn-sm">Submit</button>
-		<button type="button" class="btn preset-outlined-surface-500 btn-sm" onclick={oncancel}>
+		<button type="submit" class="btn preset-filled-primary-500">Submit</button>
+		<button type="button" class="btn preset-outlined-surface-500" onclick={oncancel}>
 			Cancel
 		</button>
 	</div>

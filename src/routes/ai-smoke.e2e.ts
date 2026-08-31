@@ -96,8 +96,8 @@ test.describe('AI Features', () => {
 			}
 		});
 
-		// Either 503 (unconfigured), 401 (not authenticated for API), or 200 (configured)
-		expect([200, 401, 503]).toContain(response.status());
+		// Either 503 (unconfigured), 401/403 (not authorized), or 501 (non-streaming disabled)
+		expect([401, 403, 501, 503]).toContain(response.status());
 	});
 
 	test('Summarize button on DenialCard opens chat with context', async ({ page }) => {

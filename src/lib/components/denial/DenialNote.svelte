@@ -122,8 +122,8 @@
 			<input type="hidden" name="patient_id" value={patientId} />
 			<NoteEditor bind:this={noteEditor} bind:value={editText} required {attachedFiles} />
 			<div class="flex gap-2">
-				<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
-				<button type="button" class="btn preset-outlined-surface-500 btn-sm" onclick={cancelEdit}>
+				<button type="submit" class="btn preset-filled-primary-500">Save</button>
+				<button type="button" class="btn preset-outlined-surface-500" onclick={cancelEdit}>
 					Cancel
 				</button>
 			</div>
@@ -153,7 +153,7 @@
 				<div class="relative">
 					<button
 						type="button"
-						class="btn preset-outlined-surface-500 btn-sm px-1.5"
+						class="btn hover:bg-surface-200-800"
 						title="Note actions"
 						onclick={toggleMenu}
 					>
@@ -163,7 +163,7 @@
 					{#if menuOpen}
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<div
-							class="absolute right-0 z-10 mt-1 min-w-32 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
+							class="absolute right-0 z-10 mt-1 min-w-32 card border border-surface-200 bg-white py-1 shadow-lg"
 							onmouseleave={() => (menuOpen = false)}
 						>
 							{#if effectivePermissions['note.update']}

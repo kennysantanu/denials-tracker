@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
+	import { page } from '$app/state';
+	import { ConfirmDialog } from '$lib/components/ui';
 
 	let { data } = $props();
 
 	let showAddForm = $state(false);
 	let editingId = $state<number | null>(null);
+	let deleteId = $state<number | null>(null);
+	let actionError = $state<string | null>(null);
 
 	// Add form state
 	let newRoleName = $state('');
@@ -14,6 +18,11 @@
 	// Edit form state
 	let editRoleName = $state('');
 	let editKeys = $state<Record<string, boolean>>({});
+
+	let permissions = $derived((page.data as any).effectivePermissions ?? {});
+	let canCreate = $derived(permissions['role.create'] === true || permissions['break_glass.admin'] === true);
+	let canUpdate = $derived(permissions['role.update'] === true || permissions['break_glass.admin'] === true);
+	let canDelete = $derived(permissions['role.delete'] === true || permissions['break_glass.admin'] === true);
 
 	// Group catalog entries by category for the picker.
 	const catalogByCategory = $derived(
@@ -53,13 +62,22 @@
 		return ({ result }: { result: { type: string; data?: { error?: string } } }) => {
 			if (result.type === 'success') {
 				toastSuccess(`Role ${action} successfully`);
+				actionError = null;
 				showAddForm = false;
 				editingId = null;
+				deleteId = null;
 				resetAddForm();
 			} else if (result.type === 'failure') {
-				toastError(result.data?.error ?? `Failed to ${action} role`);
+				const message = result.data?.error ?? `Failed to ${action} role`;
+				actionError = message;
+				toastError(message);
 			}
 		};
+	}
+
+	function confirmDelete() {
+		if (!deleteId) return;
+		(document.getElementById(`delete-role-${deleteId}`) as HTMLFormElement | null)?.requestSubmit();
 	}
 </script>
 
@@ -75,19 +93,27 @@
 				Define roles and the canonical permissions granted to users assigned to them.
 			</p>
 		</div>
-		<button
-			type="button"
-			onclick={() => {
-				showAddForm = !showAddForm;
-				resetAddForm();
-			}}
-			class="btn btn-sm {showAddForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
-		>
-			{showAddForm ? 'Cancel' : 'Add role'}
-		</button>
+		{#if canCreate}
+			<button
+				type="button"
+				onclick={() => {
+					showAddForm = !showAddForm;
+					resetAddForm();
+				}}
+				class="btn btn-sm {showAddForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
+			>
+				{showAddForm ? 'Cancel' : 'Add role'}
+			</button>
+		{/if}
 	</header>
 
-	{#if showAddForm}
+	{#if actionError}
+		<div class="rounded-base border-l-4 border-error-500 bg-error-50 p-4 text-sm text-error-700" role="alert">
+			{actionError}
+		</div>
+	{/if}
+
+	{#if showAddForm && canCreate}
 		<form
 			method="POST"
 			action="?/createRole"
@@ -114,15 +140,9 @@
 
 			<fieldset class="mt-4 space-y-4">
 				<legend class="text-sm font-medium text-surface-700">Permissions</legend>
-				<p class="text-xs text-surface-500">
-					<span class="badge preset-tonal-primary text-[10px]">new</span>
-					= no v2 equivalent.
-					<span class="badge preset-tonal-warning ml-2 text-[10px]">legacy-mapped</span>
-					= dual-writes a v2 permission for transition.
-				</p>
 				{#each catalogByCategory as [category, entries] (category)}
 					<div>
-						<h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-600">
+						<h4 class="mb-2 text-xs font-semibold tracking-wide text-surface-600 uppercase">
 							{category}
 						</h4>
 						<div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -131,22 +151,10 @@
 									<input
 										type="checkbox"
 										bind:checked={newKeys[entry.key]}
-										class="checkbox mt-0.5"
+										class="mt-0.5 checkbox"
 									/>
 									<span>
-										<span class="flex flex-wrap items-center gap-1">
-											<code class="text-xs">{entry.key}</code>
-											<span
-												class="badge text-[10px] {entry.kind === 'legacy-mapped'
-													? 'preset-tonal-warning'
-													: 'preset-tonal-primary'}"
-												title={entry.kind === 'legacy-mapped'
-													? `Maps to legacy: ${entry.legacyKeys.join(', ')}`
-													: 'No v2 equivalent'}
-											>
-												{entry.kind}
-											</span>
-										</span>
+										<code class="text-xs">{entry.key}</code>
 										{#if entry.description}
 											<span class="block text-xs text-surface-500">{entry.description}</span>
 										{/if}
@@ -218,7 +226,7 @@
 											{#each catalogByCategory as [category, entries] (category)}
 												<div>
 													<h4
-														class="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-600"
+														class="mb-2 text-xs font-semibold tracking-wide text-surface-600 uppercase"
 													>
 														{category}
 													</h4>
@@ -228,50 +236,38 @@
 																<input
 																	type="checkbox"
 																	bind:checked={editKeys[entry.key]}
-																	class="checkbox mt-0.5"
+																	class="mt-0.5 checkbox"
 																/>
 																<span>
-																<span class="flex flex-wrap items-center gap-1">
 																	<code class="text-xs">{entry.key}</code>
-																	<span
-																		class="badge text-[10px] {entry.kind === 'legacy-mapped'
-																			? 'preset-tonal-warning'
-																			: 'preset-tonal-primary'}"
-																		title={entry.kind === 'legacy-mapped'
-																			? `Maps to legacy: ${entry.legacyKeys.join(', ')}`
-																			: 'No v2 equivalent'}
-																	>
-																		{entry.kind}
-																	</span>
+																	{#if entry.description}
+																		<span class="block text-xs text-surface-500">
+																			{entry.description}
+																		</span>
+																	{/if}
 																</span>
-																{#if entry.description}
-																	<span class="block text-xs text-surface-500">
-																		{entry.description}
-																	</span>
-																{/if}
-															</span>
-														</label>
-													{/each}
+															</label>
+														{/each}
+													</div>
 												</div>
-											</div>
-										{/each}
-									</fieldset>
+											{/each}
+										</fieldset>
 
-									<div class="flex justify-end gap-2">
-										<button
-											type="button"
-											onclick={() => cancelEdit()}
-											class="btn preset-tonal btn-sm"
-										>
-											Cancel
-										</button>
-										<button type="submit" class="btn preset-filled-primary-500 btn-sm">
-											Save
-										</button>
-									</div>
-								</form>
-							</td>
-						</tr>
+										<div class="flex justify-end gap-2">
+											<button
+												type="button"
+												onclick={() => cancelEdit()}
+												class="btn preset-tonal btn-sm"
+											>
+												Cancel
+											</button>
+											<button type="submit" class="btn preset-filled-primary-500 btn-sm">
+												Save
+											</button>
+										</div>
+									</form>
+								</td>
+							</tr>
 						{:else}
 							<tr>
 								<td class="font-medium text-surface-900">{role.role_name}</td>
@@ -288,33 +284,36 @@
 								</td>
 								<td>
 									<div class="flex justify-end gap-2">
-										<button
-											type="button"
-											onclick={() => startEdit(role)}
-											class="btn preset-tonal-primary btn-sm"
-										>
-											Edit
-										</button>
-										<form
-											method="POST"
-											action="?/deleteRole"
-											use:enhance={() =>
-												async ({ result, update }) => {
-													handleResult('deleted')({ result });
-													await update();
-												}}
-										>
-											<input type="hidden" name="id" value={role.id} />
+										{#if canUpdate}
 											<button
-												type="submit"
-												onclick={(e) => {
-													if (!confirm('Delete this role?')) e.preventDefault();
-												}}
-												class="btn preset-tonal-error btn-sm"
+												type="button"
+												onclick={() => startEdit(role)}
+												class="btn preset-tonal-primary btn-sm"
 											>
-												Delete
+												Edit
 											</button>
-										</form>
+										{/if}
+										{#if canDelete}
+											<form
+												id="delete-role-{role.id}"
+												method="POST"
+												action="?/deleteRole"
+												use:enhance={() =>
+													async ({ result, update }) => {
+														handleResult('deleted')({ result });
+														await update();
+													}}
+											>
+												<input type="hidden" name="id" value={role.id} />
+												<button
+													type="button"
+													onclick={() => (deleteId = role.id)}
+													class="btn preset-tonal-error btn-sm"
+												>
+													Delete
+												</button>
+											</form>
+										{/if}
 									</div>
 								</td>
 							</tr>
@@ -336,3 +335,11 @@
 	</div>
 </div>
 
+<ConfirmDialog
+	open={deleteId !== null}
+	title="Delete role?"
+	message="Roles assigned to users cannot be deleted."
+	confirmLabel="Delete role"
+	onconfirm={confirmDelete}
+	oncancel={() => (deleteId = null)}
+/>

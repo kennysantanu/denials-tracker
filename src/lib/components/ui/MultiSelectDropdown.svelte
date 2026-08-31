@@ -37,9 +37,7 @@
 <div class="relative" bind:this={wrapperEl}>
 	<button
 		type="button"
-		class="btn btn-sm whitespace-nowrap {selected.length > 0
-			? 'preset-tonal-primary'
-			: 'preset-outlined-surface-500'}"
+		class="btn preset-outlined-surface-200-800 whitespace-nowrap hover:preset-outlined-surface-500 focus:preset-outlined-surface-500"
 		onclick={() => (open = !open)}
 	>
 		{selected.length === 0 ? placeholder : `${selected.length} selected`}

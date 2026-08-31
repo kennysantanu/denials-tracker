@@ -1,6 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requirePermission } from '$lib/server/authz';
+import { getPatientsPaginated } from '$lib/server/db/patients';
 
 export const GET: RequestHandler = async (event) => {
 	const { locals, url } = event;
@@ -8,6 +9,20 @@ export const GET: RequestHandler = async (event) => {
 	if (!user) error(401, 'Unauthorized');
 
 	await requirePermission(event, 'patient.read', { resourceType: 'patient' });
+
+	const q = url.searchParams.get('q')?.trim() ?? '';
+
+	// Single combined search box: matches last name, first name, or date of birth
+	// (same semantics as the /record patient list search).
+	if (q) {
+		const { data, error: dbError } = await getPatientsPaginated(locals.supabase, {
+			search: q,
+			pageSize: 5
+		});
+		if (dbError) error(500, 'Search failed');
+
+		return json({ patients: data?.patients ?? [] });
+	}
 
 	const lastName = url.searchParams.get('last_name')?.trim() ?? '';
 	const firstName = url.searchParams.get('first_name')?.trim() ?? '';

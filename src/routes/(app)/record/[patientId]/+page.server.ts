@@ -4,6 +4,7 @@ import type { Database } from '$lib/supabase';
 import { getPatientById, updatePatient } from '$lib/server/db/patients';
 import {
 	getDenialsByPatient,
+	findExactDenialByServiceDates,
 	createDenial,
 	updateDenial,
 	deleteDenial
@@ -173,6 +174,22 @@ export const actions: Actions = {
 		}
 
 		const serviceEndDate = (formData.get('service_end_date') as string) || null;
+		const { data: existingDenial, error: duplicateCheckError } =
+			await findExactDenialByServiceDates(
+				locals.supabase,
+				patientId,
+				serviceStartDate,
+				serviceEndDate
+			);
+		if (duplicateCheckError) {
+			return fail(500, { error: 'Could not check for an existing denial' });
+		}
+		if (existingDenial) {
+			return fail(409, {
+				error: 'A denial with the same service start and end dates already exists'
+			});
+		}
+
 		const billedAmount = formData.get('billed_amount')
 			? parseFloat(formData.get('billed_amount') as string)
 			: null;
@@ -441,20 +458,37 @@ export const actions: Actions = {
 		const patientId = parseInt(params.patientId, 10);
 		if (isNaN(patientId)) return fail(400, { error: 'Invalid patient ID' });
 
-		await requirePermission(event, 'note.create', {
-			resourceType: 'note',
-			subjectPatientId: patientId
-		});
-
 		const formData = await request.formData();
 		const noteText = (formData.get('note') as string)?.trim();
 		const denialId = parseInt(formData.get('denial_id') as string, 10);
 		const files = formData.getAll('files') as File[];
 		const existingFileNames = formData.getAll('existing_files').map(String).filter(Boolean);
-		const patientLinkedFilesResult = await getPatientLinkedFileNames(
-			locals.supabase,
-			existingFileNames
-		);
+
+		if (!noteText) return fail(400, { error: 'Note text is required' });
+		if (isNaN(denialId)) return fail(400, { error: 'Invalid denial ID' });
+
+		const supabase = locals.supabase;
+		await requirePermission(event, 'note.create', {
+			resourceType: 'note',
+			subjectPatientId: patientId,
+			subjectDenialId: denialId
+		});
+
+		const { data: patientDenial, error: patientDenialError } = await supabase
+			.from('denials')
+			.select('id')
+			.eq('id', denialId)
+			.eq('patient_id', patientId)
+			.maybeSingle();
+
+		if (patientDenialError) {
+			return fail(500, { error: 'Could not validate the selected denial' });
+		}
+		if (!patientDenial) {
+			return fail(400, { error: 'The selected denial does not belong to this patient' });
+		}
+
+		const patientLinkedFilesResult = await getPatientLinkedFileNames(supabase, existingFileNames);
 
 		if (patientLinkedFilesResult.error) {
 			return fail(400, { error: patientLinkedFilesResult.error.message });
@@ -466,10 +500,6 @@ export const actions: Actions = {
 			});
 		}
 
-		if (!noteText) return fail(400, { error: 'Note text is required' });
-		if (isNaN(denialId)) return fail(400, { error: 'Invalid denial ID' });
-
-		const supabase = locals.supabase;
 		const uploadedFilePaths: string[] = [];
 
 		try {
@@ -1112,17 +1142,26 @@ export const actions: Actions = {
 		if (copyNoteIds.length > 0) {
 			const { data: sourceNotes } = await supabase
 				.from('notes')
-				.select('id, note')
+				.select('id, note, notes_files(file_name)')
 				.eq('denial_id', sourceDenialId)
 				.in('id', copyNoteIds);
 
 			if (sourceNotes?.length) {
 				for (const sourceNote of sourceNotes) {
-					await createNote(supabase, {
+					const { data: newNote } = await createNote(supabase, {
 						denial_id: newDenial.id,
 						note: sourceNote.note,
 						created_by: user.id
 					});
+
+					if (newNote && sourceNote.notes_files?.length) {
+						await supabase.from('notes_files').insert(
+							sourceNote.notes_files.map((nf) => ({
+								note_id: newNote.id,
+								file_name: nf.file_name
+							}))
+						);
+					}
 				}
 			}
 		}

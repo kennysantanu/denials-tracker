@@ -1,33 +1,15 @@
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { logAppEvent } from './appEvents';
-import type { Permission } from '$lib/types';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 /**
- * Source of an authorization decision. Used for observability + the gradual
- * cutover from legacy keys to canonical keys.
- *
- * - `legacy`  - decision made from the legacy `roles.permissions` JSON only
- * - `new`     - decision made from `role_permissions` only
- * - `both`    - both stores agree
- * - `system`  - bypass (unused today, reserved for future system actors)
- * - `none`    - permission denied
+ * Source of an authorization decision. Always 'new' post-Phase 9a cutover.
+ * Kept in the type for historical app_events rows and observability.
  */
 export type PermissionSource = 'legacy' | 'new' | 'both' | 'system' | 'none';
-
-/**
- * Engine flag controlling which stores are consulted.
- *
- * - `legacy` - rollback mode; only legacy `roles.permissions` is read.
- * - `dual`   - default during migration; both stores are read, allow if either grants.
- * - `new`    - post-cutover; only `role_permissions` is read.
- *
- * Set via `PERMISSION_ENGINE` env var. Defaults to `dual`.
- */
-export type PermissionEngine = 'legacy' | 'dual' | 'new';
 
 export interface AuthorizeContext {
 	resourceType?: string;
@@ -42,16 +24,7 @@ export interface AuthorizeResult {
 	permissionSource: PermissionSource;
 	roleIds: number[];
 	reason?: string;
-}
-
-// ---------------------------------------------------------------------------
-// Engine flag
-// ---------------------------------------------------------------------------
-
-export function getPermissionEngine(): PermissionEngine {
-	const raw = process.env.PERMISSION_ENGINE?.toLowerCase();
-	if (raw === 'legacy' || raw === 'new') return raw;
-	return 'dual';
+	viaBreakGlass?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,23 +33,13 @@ export function getPermissionEngine(): PermissionEngine {
 
 /**
  * Resolve an authorization decision for the current request.
- *
- * Reads both legacy (`users.role -> roles.permissions`) and new
- * (`user_role_assignments -> role_permissions`) stores per the engine flag,
- * resolves equivalences via `permission_compatibility_map`, and returns a
- * structured result. Does NOT throw or emit events on its own - callers
- * choose between `authorize()` (returns a result) and `requirePermission()`
- * (throws 403 + emits a denied event).
- *
- * @param permissionKey - either a canonical key (`denial.read`) or a legacy
- *   key (`view_denials`). Both are normalized internally.
+ * Reads `user_role_assignments -> role_permissions` (canonical store only).
  */
 export async function authorize(
 	event: RequestEvent,
 	permissionKey: string,
 	_context?: AuthorizeContext
 ): Promise<AuthorizeResult> {
-	const engine = getPermissionEngine();
 	const user = await event.locals.getUser();
 
 	if (!user) {
@@ -91,102 +54,41 @@ export async function authorize(
 
 	const supabase = event.locals.supabase;
 
-	// 1) Legacy effective set: users.role -> roles.permissions JSON
-	let legacyAllowed = false;
-	let legacyRoleId: number | null = null;
-	if (engine === 'legacy' || engine === 'dual') {
-		const { data: userData } = await supabase
-			.from('users')
-			.select('role, roles!public_users_role_fkey(permissions)')
-			.eq('id', user.id)
-			.maybeSingle();
+	// Resolve via user_role_assignments -> role_permissions (canonical store only).
+	const { data: assignments } = await supabase
+		.from('user_role_assignments')
+		.select('role_id')
+		.eq('user_id', user.id)
+		.is('revoked_at', null);
 
-		legacyRoleId = (userData?.role as number | null) ?? null;
-		const legacyPerms =
-			(userData?.roles as { permissions?: Record<string, boolean> } | null)?.permissions ?? {};
+	const roleIds = (assignments ?? []).map((a) => a.role_id);
+	let allowed = false;
+	let viaBreakGlass = false;
 
-		// Try direct match (legacy key OR canonical key stored verbatim, just in case)
-		if (legacyPerms[permissionKey] === true) {
-			legacyAllowed = true;
-		} else {
-			// If permissionKey is canonical, look up which legacy keys map to it
-			// and check if any of those are granted.
-			const { data: maps } = await supabase
-				.from('permission_compatibility_map')
-				.select('legacy_key, direction')
-				.eq('permission_key', permissionKey)
-				.eq('is_active', true)
-				.in('direction', ['legacy_to_new', 'both']);
+	if (roleIds.length > 0) {
+		const { data: rps } = await supabase
+			.from('role_permissions')
+			.select('permission_key')
+			.in('role_id', roleIds)
+			.in('permission_key', [permissionKey, 'break_glass.admin']);
 
-			for (const m of maps ?? []) {
-				if (legacyPerms[m.legacy_key] === true) {
-					legacyAllowed = true;
-					break;
-				}
-			}
-		}
+		const keys = new Set((rps ?? []).map((rp) => rp.permission_key));
+		allowed = keys.has(permissionKey);
+		viaBreakGlass = !allowed && permissionKey !== 'break_glass.admin' && keys.has('break_glass.admin');
+		allowed = allowed || viaBreakGlass;
 	}
-
-	// 2) New effective set: user_role_assignments -> role_permissions
-	let newAllowed = false;
-	const newRoleIds: number[] = [];
-	if (engine === 'new' || engine === 'dual') {
-		const { data: assignments } = await supabase
-			.from('user_role_assignments')
-			.select('role_id')
-			.eq('user_id', user.id)
-			.is('revoked_at', null);
-
-		for (const a of assignments ?? []) newRoleIds.push(a.role_id);
-
-		if (newRoleIds.length > 0) {
-			// Direct check against canonical key
-			const candidateKeys = new Set<string>([permissionKey]);
-
-			// If permissionKey is legacy, expand to its canonical keys via the map
-			const { data: maps } = await supabase
-				.from('permission_compatibility_map')
-				.select('permission_key, direction')
-				.eq('legacy_key', permissionKey)
-				.eq('is_active', true)
-				.in('direction', ['legacy_to_new', 'both']);
-
-			for (const m of maps ?? []) candidateKeys.add(m.permission_key);
-
-			const { data: rps } = await supabase
-				.from('role_permissions')
-				.select('permission_key')
-				.in('role_id', newRoleIds)
-				.in('permission_key', [...candidateKeys]);
-
-			newAllowed = (rps ?? []).length > 0;
-		}
-	}
-
-	// 3) Combine results based on engine
-	const allowed =
-		engine === 'legacy'
-			? legacyAllowed
-			: engine === 'new'
-				? newAllowed
-				: legacyAllowed || newAllowed;
-
-	let source: PermissionSource;
-	if (!allowed) source = 'none';
-	else if (engine === 'legacy') source = 'legacy';
-	else if (engine === 'new') source = 'new';
-	else if (legacyAllowed && newAllowed) source = 'both';
-	else if (legacyAllowed) source = 'legacy';
-	else source = 'new';
-
-	const roleIds = newRoleIds.length > 0 ? newRoleIds : legacyRoleId != null ? [legacyRoleId] : [];
 
 	return {
 		allowed,
 		permissionKey,
-		permissionSource: source,
+		permissionSource: viaBreakGlass ? 'system' : allowed ? 'new' : 'none',
 		roleIds,
-		reason: allowed ? undefined : `no grant for ${permissionKey}`
+		reason: allowed
+			? viaBreakGlass
+				? `allowed by break_glass.admin for ${permissionKey}`
+				: undefined
+			: `no grant for ${permissionKey}`,
+		viaBreakGlass
 	};
 }
 
@@ -229,6 +131,25 @@ export async function requirePermission(
 		error(403, `Forbidden: missing permission "${permissionKey}"`);
 	}
 
+	if (result.viaBreakGlass) {
+		const user = await event.locals.getUser();
+		logAppEvent(event.locals.supabase, {
+			eventName: 'authorization.break_glass',
+			featureArea: 'authz',
+			outcome: 'success',
+			actorUserId: user?.id ?? null,
+			actorRoleIds: result.roleIds,
+			permissionKey,
+			permissionSource: result.permissionSource,
+			resourceType: context?.resourceType ?? null,
+			resourceId: context?.resourceId ?? null,
+			subjectPatientId: context?.subjectPatientId ?? null,
+			subjectDenialId: context?.subjectDenialId ?? null,
+			requestId: event.locals.requestId,
+			metadata: { reason: result.reason ?? null, override: 'break_glass.admin' }
+		});
+	}
+
 	return result;
 }
 
@@ -247,76 +168,37 @@ export async function requirePermission(
 export async function loadEffectivePermissions(
 	event: RequestEvent
 ): Promise<Record<string, boolean>> {
-	const engine = getPermissionEngine();
 	const user = await event.locals.getUser();
 	if (!user) return {};
 
 	const supabase = event.locals.supabase;
 
-	// 1) Catalog of all canonical keys (active only).
+	// Catalog of all active canonical keys (excludes deprecated).
 	const { data: catalog } = await supabase
 		.from('permission_catalog')
 		.select('key')
-		.eq('is_active', true);
+		.eq('is_active', true)
+		.is('deprecated_at', null);
 
 	const result: Record<string, boolean> = {};
 	for (const row of catalog ?? []) result[row.key] = false;
 
-	// 2) Grants from new store (role_permissions via active assignments).
-	if (engine === 'new' || engine === 'dual') {
-		const { data: assignments } = await supabase
-			.from('user_role_assignments')
-			.select('role_id')
-			.eq('user_id', user.id)
-			.is('revoked_at', null);
+	// Grants from canonical store: user_role_assignments -> role_permissions.
+	const { data: assignments } = await supabase
+		.from('user_role_assignments')
+		.select('role_id')
+		.eq('user_id', user.id)
+		.is('revoked_at', null);
 
-		const roleIds = (assignments ?? []).map((a) => a.role_id);
-		if (roleIds.length > 0) {
-			const { data: rps } = await supabase
-				.from('role_permissions')
-				.select('permission_key')
-				.in('role_id', roleIds);
+	const roleIds = (assignments ?? []).map((a) => a.role_id);
+	if (roleIds.length > 0) {
+		const { data: rps } = await supabase
+			.from('role_permissions')
+			.select('permission_key')
+			.in('role_id', roleIds);
 
-			for (const rp of rps ?? []) result[rp.permission_key] = true;
-		}
-	}
-
-	// 3) Grants implied by legacy store (legacy key -> canonical via map).
-	if (engine === 'legacy' || engine === 'dual') {
-		const { data: userData } = await supabase
-			.from('users')
-			.select('roles!public_users_role_fkey(permissions)')
-			.eq('id', user.id)
-			.maybeSingle();
-
-		const legacyPerms =
-			(userData?.roles as { permissions?: Record<string, boolean> } | null)?.permissions ?? {};
-
-		const truthyLegacyKeys = Object.entries(legacyPerms)
-			.filter(([, v]) => v === true)
-			.map(([k]) => k);
-
-		if (truthyLegacyKeys.length > 0) {
-			const { data: maps } = await supabase
-				.from('permission_compatibility_map')
-				.select('legacy_key, permission_key, direction')
-				.in('legacy_key', truthyLegacyKeys)
-				.eq('is_active', true)
-				.in('direction', ['legacy_to_new', 'both']);
-
-			for (const m of maps ?? []) result[m.permission_key] = true;
-		}
+		for (const rp of rps ?? []) result[rp.permission_key] = true;
 	}
 
 	return result;
-}
-
-// ---------------------------------------------------------------------------
-// Convenience: legacy-key check that mirrors the existing UI helper but uses
-// the dual-read engine. Useful while migrating individual routes.
-// ---------------------------------------------------------------------------
-
-export async function hasLegacyPermission(event: RequestEvent, key: Permission): Promise<boolean> {
-	const r = await authorize(event, key);
-	return r.allowed;
 }

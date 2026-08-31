@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { goto, invalidateAll } from '$app/navigation';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { formatDate } from '$lib/utils';
 	import { marked } from 'marked';
@@ -11,7 +10,9 @@
 		NoteEditor,
 		MultiSelectDropdown
 	} from '$lib/components/ui';
-	import { setChatContext } from '$lib/stores/chatContext.svelte';
+	import { updateChatContext } from '$lib/stores/chatContext.svelte';
+	import X from '@lucide/svelte/icons/x';
+	import Plus from '@lucide/svelte/icons/plus';
 
 	let { data } = $props();
 
@@ -148,13 +149,34 @@
 
 	// Set AI chat context for this patient
 	$effect(() => {
-		setChatContext({
+		updateChatContext({
 			route: `/record/${data.patient.id}`,
 			patientId: data.patient.id,
 			pageData: {
-				patientName: `${data.patient.first_name} ${data.patient.last_name}`,
-				openDenialCount: openDenials.length,
-				closedDenialCount: closedDenials.length
+				patient: {
+					id: data.patient.id,
+					first_name: data.patient.first_name,
+					last_name: data.patient.last_name,
+					date_of_birth: data.patient.date_of_birth,
+					note: data.patient.note,
+					created_at: data.patient.created_at
+				},
+				files: (data.patientFiles ?? []).map((f: any) => ({
+					name: f.name,
+					mimetype: f.mimetype,
+					size: f.size,
+					created_at: f.created_at
+				})),
+				denials: data.denials
+					.map((d: (typeof data.denials)[number]) => ({
+						id: d.id,
+						service_start_date: d.service_start_date,
+						is_closed: d.is_closed
+					}))
+					.sort((a: any, b: any) =>
+						(b.service_start_date ?? '').localeCompare(a.service_start_date ?? '')
+					)
+					.slice(0, 50)
 			}
 		});
 	});
@@ -212,10 +234,10 @@
 							allowExistingFiles={false}
 						/>
 						<div class="flex gap-2">
-							<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+							<button type="submit" class="btn preset-filled-primary-500">Save</button>
 							<button
 								type="button"
-								class="btn preset-outlined-surface-500 btn-sm"
+								class="btn preset-outlined-surface-500"
 								onclick={() => {
 									editingNote = false;
 									noteText = data.patient.note ?? '';
@@ -234,7 +256,7 @@
 				<div class="relative shrink-0">
 					<button
 						type="button"
-						class="btn preset-outlined-surface-500 btn-sm px-1.5"
+						class="btn hover:bg-surface-200-800"
 						title="Patient actions"
 						onclick={() => (patientMenuOpen = !patientMenuOpen)}
 					>
@@ -314,12 +336,12 @@
 			type="search"
 			placeholder="Search notes…"
 			bind:value={searchQuery}
-			class="input min-w-24 flex-1"
+			class="input min-w-24 flex-1 self-stretch hover:ring-surface-500"
 		/>
 		{#if isFiltering}
 			<button
 				type="button"
-				class="btn shrink-0 btn-sm hover:preset-tonal"
+				class="btn shrink-0 self-stretch hover:preset-tonal"
 				onclick={() => {
 					searchQuery = '';
 					filterLabelIds = [];
@@ -327,7 +349,8 @@
 					filterServiceDates = [];
 				}}
 			>
-				✕ Clear
+				<X class="h-4 w-4" />
+				Clear
 			</button>
 		{/if}
 	</div>
@@ -352,13 +375,21 @@
 			{#if data.effectivePermissions['denial.create']}
 				<button
 					type="button"
-					class="btn {showNewDenialForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
+					class="btn {showNewDenialForm
+						? 'preset-tonal'
+						: 'preset-outlined-surface-200-800 hover:preset-outlined-surface-500'}"
 					onclick={() => {
 						showNewDenialForm = !showNewDenialForm;
 						if (showNewDenialForm) newDenialFollowUpDate = '';
 					}}
 				>
-					{showNewDenialForm ? '✕ Cancel' : '+ New Denial'}
+					{#if showNewDenialForm}
+						<X class="h-4 w-4" />
+						Cancel
+					{:else}
+						<Plus class="h-4 w-4" />
+						New Denial
+					{/if}
 				</button>
 			{/if}
 		</div>
@@ -458,7 +489,7 @@
 								class="input"
 							/>
 							<div class="mt-1.5 flex flex-wrap gap-1">
-								{#each [{ label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
+								{#each [{ label: 'Today', days: 0 }, { label: '2 wks', days: 14 }, { label: '30 days', days: 30 }, { label: '60 days', days: 60 }, { label: '90 days', days: 90 }] as preset (preset.days)}
 									<button
 										type="button"
 										onclick={() => (newDenialFollowUpDate = dateFromToday(preset.days))}
@@ -469,6 +500,15 @@
 										{preset.label}
 									</button>
 								{/each}
+								<button
+									type="button"
+									onclick={() => (newDenialFollowUpDate = '')}
+									class="btn btn-sm {newDenialFollowUpDate === ''
+										? 'preset-tonal-primary'
+										: 'preset-outlined-surface-500'}"
+								>
+									Clear
+								</button>
 							</div>
 						</div>
 						<div class="flex items-center gap-2 self-end py-2">
@@ -543,7 +583,6 @@
 						insurances={data.allInsurances}
 						labels={data.allLabels}
 						effectivePermissions={data.effectivePermissions}
-						aiEnabled={data.aiEnabled}
 						{searchQuery}
 					/>
 				{/each}
@@ -582,7 +621,6 @@
 						insurances={data.allInsurances}
 						labels={data.allLabels}
 						effectivePermissions={data.effectivePermissions}
-						aiEnabled={data.aiEnabled}
 						{searchQuery}
 					/>
 				{/each}

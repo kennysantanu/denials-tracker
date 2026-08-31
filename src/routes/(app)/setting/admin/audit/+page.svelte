@@ -13,6 +13,8 @@
 	let endDate = $state(initialFilters.endDate ?? '');
 
 	let totalPages = $derived(Math.max(1, Math.ceil(data.totalCount / data.pageSize)));
+	let permissions = $derived((page.data as any).effectivePermissions ?? {});
+	let canExport = $derived(permissions['audit.export'] === true || permissions['break_glass.admin'] === true);
 
 	function applyFilters() {
 		const params = new URLSearchParams();
@@ -47,14 +49,8 @@
 		if (resourceType) params.set('resourceType', resourceType);
 		if (startDate) params.set('startDate', startDate);
 		if (endDate) params.set('endDate', endDate);
-		window.open(`/api/v1/audit/export?${params.toString()}`, '_blank');
+		window.open(`/api/v1/audit/export?${params.toString()}`, '_blank', 'noopener');
 	}
-
-	// Unique values for filter dropdowns
-	let uniqueActions = $derived([...new Set(data.logs.map((l: any) => l.action))].sort());
-	let uniqueResourceTypes = $derived(
-		[...new Set(data.logs.map((l: any) => l.resource_type))].sort()
-	);
 </script>
 
 <svelte:head>
@@ -69,7 +65,9 @@
 				HIPAA-compliant activity log of all user and system actions.
 			</p>
 		</div>
-		<button onclick={exportCsv} class="btn preset-filled-primary-500 btn-sm"> Export CSV </button>
+		{#if canExport}
+			<button onclick={exportCsv} class="btn preset-filled-primary-500 btn-sm"> Export CSV </button>
+		{/if}
 	</header>
 
 	<!-- Filters -->

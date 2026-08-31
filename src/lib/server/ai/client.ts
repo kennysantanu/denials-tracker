@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/supabase';
+import { toChatReasoningEffort, type ChatReasoningEffort } from './reasoning';
 
 /**
  * Check if AI is configured by reading system preferences for base URL and model name.
@@ -20,14 +21,16 @@ export async function isAIConfigured(supabase: SupabaseClient<Database>): Promis
  */
 export async function getOpenAIClient(
 	supabase: SupabaseClient<Database>
-): Promise<{ client: OpenAI; model: string } | null> {
-	const [baseUrlResult, modelResult] = await Promise.all([
+): Promise<{ client: OpenAI; model: string; reasoningEffort?: ChatReasoningEffort } | null> {
+	const [baseUrlResult, modelResult, reasoningEffortResult] = await Promise.all([
 		supabase.from('preferences').select('value').eq('name', 'ai_base_url').single(),
-		supabase.from('preferences').select('value').eq('name', 'ai_model_name').single()
+		supabase.from('preferences').select('value').eq('name', 'ai_model_name').single(),
+		supabase.from('preferences').select('value').eq('name', 'ai_reasoning_effort').single()
 	]);
 
 	const rawBaseURL = baseUrlResult.data?.value;
 	const model = modelResult.data?.value;
+	const reasoningEffort = toChatReasoningEffort(reasoningEffortResult.data?.value);
 
 	if (!rawBaseURL || !model) return null;
 
@@ -40,5 +43,5 @@ export async function getOpenAIClient(
 		apiKey: 'not-needed'
 	});
 
-	return { client, model };
+	return { client, model, reasoningEffort };
 }

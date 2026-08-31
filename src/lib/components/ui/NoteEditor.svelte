@@ -1,9 +1,16 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { Database } from '$lib/supabase';
 	import type { DateStatus } from '$lib/server/db/files';
 	import FilesCalendar from '$lib/components/FilesCalendar.svelte';
-	import { isAIAvailable } from '$lib/stores/aiConfig';
-	import { onMount } from 'svelte';
+	import type { Attachment } from 'svelte/attachments';
+	import Undo2 from '@lucide/svelte/icons/undo-2';
+	import X from '@lucide/svelte/icons/x';
+	import Paperclip from '@lucide/svelte/icons/paperclip';
+	import Check from '@lucide/svelte/icons/check';
+	import Eye from '@lucide/svelte/icons/eye';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Minus from '@lucide/svelte/icons/minus';
 
 	type FileRow = Database['public']['Tables']['files']['Row'];
 
@@ -168,59 +175,9 @@
 		}
 	}
 
-	// AI rewrite state
-	let aiAvailable = $state(false);
-	let rewriting = $state(false);
-	let preRewriteText = $state<string | null>(null);
-	let rewrittenText = $state<string | null>(null);
-
-	// Clear undo once the user edits after a rewrite
-	$effect(() => {
-		if (rewrittenText !== null && value !== rewrittenText) {
-			preRewriteText = null;
-			rewrittenText = null;
-		}
-	});
-
-	onMount(async () => {
-		aiAvailable = await isAIAvailable();
-	});
-
-	async function rewriteNote() {
-		if (!value.trim()) return;
-		rewriting = true;
-		try {
-			const res = await fetch('/api/v1/ai/rewrite', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ text: value })
-			});
-			if (!res.ok) {
-				const data = await res.json().catch(() => ({}));
-				throw new Error(data.message || `Error ${res.status}`);
-			}
-			const data = await res.json();
-			preRewriteText = value;
-			rewrittenText = data.rewritten;
-			value = data.rewritten;
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'AI rewrite failed';
-			// Surface error inline without importing toast (keep NoteEditor dependency-light)
-			rewriteError = msg;
-			setTimeout(() => (rewriteError = ''), 5000);
-		} finally {
-			rewriting = false;
-		}
-	}
-
-	let rewriteError = $state('');
-
-	function undoRewrite() {
-		if (preRewriteText !== null) {
-			value = preRewriteText;
-			preRewriteText = null;
-			rewrittenText = null;
-		}
+	function downloadPreviewFile() {
+		if (!previewFile) return;
+		window.location.href = previewFile.url;
 	}
 
 	/** Call this from the parent after a successful form submission to reset internal state */
@@ -228,24 +185,19 @@
 		selectedExistingFiles = [];
 		filesToRemove = [];
 		showExistingPicker = false;
-		preRewriteText = null;
-		rewrittenText = null;
-		rewriteError = '';
 	}
 
-	function autoresize(node: HTMLTextAreaElement) {
+	const autoresize: Attachment<HTMLTextAreaElement> = (node) => {
 		function resize() {
 			node.style.height = 'auto';
 			node.style.height = node.scrollHeight + 'px';
 		}
 		node.addEventListener('input', resize);
 		resize();
-		return {
-			destroy() {
-				node.removeEventListener('input', resize);
-			}
+		return () => {
+			node.removeEventListener('input', resize);
 		};
-	}
+	};
 </script>
 
 <!-- Hidden inputs for form submission -->
@@ -268,41 +220,6 @@
 		<label for="note-editor-{name}" class="block text-sm font-medium">
 			Note {#if required}<span class="text-red-500">*</span>{/if}
 		</label>
-		{#if aiAvailable}
-			<button
-				type="button"
-				class="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors
-					{rewriting || !value.trim()
-					? 'cursor-not-allowed text-surface-300'
-					: 'text-primary-600 hover:bg-primary-50 hover:text-primary-800'}"
-				disabled={rewriting || !value.trim()}
-				onclick={rewriteNote}
-				aria-label="Rewrite note with AI"
-			>
-				{#if rewriting}
-					<svg class="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
-						<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
-						></circle>
-						<path
-							class="opacity-75"
-							fill="currentColor"
-							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-						></path>
-					</svg>
-					Rewriting…
-				{:else}
-					<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-						/>
-					</svg>
-					Rewrite
-				{/if}
-			</button>
-		{/if}
 	</div>
 	<textarea
 		id="note-editor-{name}"
@@ -311,22 +228,9 @@
 		rows="1"
 		{placeholder}
 		bind:value
-		disabled={rewriting}
-		use:autoresize
+		{@attach autoresize}
 		class="w-full resize-none overflow-hidden rounded border border-surface-300 px-3 py-2 text-sm placeholder:text-surface-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none disabled:bg-surface-50 disabled:text-surface-400"
 	></textarea>
-	{#if rewriteError}
-		<p class="mt-1 text-xs text-red-600">{rewriteError}</p>
-	{/if}
-	{#if preRewriteText !== null}
-		<button
-			type="button"
-			class="mt-1 text-xs text-surface-500 hover:text-surface-800 hover:underline"
-			onclick={undoRewrite}
-		>
-			↩ Undo rewrite
-		</button>
-	{/if}
 </div>
 
 <!-- Already-attached files (edit mode) -->
@@ -345,16 +249,16 @@
 					{#if isRemoved}
 						<button
 							type="button"
-							class="ml-0.5 text-red-500 hover:text-red-800"
+							class="ml-0.5 inline-flex items-center text-red-500 hover:text-red-800"
 							onclick={() => unmarkFileForRemoval(file.name)}
-							aria-label="Undo remove">↩</button
+							aria-label="Undo remove"><Undo2 class="h-3 w-3" /></button
 						>
 					{:else}
 						<button
 							type="button"
-							class="ml-0.5 text-surface-400 hover:text-red-600"
+							class="ml-0.5 inline-flex items-center text-surface-400 hover:text-red-600"
 							onclick={() => markFileForRemoval(file.name)}
-							aria-label="Remove file">✕</button
+							aria-label="Remove file"><X class="h-3 w-3" /></button
 						>
 					{/if}
 				</span>
@@ -386,20 +290,13 @@
 			<span
 				class="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2.5 py-1 text-xs text-primary-800"
 			>
-				<svg class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-					/>
-				</svg>
+				<Paperclip class="h-3 w-3 shrink-0" />
 				{displayFileName(file.name)}
 				<button
 					type="button"
-					class="ml-0.5 text-primary-600 hover:text-primary-900"
+					class="ml-0.5 inline-flex items-center text-primary-600 hover:text-primary-900"
 					onclick={() => removeSelectedFile(file.name)}
-					aria-label="Remove {displayFileName(file.name)}">✕</button
+					aria-label="Remove {displayFileName(file.name)}"><X class="h-3 w-3" /></button
 				>
 			</span>
 		{/each}
@@ -411,7 +308,7 @@
 	<div class="mt-3">
 		<button
 			type="button"
-			class="text-sm text-primary-600 hover:text-primary-800 hover:underline"
+			class="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-800 hover:underline"
 			onclick={() => {
 				showExistingPicker = !showExistingPicker;
 				if (showExistingPicker && filesForDate.length === 0) {
@@ -419,7 +316,14 @@
 				}
 			}}
 		>
-			{showExistingPicker ? '− Hide' : '+ Attach'} Existing Files
+			{#if showExistingPicker}
+				<Minus class="h-4 w-4" />
+				Hide
+			{:else}
+				<Plus class="h-4 w-4" />
+				Attach
+			{/if}
+			Existing Files
 		</button>
 	</div>
 
@@ -468,25 +372,17 @@
 										>
 											<td class="px-2 py-2">
 												<div class="flex items-center gap-1.5">
-													<span class="shrink-0">
-														{#if alreadyAttached || isSelected}
-															<svg
-																class="h-3.5 w-3.5 {alreadyAttached
-																	? 'text-surface-400'
-																	: 'text-primary-600'}"
-																fill="currentColor"
-																viewBox="0 0 20 20"
-															>
-																<path
-																	fill-rule="evenodd"
-																	d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-																	clip-rule="evenodd"
-																/>
-															</svg>
-														{:else}
-															<span class="block h-3.5 w-3.5"></span>
-														{/if}
-													</span>
+												<span class="shrink-0">
+													{#if alreadyAttached || isSelected}
+														<Check
+															class="h-3.5 w-3.5 {alreadyAttached
+																? 'text-surface-400'
+																: 'text-primary-600'}"
+														/>
+													{:else}
+														<span class="block h-3.5 w-3.5"></span>
+													{/if}
+												</span>
 													<span
 														class="min-w-0 truncate {isSelected
 															? 'font-medium text-primary-800'
@@ -503,25 +399,7 @@
 														}}
 														class="shrink-0 rounded p-0.5 text-surface-400 hover:bg-surface-200 hover:text-surface-700"
 													>
-														<svg
-															xmlns="http://www.w3.org/2000/svg"
-															class="h-3.5 w-3.5"
-															fill="none"
-															viewBox="0 0 24 24"
-															stroke="currentColor"
-															stroke-width="2"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-															/>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-															/>
-														</svg>
+													<Eye class="h-3.5 w-3.5" />
 													</button>
 												</div>
 											</td>
@@ -554,7 +432,6 @@
 
 <!-- Preview Dialog -->
 {#if previewLoading || previewError || previewFile}
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
 		role="dialog"
 		aria-modal="true"
@@ -585,7 +462,7 @@
 				<div class="flex items-center gap-2">
 					{#if previewFile}
 						<a
-							href="/file/view?name={encodeURIComponent(previewFile.name)}"
+							href={resolve(`/file/view?name=${encodeURIComponent(previewFile.name)}`)}
 							class="rounded-md border border-surface-300 px-3 py-1.5 text-xs font-medium text-surface-700 hover:bg-surface-50"
 						>
 							Open Full View
@@ -600,16 +477,7 @@
 						}}
 						class="rounded p-1 text-surface-400 hover:bg-surface-100 hover:text-surface-700"
 					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							class="h-5 w-5"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							stroke-width="2"
-						>
-							<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-						</svg>
+						<X class="h-5 w-5" />
 					</button>
 				</div>
 			</div>
@@ -637,13 +505,13 @@
 					{:else}
 						<div class="flex h-64 flex-col items-center justify-center gap-4 text-surface-600">
 							<p>Preview not available for this file type.</p>
-							<a
-								href={previewFile.url}
-								download={displayFileName(previewFile.name)}
+							<button
+								type="button"
+								onclick={downloadPreviewFile}
 								class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
 							>
 								Download File
-							</a>
+							</button>
 						</div>
 					{/if}
 				{/if}

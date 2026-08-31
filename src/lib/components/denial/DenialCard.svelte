@@ -8,7 +8,7 @@
 	import DenialCopyModal from './DenialCopyModal.svelte';
 	import DenialNoteList from './DenialNoteList.svelte';
 	import { InsuranceNoteModal } from '$lib/components/modals';
-	import { openChatDrawer, updateChatContext } from '$lib/stores/chatContext.svelte';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
 	type DenialRow = Database['public']['Tables']['denials']['Row'];
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
@@ -25,7 +25,6 @@
 		patientId: number;
 		insurances: InsuranceRow[];
 		labels: LabelRow[];
-		aiEnabled?: boolean;
 		searchQuery?: string;
 	}
 
@@ -35,7 +34,6 @@
 		patientId,
 		insurances,
 		labels,
-		aiEnabled = false,
 		searchQuery = ''
 	}: Props = $props();
 
@@ -43,10 +41,8 @@
 	let copying = $state(false);
 	let selectedInsurance = $state<InsuranceRow | null>(null);
 	let menuOpen = $state(false);
-	let canSummarize = $derived(aiEnabled && effectivePermissions['ai.summary']);
 	let canShowMenu = $derived(
-		canSummarize ||
-			effectivePermissions['denial.update'] ||
+		effectivePermissions['denial.update'] ||
 			effectivePermissions['denial.delete'] ||
 			effectivePermissions['denial.create']
 	);
@@ -57,15 +53,9 @@
 	let paidDisplay = $derived(
 		denial.paid_amount != null ? `$${denial.paid_amount.toFixed(2)}` : '—'
 	);
-
-	function handleSummarize() {
-		menuOpen = false;
-		updateChatContext({ denialId: denial.id, patientId });
-		openChatDrawer('Summarize this denial and its notes.');
-	}
 </script>
 
-<div class="rounded-lg border border-surface-300 bg-surface-50 p-4 shadow-sm">
+<div class="s card border border-surface-200 p-4">
 	{#if editing}
 		<DenialEditForm {denial} {insurances} {labels} {patientId} oncancel={() => (editing = false)} />
 	{:else}
@@ -158,9 +148,13 @@
 								? 'font-medium text-warning-600'
 								: 'text-warning-600'}
 					>
-						{isOverdue ? '⚠ Overdue · ' : diffDays <= 7 && !denial.is_closed ? '⚠ ' : ''}Follow-up: {formatDate(
-							denial.follow_up_date
-						)}
+						{#if isOverdue}
+							<TriangleAlert class="inline-block h-3.5 w-3.5 -translate-y-px" />
+							Overdue ·
+						{:else if diffDays <= 7 && !denial.is_closed}
+							<TriangleAlert class="inline-block h-3.5 w-3.5 -translate-y-px" />
+						{/if}
+						Follow-up: {formatDate(denial.follow_up_date)}
 					</span>
 				{/if}
 			</div>
@@ -169,7 +163,7 @@
 				<div class="relative shrink-0">
 					<button
 						type="button"
-						class="btn preset-outlined-surface-500 btn-sm px-1.5"
+						class="btn hover:bg-surface-200-800"
 						title="Actions"
 						onclick={() => (menuOpen = !menuOpen)}
 					>
@@ -178,7 +172,7 @@
 					{#if menuOpen}
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<div
-							class="absolute right-0 z-10 mt-1 min-w-32 rounded-lg border border-surface-200 bg-white py-1 shadow-lg"
+							class="absolute right-0 z-10 mt-1 min-w-32 border border-surface-200 bg-white py-1 shadow-lg"
 							onmouseleave={() => (menuOpen = false)}
 						>
 							{#if effectivePermissions['denial.update']}
@@ -203,15 +197,6 @@
 									}}
 								>
 									Copy
-								</button>
-							{/if}
-							{#if canSummarize}
-								<button
-									type="button"
-									class="w-full px-4 py-2 text-left text-sm hover:bg-surface-100"
-									onclick={handleSummarize}
-								>
-									Summary
 								</button>
 							{/if}
 							{#if effectivePermissions['denial.delete']}

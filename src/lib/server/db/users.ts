@@ -4,11 +4,22 @@ import type { Database } from '$lib/supabase';
 type Users = Database['public']['Tables']['users'];
 
 export function getUsers(supabase: SupabaseClient<Database>) {
-	return supabase.from('users').select('*, roles!public_users_role_fkey(*)').order('created_at');
+	return supabase
+		.from('users')
+		.select(
+			'*, user_role_assignments!user_role_assignments_user_id_fkey(role_id, revoked_at, roles(id, role_name))'
+		)
+		.order('created_at');
 }
 
 export function getUserById(supabase: SupabaseClient<Database>, id: string) {
-	return supabase.from('users').select('*, roles!public_users_role_fkey(*)').eq('id', id).single();
+	return supabase
+		.from('users')
+		.select(
+			'*, user_role_assignments!user_role_assignments_user_id_fkey(role_id, revoked_at, roles(id, role_name))'
+		)
+		.eq('id', id)
+		.single();
 }
 
 export function createUser(supabase: SupabaseClient<Database>, data: Users['Insert']) {

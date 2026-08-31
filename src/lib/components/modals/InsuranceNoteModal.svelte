@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { invalidateAll } from '$app/navigation';
+	import X from '@lucide/svelte/icons/x';
 
 	type InsuranceRow = Database['public']['Tables']['insurances']['Row'];
 
@@ -41,7 +42,7 @@
 				onclick={onclose}
 				aria-label="Close"
 			>
-				✕
+				<X class="h-5 w-5" />
 			</button>
 		</div>
 
@@ -77,10 +78,10 @@
 						bind:value={noteText}
 					></textarea>
 					<div class="flex gap-2">
-						<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+						<button type="submit" class="btn preset-filled-primary-500">Save</button>
 						<button
 							type="button"
-							class="btn preset-outlined-surface-500 btn-sm"
+							class="btn preset-outlined-surface-500"
 							onclick={() => {
 								editMode = false;
 							}}
@@ -102,7 +103,7 @@
 					{#if canEdit}
 						<button
 							type="button"
-							class="btn preset-outlined-primary-500 btn-sm"
+							class="btn preset-outlined-primary-500"
 							onclick={() => {
 								noteText = insurance.note ?? '';
 								editMode = true;

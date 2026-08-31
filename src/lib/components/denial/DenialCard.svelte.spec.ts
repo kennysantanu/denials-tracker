@@ -18,9 +18,22 @@ vi.mock('$lib/toast', () => ({
 	toastError: vi.fn()
 }));
 
-vi.mock('$lib/stores/chatContext.svelte', () => ({
-	openChatDrawer: vi.fn(),
-	updateChatContext: vi.fn()
+vi.mock('$lib/stores/chatStore.svelte', () => ({
+	initChatStore: vi.fn(),
+	getThreads: vi.fn(() => []),
+	getActiveThreadId: vi.fn(() => null),
+	getMessages: vi.fn(() => []),
+	getStatus: vi.fn(() => 'idle'),
+	getError: vi.fn(() => null),
+	loadThreads: vi.fn(),
+	loadThread: vi.fn(),
+	startNewThread: vi.fn(),
+	send: vi.fn(),
+	cancel: vi.fn(),
+	retryLast: vi.fn(),
+	editAndResubmit: vi.fn(),
+	clearThread: vi.fn(),
+	copyMessage: vi.fn()
 }));
 
 const baseDenial = {
@@ -135,33 +148,6 @@ describe('DenialCard.svelte', () => {
 		});
 
 		await expect.element(page.getByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
-	});
-
-	it('shows Summary button when aiEnabled and ai.summary permission is true', async () => {
-		render(DenialCard, {
-			denial: baseDenial as any,
-			effectivePermissions: { 'ai.summary': true },
-			patientId: 10,
-			insurances: allInsurances as any,
-			labels: allLabels as any,
-			aiEnabled: true
-		});
-
-		await page.getByTitle('Actions').click();
-		await expect.element(page.getByText('Summary', { exact: false })).toBeInTheDocument();
-	});
-
-	it('hides Summarize button when aiEnabled is false', async () => {
-		render(DenialCard, {
-			denial: baseDenial as any,
-			effectivePermissions: { 'ai.summary': true },
-			patientId: 10,
-			insurances: allInsurances as any,
-			labels: allLabels as any,
-			aiEnabled: false
-		});
-
-		await expect.element(page.getByText('Summarize', { exact: false })).not.toBeInTheDocument();
 	});
 
 	it('shows Closed badge for closed denial', async () => {

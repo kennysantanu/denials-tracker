@@ -1,15 +1,24 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
+	import { page } from '$app/state';
+	import { ConfirmDialog } from '$lib/components/ui';
 
 	let { data } = $props();
 
 	let showAddForm = $state(false);
 	let editingId = $state<number | null>(null);
+	let deleteId = $state<number | null>(null);
+	let actionError = $state<string | null>(null);
 	let editName = $state('');
 	let editBg = $state('#3b82f6');
 	let editTxt = $state('#ffffff');
 	let editOrder = $state(0);
+
+	let permissions = $derived((page.data as any).effectivePermissions ?? {});
+	let canCreate = $derived(permissions['label.create'] === true || permissions['break_glass.admin'] === true);
+	let canUpdate = $derived(permissions['label.update'] === true || permissions['break_glass.admin'] === true);
+	let canDelete = $derived(permissions['label.delete'] === true || permissions['break_glass.admin'] === true);
 
 	function startEdit(label: any) {
 		editingId = label.id;
@@ -27,12 +36,21 @@
 		return ({ result }: any) => {
 			if (result.type === 'success') {
 				toastSuccess(`Label ${action} successfully`);
+				actionError = null;
 				showAddForm = false;
 				editingId = null;
+				deleteId = null;
 			} else if (result.type === 'failure') {
-				toastError(result.data?.error ?? `Failed to ${action} label`);
+				const message = result.data?.error ?? `Failed to ${action} label`;
+				actionError = message;
+				toastError(message);
 			}
 		};
+	}
+
+	function confirmDelete() {
+		if (!deleteId) return;
+		(document.getElementById(`delete-label-${deleteId}`) as HTMLFormElement | null)?.requestSubmit();
 	}
 </script>
 
@@ -46,16 +64,24 @@
 			<h2 class="text-xl font-semibold text-surface-900">Labels</h2>
 			<p class="text-sm text-surface-500">Color-coded tags for categorizing denials and notes.</p>
 		</div>
-		<button
-			type="button"
-			onclick={() => (showAddForm = !showAddForm)}
-			class="btn btn-sm {showAddForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
-		>
-			{showAddForm ? 'Cancel' : 'Add label'}
-		</button>
+		{#if canCreate}
+			<button
+				type="button"
+				onclick={() => (showAddForm = !showAddForm)}
+				class="btn btn-sm {showAddForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
+			>
+				{showAddForm ? 'Cancel' : 'Add label'}
+			</button>
+		{/if}
 	</header>
 
-	{#if showAddForm}
+	{#if actionError}
+		<div class="rounded-base border-l-4 border-error-500 bg-error-50 p-4 text-sm text-error-700" role="alert">
+			{actionError}
+		</div>
+	{/if}
+
+	{#if showAddForm && canCreate}
 		<form
 			method="POST"
 			action="?/createLabel"
@@ -132,7 +158,7 @@
 										<input type="hidden" name="id" value={label.id} />
 										<label class="label">
 											<span class="label-text">Name</span>
-											<input name="label_name" type="text" bind:value={editName} class="input" />
+											<input name="label_name" type="text" bind:value={editName} class="input" aria-label="Label name" />
 										</label>
 										<label class="label">
 											<span class="label-text">BG</span>
@@ -141,6 +167,7 @@
 												type="color"
 												bind:value={editBg}
 												class="input h-10 w-20"
+												aria-label="Background color"
 											/>
 										</label>
 										<label class="label">
@@ -150,11 +177,12 @@
 												type="color"
 												bind:value={editTxt}
 												class="input h-10 w-20"
+												aria-label="Text color"
 											/>
 										</label>
 										<label class="label">
 											<span class="label-text">Order</span>
-											<input name="order" type="number" bind:value={editOrder} class="input w-24" />
+											<input name="order" type="number" bind:value={editOrder} class="input w-24" aria-label="Sort order" />
 										</label>
 										<div class="ml-auto flex gap-2">
 											<button
@@ -187,33 +215,36 @@
 								<td class="text-surface-600">{label.order}</td>
 								<td>
 									<div class="flex justify-end gap-2">
-										<button
-											type="button"
-											onclick={() => startEdit(label)}
-											class="btn preset-tonal-primary btn-sm"
-										>
-											Edit
-										</button>
-										<form
-											method="POST"
-											action="?/deleteLabel"
-											use:enhance={() =>
-												async ({ result, update }) => {
-													handleResult('deleted')({ result });
-													await update();
-												}}
-										>
-											<input type="hidden" name="id" value={label.id} />
+										{#if canUpdate}
 											<button
-												type="submit"
-												onclick={(e) => {
-													if (!confirm('Delete this label?')) e.preventDefault();
-												}}
-												class="btn preset-tonal-error btn-sm"
+												type="button"
+												onclick={() => startEdit(label)}
+												class="btn preset-tonal-primary btn-sm"
 											>
-												Delete
+												Edit
 											</button>
-										</form>
+										{/if}
+										{#if canDelete}
+											<form
+												id="delete-label-{label.id}"
+												method="POST"
+												action="?/deleteLabel"
+												use:enhance={() =>
+													async ({ result, update }) => {
+														handleResult('deleted')({ result });
+														await update();
+													}}
+											>
+												<input type="hidden" name="id" value={label.id} />
+												<button
+													type="button"
+													onclick={() => (deleteId = label.id)}
+													class="btn preset-tonal-error btn-sm"
+												>
+													Delete
+												</button>
+											</form>
+										{/if}
 									</div>
 								</td>
 							</tr>
@@ -234,3 +265,12 @@
 		</div>
 	</div>
 </div>
+
+<ConfirmDialog
+	open={deleteId !== null}
+	title="Delete label?"
+	message="This removes the label from future selection."
+	confirmLabel="Delete label"
+	onconfirm={confirmDelete}
+	oncancel={() => (deleteId = null)}
+/>

@@ -7,10 +7,13 @@
 	import IdleTimeoutWarning from '$lib/components/IdleTimeoutWarning.svelte';
 	import AIChatDrawer from '$lib/components/ai/AIChatDrawer.svelte';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import Menu from '@lucide/svelte/icons/menu';
+	import LogOut from '@lucide/svelte/icons/log-out';
+	import X from '@lucide/svelte/icons/x';
 	import {
 		isChatDrawerOpen,
 		toggleChatDrawer,
-		setChatContext
+		updateChatContext
 	} from '$lib/stores/chatContext.svelte';
 
 	let { data, children } = $props();
@@ -35,15 +38,18 @@
 
 	let tabValue = $derived(navItems.find((item) => isActive(item.href))?.href ?? null);
 
-	// AI chat button visibility: only on context-providing routes
-	const aiContextRoutes = ['/record', '/report'];
-	let showAiButton = $derived(
-		data.aiEnabled && aiContextRoutes.some((r) => currentPath === r || currentPath.startsWith(r))
-	);
+	// AI chat button: visible on all (app) pages when AI is enabled and user has ai.chat permission
+	let showAiButton = $derived(data.aiEnabled && data.effectivePermissions['ai.chat'] === true);
 
-	// Update chat context when route changes
-	$effect(() => {
-		setChatContext({ route: currentPath });
+	// Clear page-specific context on route change before page effects set it.
+	// $effect.pre runs in the pre-DOM phase, so it always precedes the page's
+	// $effect (post-DOM) — the page's context wins the final state.
+	$effect.pre(() => {
+		updateChatContext({
+			route: currentPath,
+			patientId: undefined,
+			pageData: undefined
+		});
 	});
 
 	function handleDrawerKeydown(e: KeyboardEvent) {
@@ -91,14 +97,7 @@
 					onclick={() => (drawerOpen = true)}
 					aria-label="Open navigation"
 				>
-					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M4 6h16M4 12h16M4 18h16"
-						/>
-					</svg>
+					<Menu class="h-6 w-6" />
 				</button>
 				<h1 class="text-2xl font-bold text-primary-500">Denials Tracker</h1>
 			</div>
@@ -209,21 +208,7 @@
 									class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-surface-700 hover:bg-surface-50"
 									role="menuitem"
 								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										class="h-4 w-4 shrink-0"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-										aria-hidden="true"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-										/>
-									</svg>
+									<LogOut class="h-4 w-4 shrink-0" aria-hidden="true" />
 									Sign Out
 								</button>
 							</form>
@@ -236,7 +221,7 @@
 
 	<!-- Mobile drawer overlay -->
 	{#if drawerOpen}
-		<div class="fixed inset-0 z-40 lg:hidden">
+		<div class="fixed inset-0 z-30 lg:hidden">
 			<!-- Backdrop -->
 			<div
 				role="presentation"
@@ -245,7 +230,7 @@
 			></div>
 			<!-- Drawer -->
 			<div
-				class="fixed top-0 left-0 z-50 flex h-full w-64 flex-col bg-white shadow-xl"
+				class="fixed top-0 left-0 z-40 flex h-full w-64 flex-col bg-white shadow-xl"
 				role="dialog"
 				aria-modal="true"
 				aria-label="Navigation menu"
@@ -260,7 +245,7 @@
 						class="btn p-1 hover:preset-tonal"
 						aria-label="Close menu"
 					>
-						✕
+						<X class="h-5 w-5" />
 					</button>
 				</div>
 				<nav class="flex-1 space-y-1 px-3 py-4">

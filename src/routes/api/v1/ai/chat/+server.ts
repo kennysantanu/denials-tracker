@@ -1,20 +1,47 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isAIConfigured } from '$lib/server/ai/client';
-import { callChat } from '$lib/server/ai/chat';
-import { aiToolDefinitions, toolPermissions, type ToolContext } from '$lib/server/ai/tools';
+import { callChatStream, type StreamEvent, type ToolCallLog } from '$lib/server/ai/chat';
+import {
+	aiToolDefinitions,
+	toolPermissions,
+	toolInteractionType,
+	type ToolContext
+} from '$lib/server/ai/tools';
 import { logAudit } from '$lib/server/audit';
 import { getSystemPreference } from '$lib/server/db/preferences';
 import { requirePermission, loadEffectivePermissions } from '$lib/server/authz';
+import {
+	DEFAULT_SYSTEM_PROMPT,
+	buildPageContextSnippet,
+	buildSystemPrompt
+} from '$lib/server/ai/systemPrompt';
+import { prepareLongThreadMessages } from '$lib/server/ai/longThread';
+import { estimateChars } from '$lib/ai/messages';
 import type {
 	ChatCompletionMessageParam,
 	ChatCompletionTool
 } from 'openai/resources/chat/completions';
 
-// In-memory rate limiting: userId -> { count, resetAt }
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 60_000;
+
+interface ContextMeta {
+	systemPromptChars: number;
+	pageContextChars: number;
+	historyChars: number;
+	toolSchemaChars: number;
+	longThreadSummaryChars: number;
+	estimatedTokens: number;
+	modelContextWindow: number | null;
+	pageContextTruncated: boolean;
+	longThreadSummaryUsed: boolean;
+	sourceMessageCount: number;
+	estimatedTokensSaved: number;
+}
+
+type ContextMetaEvent = StreamEvent & { type: 'context_meta'; contextMeta: ContextMeta };
 
 function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
 	const now = Date.now();
@@ -34,9 +61,6 @@ function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number
 	return { allowed: true };
 }
 
-// Clean up stale entries periodically.
-// Guarded for Node only — Cloudflare Workers reject `setInterval` at module init.
-// On CF the Map is per-isolate (ephemeral) so unbounded growth isn't a concern.
 if (typeof process !== 'undefined' && process.versions?.node) {
 	setInterval(() => {
 		const now = Date.now();
@@ -46,16 +70,88 @@ if (typeof process !== 'undefined' && process.versions?.node) {
 	}, 5 * 60_000);
 }
 
-const DEFAULT_SYSTEM_PROMPT = `You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.`;
+function inferContextWindow(model: string): number | null {
+	const lower = model.toLowerCase();
+	if (lower.includes('128k')) return 128_000;
+	if (lower.includes('32k')) return 32_000;
+	if (lower.includes('16k')) return 16_000;
+	if (lower.includes('8k')) return 8_000;
+	return null;
+}
+
+function isContextLengthError(err: unknown): boolean {
+	const message = err instanceof Error ? err.message : String(err);
+	return /context|token|maximum|too large|too long|length/i.test(message);
+}
+
+async function logStreamingInteraction(input: {
+	locals: App.Locals;
+	userId: string;
+	request: Request;
+	messages: ChatCompletionMessageParam[];
+	contextData: { patientId?: number; pageData?: Record<string, unknown> };
+	finalContent: string;
+	finalToolCalls: ToolCallLog[] | undefined;
+	finalDurationMs: number;
+	finalModel: string;
+	contextMeta: ContextMeta;
+}) {
+	const {
+		locals,
+		userId,
+		request,
+		messages,
+		contextData,
+		finalContent,
+		finalToolCalls,
+		finalDurationMs,
+		finalModel,
+		contextMeta
+	} = input;
+
+	logAudit(
+		locals.supabase,
+		userId,
+		'ai_chat',
+		'ai_interaction',
+		null,
+		{
+			messageCount: messages.length,
+			toolCalls: finalToolCalls?.map((t) => t.name) ?? [],
+			context: contextData,
+			contextMeta
+		},
+		request
+	);
+
+	const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
+	try {
+		await locals.supabase.from('ai_interactions').insert({
+			user_id: userId,
+			denial_id: null,
+			interaction_type: finalToolCalls?.length
+				? (toolInteractionType[finalToolCalls[0].name] ?? 'chat')
+				: 'chat',
+			tool_name: finalToolCalls?.[0]?.name ?? null,
+			prompt_summary:
+				typeof lastUserMessage?.content === 'string' ? lastUserMessage.content.slice(0, 500) : null,
+			response_summary: finalContent.slice(0, 500) || null,
+			model_used: finalModel || null,
+			tokens_used: contextMeta.estimatedTokens,
+			duration_ms: finalDurationMs
+		});
+	} catch (err) {
+		console.error('[ai/chat] Failed to log ai_interactions:', err);
+	}
+}
 
 export const POST: RequestHandler = async (event) => {
-	const { request, locals } = event;
+	const { request, locals, url } = event;
 	const user = await locals.getUser();
 	if (!user) error(401, 'Unauthorized');
 
 	await requirePermission(event, 'ai.chat', { resourceType: 'ai_interaction' });
 
-	// Check if AI is configured
 	const configured = await isAIConfigured(locals.supabase);
 	if (!configured) {
 		error(
@@ -64,7 +160,6 @@ export const POST: RequestHandler = async (event) => {
 		);
 	}
 
-	// Rate limiting
 	const rateCheck = checkRateLimit(user.id);
 	if (!rateCheck.allowed) {
 		return json(
@@ -76,18 +171,29 @@ export const POST: RequestHandler = async (event) => {
 		);
 	}
 
+	const wantsStream =
+		url.searchParams.get('stream') === 'true' ||
+		request.headers.get('Accept') === 'text/event-stream';
+	if (!wantsStream) {
+		return json(
+			{
+				error:
+					'Streaming is required. Use ?stream=true and accept server-sent events from this endpoint.'
+			},
+			{ status: 501 }
+		);
+	}
+
 	const body = await request.json();
 	const messages: ChatCompletionMessageParam[] = body.messages;
-	const contextData: { patientId?: number; denialId?: number } = body.context ?? {};
+	const contextData: { patientId?: number; pageData?: Record<string, unknown> } =
+		body.context ?? {};
 
 	if (!Array.isArray(messages) || messages.length === 0) {
 		error(400, 'Messages array is required');
 	}
 
-	// Load user effective permissions (canonical keys, dual engine).
 	const effective = await loadEffectivePermissions(event);
-
-	// Filter tools based on user permissions
 	const allowedTools: ChatCompletionTool[] = aiToolDefinitions.filter((tool) => {
 		const fn = tool as { type: 'function'; function: { name: string } };
 		if (fn.type !== 'function') return true;
@@ -99,74 +205,137 @@ export const POST: RequestHandler = async (event) => {
 	const toolContext: ToolContext = {
 		supabase: locals.supabase,
 		userId: user.id,
-		patientId: contextData.patientId,
-		denialId: contextData.denialId
+		patientId: contextData.patientId
 	};
 
-	// Prepend system message
 	const promptResult = await getSystemPreference(locals.supabase, 'ai_chat_system_prompt');
-	const systemPrompt = promptResult.data?.value?.trim() || DEFAULT_SYSTEM_PROMPT;
+	const modelResult = await getSystemPreference(locals.supabase, 'ai_model_name');
+	const basePrompt = promptResult.data?.value?.trim() || DEFAULT_SYSTEM_PROMPT;
+	const modelName = modelResult.data?.value?.trim() || 'configured';
+	const modelContextWindow = inferContextWindow(modelName);
+	const pageContext = buildPageContextSnippet(contextData.pageData);
 
-	const fullMessages: ChatCompletionMessageParam[] = [
-		{ role: 'system', content: systemPrompt },
-		...messages
-	];
+	const initialPrompt = buildSystemPrompt({
+		base: basePrompt,
+		runtime: { model: modelName, role: 'user', timezone: 'America/Los_Angeles' },
+		pageContext: pageContext.text
+	});
 
-	try {
-		const startTime = Date.now();
-		const result = await callChat(locals.supabase, fullMessages, allowedTools, toolContext);
-		const durationMs = Date.now() - startTime;
-
-		// Log to audit_log
-		logAudit(
-			locals.supabase,
-			user.id,
-			'ai_chat',
-			'ai_interaction',
-			null,
-			{
-				messageCount: messages.length,
-				toolCalls: result.toolCalls?.map((t) => t.name) ?? [],
-				context: contextData
-			},
-			request
+	function createAttempt(forceSummary = false) {
+		const longThread = prepareLongThreadMessages(
+			messages,
+			modelContextWindow,
+			initialPrompt.length,
+			{ forceSummary }
 		);
-
-		// Log to ai_interactions table
-		const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
-		locals.supabase
-			.from('ai_interactions')
-			.insert({
-				user_id: user.id,
-				denial_id: contextData.denialId ?? null,
-				interaction_type: result.toolCalls?.length
-					? result.toolCalls[0].name.includes('summary')
-						? 'summary_tool'
-						: result.toolCalls[0].name.includes('appeal')
-							? 'appeal_tool'
-							: result.toolCalls[0].name.includes('query')
-								? 'query_tool'
-								: 'chat'
-					: 'chat',
-				tool_name: result.toolCalls?.[0]?.name ?? null,
-				prompt_summary:
-					typeof lastUserMessage?.content === 'string'
-						? lastUserMessage.content.slice(0, 500)
-						: null,
-				response_summary: result.content.slice(0, 500) || null,
-				model_used: null,
-				tokens_used: null,
-				duration_ms: durationMs
-			})
-			.then(() => {});
-
-		return json({
-			content: result.content,
-			toolCalls: result.toolCalls
+		const systemPrompt = buildSystemPrompt({
+			base: basePrompt,
+			runtime: { model: modelName, role: 'user', timezone: 'America/Los_Angeles' },
+			pageContext: pageContext.text,
+			longThreadSummary: longThread.summary
 		});
-	} catch (err: unknown) {
-		const message = err instanceof Error ? err.message : 'AI request failed';
-		console.error('[ai/chat] Error:', message);
-		return json({ error: message }, { status: 500 });
+		const systemMessages: ChatCompletionMessageParam[] = [
+			{ role: 'system', content: systemPrompt }
+		];
+		const fullMessages: ChatCompletionMessageParam[] = [...systemMessages, ...longThread.messages];
+		const toolSchemaChars = JSON.stringify(allowedTools).length;
+		const historyChars = estimateChars(longThread.messages);
+		const contextMeta: ContextMeta = {
+			systemPromptChars: systemPrompt.length,
+			pageContextChars: pageContext.chars,
+			historyChars,
+			toolSchemaChars,
+			longThreadSummaryChars: longThread.summaryChars,
+			estimatedTokens: Math.ceil((systemPrompt.length + historyChars + toolSchemaChars) / 4),
+			modelContextWindow,
+			pageContextTruncated: pageContext.truncated,
+			longThreadSummaryUsed: longThread.used,
+			sourceMessageCount: longThread.sourceMessageCount,
+			estimatedTokensSaved: longThread.estimatedTokensSaved
+		};
+
+		return {
+			contextMeta,
+			stream: callChatStream(locals.supabase, fullMessages, allowedTools, toolContext),
+			usedSummary: longThread.used
+		};
 	}
+
+	const responseBody = new ReadableStream({
+		async start(controller) {
+			let finalContent = '';
+			let finalToolCalls: ToolCallLog[] | undefined;
+			let finalDurationMs = 0;
+			let finalModel = '';
+			const encoder = new TextEncoder();
+
+			function sse(event: StreamEvent | ContextMetaEvent) {
+				const data = JSON.stringify(event);
+				controller.enqueue(encoder.encode(`event: ${event.type}\ndata: ${data}\n\n`));
+			}
+
+			async function runAttempt(attempt: ReturnType<typeof createAttempt>) {
+				let contextMetaSent = false;
+
+				for await (const event of attempt.stream) {
+					if (!contextMetaSent) {
+						sse({ type: 'context_meta', contextMeta: attempt.contextMeta } as ContextMetaEvent);
+						contextMetaSent = true;
+					}
+					sse(event);
+					if (event.type === 'done') {
+						finalContent = event.content ?? '';
+						finalToolCalls = event.toolCalls;
+						finalDurationMs = event.durationMs ?? 0;
+						finalModel = event.model ?? '';
+					}
+				}
+				if (!contextMetaSent) {
+					sse({ type: 'context_meta', contextMeta: attempt.contextMeta } as ContextMetaEvent);
+				}
+				return attempt.contextMeta;
+			}
+
+			try {
+				let attempt = createAttempt();
+				let contextMeta: ContextMeta;
+				try {
+					contextMeta = await runAttempt(attempt);
+				} catch (err) {
+					if (attempt.usedSummary || !isContextLengthError(err)) throw err;
+					attempt = createAttempt(true);
+					contextMeta = await runAttempt(attempt);
+				}
+
+				await logStreamingInteraction({
+					locals,
+					userId: user.id,
+					request,
+					messages,
+					contextData,
+					finalContent,
+					finalToolCalls,
+					finalDurationMs,
+					finalModel,
+					contextMeta
+				});
+
+				controller.close();
+			} catch (err) {
+				const message = err instanceof Error ? err.message : 'AI stream failed';
+				console.error('[ai/chat] Stream error:', message);
+				const errorEvent: StreamEvent = { type: 'error', message };
+				controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify(errorEvent)}\n\n`));
+				controller.close();
+			}
+		}
+	});
+
+	return new Response(responseBody, {
+		headers: {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			Connection: 'keep-alive'
+		}
+	});
 };

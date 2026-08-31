@@ -6,7 +6,6 @@ export interface ToolContext {
 	supabase: SupabaseClient<Database>;
 	userId: string;
 	patientId?: number;
-	denialId?: number;
 }
 
 // --- Tool definitions for OpenAI function calling ---
@@ -198,6 +197,14 @@ async function handleQueryDenials(
 		return JSON.stringify({ error: 'Failed to query denials' });
 	}
 }
+
+// --- Interaction type mapping (replaces .includes() string matching) ---
+
+export const toolInteractionType: Record<string, string> = {
+	get_denial_summary: 'summary_tool',
+	generate_appeal_letter: 'appeal_tool',
+	query_denials: 'query_tool'
+};
 
 // --- Dispatcher ---
 

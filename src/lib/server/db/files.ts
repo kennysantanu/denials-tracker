@@ -103,6 +103,49 @@ export async function getFilesByDate(supabase: SupabaseClient<Database>, date: s
 	return { data: filteredFilesResult.data, error: null };
 }
 
+export interface FileViewSibling {
+	name: string;
+	created_at: string;
+	metadata: FilesRow['metadata'];
+}
+
+const MAX_VIEW_SIBLINGS = 200;
+
+/**
+ * Get files uploaded on the same date as the current file, for the /file/view
+ * sibling navigation list. Reuses the same patient-linked-file exclusion rules
+ * as getFilesByDate, but returns only the fields needed by the sibling list
+ * and a stable created_at/name ordering. Does not alter getFilesByDate.
+ */
+export async function getFileViewSiblings(
+	supabase: SupabaseClient<Database>,
+	date: string
+): Promise<{ data: FileViewSibling[]; error: PostgrestError | null }> {
+	const start = `${date}T00:00:00.000Z`;
+	const end = `${date}T23:59:59.999Z`;
+
+	const { data, error } = await supabase
+		.from('files')
+		.select('name, created_at, metadata')
+		.gte('created_at', start)
+		.lt('created_at', end)
+		.order('created_at', { ascending: true })
+		.order('name', { ascending: true })
+		.limit(MAX_VIEW_SIBLINGS);
+
+	if (error || !data) {
+		return { data: [], error };
+	}
+
+	const filteredFilesResult = await excludePatientLinkedFiles(supabase, data);
+
+	if (filteredFilesResult.error) {
+		return { data: [], error: filteredFilesResult.error };
+	}
+
+	return { data: filteredFilesResult.data, error: null };
+}
+
 export async function createSignedUrl(
 	supabase: SupabaseClient<Database>,
 	fileName: string,

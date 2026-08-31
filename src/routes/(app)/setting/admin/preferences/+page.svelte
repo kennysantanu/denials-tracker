@@ -2,12 +2,10 @@
 	import { enhance } from '$app/forms';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { untrack } from 'svelte';
+	import { page } from '$app/state';
 
 	const DEFAULT_CHAT_PROMPT =
 		'You are a helpful medical billing assistant for a denials tracking application. You help users understand denial claims, generate appeal letters, and analyze billing data. Be concise and professional. When generating appeal letters, use a formal business letter format. Always base your responses on the actual data provided through tool calls.';
-
-	const DEFAULT_REWRITE_PROMPT =
-		'You are a professional medical billing assistant. Rewrite the following note to be clear, concise, and professional. Use proper medical billing terminology where appropriate. Return only the rewritten note text, with no explanations, prefixes, or surrounding quotes.';
 
 	let { data } = $props();
 
@@ -16,13 +14,18 @@
 		aiModelName: data.aiModelName,
 		idleTimeoutMinutes: data.idleTimeoutMinutes,
 		aiChatSystemPrompt: data.aiChatSystemPrompt,
-		aiRewriteSystemPrompt: data.aiRewriteSystemPrompt
+		aiReasoningEffort: data.aiReasoningEffort
 	}));
 	let aiBaseUrl = $state(initialData.aiBaseUrl ?? '');
 	let aiModelName = $state(initialData.aiModelName ?? '');
 	let idleTimeout = $state(initialData.idleTimeoutMinutes ?? 15);
 	let aiChatPrompt = $state(initialData.aiChatSystemPrompt ?? '');
-	let aiRewritePrompt = $state(initialData.aiRewriteSystemPrompt ?? '');
+	let aiReasoningEffort = $state(initialData.aiReasoningEffort ?? 'low');
+	let permissions = $derived((page.data as any).effectivePermissions ?? {});
+	let canUpdate = $derived(
+		permissions['system_preferences.update'] === true ||
+			permissions['break_glass.admin'] === true
+	);
 
 	function handleResult() {
 		return ({ result }: any) => {
@@ -78,6 +81,7 @@
 					max={data.maxIdleTimeout}
 					bind:value={idleTimeout}
 					class="input max-w-xs"
+					disabled={!canUpdate}
 				/>
 				<span class="text-xs text-surface-500">
 					Range: 1–{data.maxIdleTimeout} minutes (max set by
@@ -85,7 +89,9 @@
 					2-minute warning before auto-signout.
 				</span>
 			</label>
-			<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+			{#if canUpdate}
+				<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+			{/if}
 		</form>
 	</section>
 
@@ -101,8 +107,9 @@
 		</div>
 		<div class="mb-4 rounded-base border-l-4 border-primary-500 bg-primary-50 p-3">
 			<p class="text-sm text-surface-800">
-				AI features connect to a <strong>local AI server only</strong> (e.g. LM Studio, Ollama). No data
-				is sent to external cloud services.
+				AI features connect to a <strong>local AI server only</strong> (e.g. LM Studio, Ollama). The
+				chat backend must support OpenAI-compatible streaming chat completions with tool-call
+				deltas. No data is sent to external cloud services.
 			</p>
 		</div>
 
@@ -125,10 +132,12 @@
 					bind:value={aiBaseUrl}
 					placeholder="http://localhost:1234/v1"
 					class="input"
+					disabled={!canUpdate}
 				/>
 				<span class="text-xs text-surface-500">
-					Full OpenAI-compatible base URL — e.g. <code>http://localhost:1234/v1</code> (LM Studio)
-					or <code>http://localhost:11434/v1</code> (Ollama).
+					Full OpenAI-compatible base URL, with streaming enabled - e.g.
+					<code>http://localhost:1234/v1</code> (LM Studio) or
+					<code>http://localhost:11434/v1</code> (Ollama).
 				</span>
 			</label>
 			<label class="label">
@@ -140,16 +149,54 @@
 					bind:value={aiModelName}
 					placeholder="local-model"
 					class="input"
+					disabled={!canUpdate}
 				/>
 				<span class="text-xs text-surface-500">
 					Model identifier as configured in your local AI server.
 				</span>
 			</label>
-			<div>
-				<button type="submit" class="btn preset-filled-primary-500 btn-sm">
-					Save AI settings
-				</button>
-			</div>
+			{#if canUpdate}
+				<div>
+					<button type="submit" class="btn preset-filled-primary-500 btn-sm">
+						Save AI settings
+					</button>
+				</div>
+			{/if}
+		</form>
+
+		<form
+			method="POST"
+			action="?/saveAIReasoningEffort"
+			use:enhance={() =>
+				async ({ result, update }) => {
+					handleResult()({ result });
+					await update();
+				}}
+			class="mt-4 flex flex-col gap-3 border-t border-surface-200 pt-4 sm:flex-row sm:items-end"
+		>
+			<label class="label flex-1">
+				<span class="label-text">Thinking level</span>
+				<select
+					id="ai_reasoning_effort"
+					name="ai_reasoning_effort"
+					bind:value={aiReasoningEffort}
+					class="select max-w-xs"
+					disabled={!canUpdate}
+				>
+					<option value="provider_default">Provider default</option>
+					<option value="none">None</option>
+					<option value="low">Low</option>
+					<option value="medium">Medium</option>
+					<option value="high">High</option>
+				</select>
+				<span class="text-xs text-surface-500">
+					Controls the chat assistant reasoning effort. Provider default omits the
+					<code>reasoning_effort</code> parameter.
+				</span>
+			</label>
+			{#if canUpdate}
+				<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+			{/if}
 		</form>
 
 		<!-- AI System Prompts -->
@@ -181,57 +228,25 @@
 						rows="5"
 						placeholder={DEFAULT_CHAT_PROMPT}
 						class="textarea font-mono"
+						disabled={!canUpdate}
 					></textarea>
 				</label>
-				<div class="flex items-center gap-2">
-					<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
-					{#if aiChatPrompt}
-						<button
-							type="button"
-							class="btn preset-tonal btn-sm"
-							onclick={() => (aiChatPrompt = '')}
-						>
-							Reset to default
-						</button>
-					{/if}
-				</div>
+				{#if canUpdate}
+					<div class="flex items-center gap-2">
+						<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+						{#if aiChatPrompt}
+							<button
+								type="button"
+								class="btn preset-tonal btn-sm"
+								onclick={() => (aiChatPrompt = '')}
+							>
+								Reset to default
+							</button>
+						{/if}
+					</div>
+				{/if}
 			</form>
 
-			<!-- Rewrite prompt -->
-			<form
-				method="POST"
-				action="?/saveAIRewritePrompt"
-				use:enhance={() =>
-					async ({ result, update }) => {
-						handleResult()({ result });
-						await update();
-					}}
-				class="space-y-2"
-			>
-				<label class="label">
-					<span class="label-text">Note rewrite prompt</span>
-					<textarea
-						id="ai_rewrite_system_prompt"
-						name="ai_rewrite_system_prompt"
-						bind:value={aiRewritePrompt}
-						rows="4"
-						placeholder={DEFAULT_REWRITE_PROMPT}
-						class="textarea font-mono"
-					></textarea>
-				</label>
-				<div class="flex items-center gap-2">
-					<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
-					{#if aiRewritePrompt}
-						<button
-							type="button"
-							class="btn preset-tonal btn-sm"
-							onclick={() => (aiRewritePrompt = '')}
-						>
-							Reset to default
-						</button>
-					{/if}
-				</div>
-			</form>
 		</div>
 	</section>
 
@@ -266,12 +281,15 @@
 									type="text"
 									value={pref.value ?? ''}
 									class="input"
+									disabled={!canUpdate}
 								/>
 								<span class="text-xs text-surface-500">
 									Type: <code>{pref.data_type ?? 'string'}</code>
 								</span>
 							</label>
-							<button type="submit" class="btn preset-filled-primary-500 btn-sm"> Save </button>
+							{#if canUpdate}
+								<button type="submit" class="btn preset-filled-primary-500 btn-sm"> Save </button>
+							{/if}
 						</div>
 					</form>
 				{/each}

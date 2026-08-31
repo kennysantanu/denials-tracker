@@ -3,6 +3,7 @@
 	import { toastSuccess, toastError } from '$lib/toast';
 
 	let { data } = $props();
+	let actionError = $state<string | null>(null);
 
 	// Build a map of user preference values keyed by preference_id
 	let userValues = $derived(
@@ -13,8 +14,11 @@
 		return ({ result }: any) => {
 			if (result.type === 'success') {
 				toastSuccess('Preference saved');
+				actionError = null;
 			} else if (result.type === 'failure') {
-				toastError(result.data?.error ?? 'Failed to save preference');
+				const message = result.data?.error ?? 'Failed to save preference';
+				actionError = message;
+				toastError(message);
 			}
 		};
 	}
@@ -31,6 +35,12 @@
 			Personal overrides for system preferences. Leave blank to inherit the system default.
 		</p>
 	</header>
+
+	{#if actionError}
+		<div class="rounded-base border-l-4 border-error-500 bg-error-50 p-4 text-sm text-error-700" role="alert">
+			{actionError}
+		</div>
+	{/if}
 
 	{#if data.systemPreferences.length === 0}
 		<div class="rounded-container border-2 border-dashed border-surface-200 p-8 text-center">

@@ -2,16 +2,7 @@ import { error } from '@sveltejs/kit';
 import { loadEffectivePermissions } from '$lib/server/authz';
 import type { LayoutServerLoad } from './$types';
 
-const ADMIN_KEYS = [
-	'user.read',
-	'role.read',
-	'audit.read',
-	'label.read',
-	'insurance.read',
-	'system_preferences.read',
-	'permission.read',
-	'break_glass.admin'
-] as const;
+const ADMIN_KEYS = ['admin.read', 'break_glass.admin'] as const;
 
 export const load: LayoutServerLoad = async (event) => {
 	const effective = await loadEffectivePermissions(event);

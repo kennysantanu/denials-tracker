@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { superForm } from 'sveltekit-superforms';
 	import { toastSuccess, toastError } from '$lib/toast';
 	import { page } from '$app/state';
@@ -25,6 +26,9 @@
 
 	let user = $derived((page.data as any).user);
 	let expired = $derived((data as any).expired);
+	const initialUsername = untrack(() => (data as any).username ?? '');
+	let username = $state(initialUsername);
+	let usernameError = $state<string | null>(null);
 </script>
 
 <svelte:head>
@@ -53,10 +57,51 @@
 		aria-labelledby="profile-heading"
 	>
 		<h3 id="profile-heading" class="mb-4 text-base font-semibold text-surface-900">Profile</h3>
-		<label class="label max-w-md">
-			<span class="label-text">Email</span>
-			<input class="input" type="email" value={user?.email ?? ''} disabled readonly />
-		</label>
+		<div class="max-w-md space-y-4">
+			<form
+				method="POST"
+				action="?/updateUsername"
+				use:enhance={() =>
+					async ({ result, update }) => {
+						if (result.type === 'success') {
+							usernameError = null;
+							toastSuccess('Username updated successfully');
+							await update();
+						} else if (result.type === 'failure') {
+							const message = (result.data as any)?.error ?? 'Failed to update username';
+							usernameError = message;
+							toastError(message);
+						}
+					}}
+				class="space-y-3"
+			>
+				<label class="label">
+					<span class="label-text">Username</span>
+					<input
+						class="input {usernameError ? 'input-error' : ''}"
+						name="username"
+						type="text"
+						autocomplete="username"
+						bind:value={username}
+						aria-invalid={usernameError ? 'true' : undefined}
+					/>
+					{#if usernameError}
+						<p class="text-xs text-error-500">{usernameError}</p>
+					{/if}
+				</label>
+
+				<div class="flex justify-end">
+					<button type="submit" class="btn preset-filled-primary-500 btn-sm">
+						Update username
+					</button>
+				</div>
+			</form>
+
+			<label class="label">
+				<span class="label-text">Email</span>
+				<input class="input" type="email" value={user?.email ?? ''} disabled readonly />
+			</label>
+		</div>
 	</section>
 
 	<!-- Change Password -->

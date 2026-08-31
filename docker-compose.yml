@@ -14,17 +14,20 @@
 #   - The image is built from source on first deploy. Portainer Git stacks
 #     and `docker compose up` both build locally; no registry is used.
 #   - `.env` is optional (Portainer injects env vars via the stack form).
+#   - Set DEPLOY_ENV=prod, DEPLOY_ENV=staging, etc. in your Portainer stack
+#     environment variables to namespace container names and the project.
+#     Defaults to "prod" when not set.
 #
 #   Or use the install script: ./install.sh / ./install.ps1
 
-name: denials-tracker
+name: denials-tracker-${ENV:-prod}
 
 services:
   app:
-    container_name: denials-tracker-app
+    container_name: denials-tracker-${DEPLOY_ENV:-prod}-app
     build:
       context: .
-    image: denials-tracker:latest
+    image: denials-tracker:${DEPLOY_ENV:-prod}
     pull_policy: build
     env_file:
       - path: .env
@@ -39,6 +42,7 @@ services:
       PUBLIC_SUPABASE_ANON_KEY: ${PUBLIC_SUPABASE_ANON_KEY}
       SUPABASE_INTERNAL_URL: ${SUPABASE_INTERNAL_URL:-}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-50M}
       SESSION_TIMEOUT_MINUTES: ${SESSION_TIMEOUT_MINUTES:-30}
       MAX_LOGIN_ATTEMPTS: ${MAX_LOGIN_ATTEMPTS:-5}
       PASSWORD_EXPIRY_DAYS: ${PASSWORD_EXPIRY_DAYS:-90}
@@ -60,7 +64,7 @@ services:
   # Optional one-shot migration runner.
   # Only starts when the `migrate` or `with-local-db` profile is enabled.
   migrate:
-    container_name: denials-tracker-migrate
+    container_name: denials-tracker-${DEPLOY_ENV:-prod}-migrate
     image: postgres:15-alpine
     profiles: ['migrate', 'with-local-db']
     env_file:

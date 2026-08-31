@@ -1,4 +1,4 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
@@ -39,6 +39,26 @@ const updateUsernameSchema = z.object({
 	username: z.string().min(1, 'Username is required').max(100)
 });
 
+async function listAllAuthEmails(adminClient: any) {
+	const emailMap = new Map<string, string>();
+	let page = 1;
+	const perPage = 1000;
+
+	while (true) {
+		const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
+		if (error) return { emailMap, error };
+
+		for (const user of data?.users ?? []) {
+			emailMap.set(user.id, user.email ?? '');
+		}
+
+		if ((data?.users ?? []).length < perPage) break;
+		page += 1;
+	}
+
+	return { emailMap, error: null };
+}
+
 export const load: PageServerLoad = async (event) => {
 	const { locals } = event;
 	const user = await locals.getUser();
@@ -46,19 +66,36 @@ export const load: PageServerLoad = async (event) => {
 
 	await requirePermission(event, 'user.read', { resourceType: 'user' });
 
-	const { data: users } = await getUsers(locals.supabase);
-	const { data: roles } = await getRoles(locals.supabase);
+	const [{ data: users, error: usersError }, { data: roles, error: rolesError }] =
+		await Promise.all([getUsers(locals.supabase), getRoles(locals.supabase)]);
+
+	if (usersError) {
+		console.error('[admin/users] Failed to load users:', usersError);
+		error(500, 'Failed to load users.');
+	}
+
+	if (rolesError) {
+		console.error('[admin/users] Failed to load roles:', rolesError);
+		error(500, 'Failed to load roles.');
+	}
 
 	// Fetch auth emails via service-role to show them in the table.
 	const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
-	const { data: authList } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
-	const emailMap = new Map<string, string>(
-		(authList?.users ?? []).map((u) => [u.id, u.email ?? ''])
-	);
-	const usersWithEmail = (users ?? []).map((u) => ({
-		...u,
-		email: emailMap.get(u.id) ?? null
-	}));
+	const { emailMap, error: authUsersError } = await listAllAuthEmails(adminClient);
+	if (authUsersError) {
+		console.error('[admin/users] Failed to load auth users:', authUsersError);
+		error(500, 'Failed to load auth users.');
+	}
+
+	const usersWithEmail = (users ?? []).map((u: any) => {
+		const active = (u.user_role_assignments ?? []).find((a: any) => !a.revoked_at);
+		return {
+			...u,
+			email: emailMap.get(u.id) ?? null,
+			role_id: active?.role_id ?? null,
+			role_name: active?.roles?.role_name ?? null
+		};
+	});
 
 	const createForm = await superValidate(zod(createUserSchema));
 	const updateForm = await superValidate(zod(updateUserSchema));
@@ -94,13 +131,8 @@ export const actions: Actions = {
 		if (authError) return fail(500, { createForm: form, error: authError.message });
 
 		// handle_new_user() trigger auto-creates public.users row.
-		// Set role mirror + create canonical assignment row when a role was chosen.
+		// Create canonical role assignment when a role was chosen.
 		if (form.data.role_id) {
-			const { error: dbError } = await updateUser(locals.supabase, authData.user.id, {
-				role: form.data.role_id
-			});
-			if (dbError) return fail(500, { createForm: form, error: dbError.message });
-
 			const { error: assignError } = await setUserActiveRole(
 				adminClient,
 				authData.user.id,
@@ -150,17 +182,15 @@ export const actions: Actions = {
 		const newRole = role_id ?? null;
 
 		// Read previous role for audit + change detection.
-		const { data: prevUser } = await locals.supabase
-			.from('users')
-			.select('role')
-			.eq('id', id)
+		const { data: prevAssignment } = await locals.supabase
+			.from('user_role_assignments')
+			.select('role_id')
+			.eq('user_id', id)
+			.is('revoked_at', null)
 			.maybeSingle();
-		const prevRole = prevUser?.role ?? null;
+		const prevRole = (prevAssignment as any)?.role_id ?? null;
 
-		const { error } = await updateUser(locals.supabase, id, { role: newRole });
-		if (error) return fail(500, { updateForm: form, error: error.message });
-
-		// Mirror to user_role_assignments only when the role actually changed.
+		// Update canonical assignment when the role actually changed.
 		if (newRole !== prevRole) {
 			const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
 			const { error: assignError } = await setUserActiveRole(
@@ -207,15 +237,16 @@ export const actions: Actions = {
 
 		const adminClient = createClient(getServerSupabaseUrl(), env.SUPABASE_SERVICE_ROLE_KEY);
 
-		// Delete from public.users first (cascade revokes user_role_assignments).
-		const { error: dbError } = await deleteUser(locals.supabase, id);
-		if (dbError) return fail(500, { error: dbError.message });
-
-		// Delete auth user
+		// Delete auth user first. If this fails, leave the app profile intact so
+		// the user is not stranded with an auth account that has no profile row.
 		const { error: authError } = await adminClient.auth.admin.deleteUser(id);
 		if (authError) {
-			console.error('[admin] Failed to delete auth user:', authError);
+			return fail(500, { error: authError.message });
 		}
+
+		// Delete from public.users after auth deletion succeeds.
+		const { error: dbError } = await deleteUser(locals.supabase, id);
+		if (dbError) return fail(500, { error: dbError.message });
 
 		logAudit(locals.supabase, user.id, 'delete', 'user', id, undefined, request);
 		logAppEvent(locals.supabase, {

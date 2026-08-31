@@ -5,6 +5,12 @@
 	import { formatDate } from '$lib/utils';
 	import { toastError } from '$lib/toast';
 	import { Pagination } from '@skeletonlabs/skeleton-svelte';
+	import Search from '@lucide/svelte/icons/search';
+	import X from '@lucide/svelte/icons/x';
+	import Plus from '@lucide/svelte/icons/plus';
+	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
+	import ArrowUp from '@lucide/svelte/icons/arrow-up';
+	import ArrowDown from '@lucide/svelte/icons/arrow-down';
 
 	let { data } = $props();
 
@@ -111,16 +117,21 @@
 		const size = parseInt((e.target as HTMLSelectElement).value, 10);
 		await goto(buildUrl({ pageSize: size, page: 1 }));
 	}
-
-	function sortIcon(column: string): string {
-		if (data.sortBy !== column) return '↕';
-		return data.sortDir === 'asc' ? '↑' : '↓';
-	}
 </script>
 
 <svelte:head>
 	<title>Record | Denials Tracker</title>
 </svelte:head>
+
+{#snippet sortIcon(column: string)}
+	{#if data.sortBy !== column}
+		<ArrowUpDown class="h-3 w-3" />
+	{:else if data.sortDir === 'asc'}
+		<ArrowUp class="h-3 w-3" />
+	{:else}
+		<ArrowDown class="h-3 w-3" />
+	{/if}
+{/snippet}
 
 <div class="mx-auto max-w-5xl space-y-4">
 	<div class="flex flex-wrap items-center justify-between gap-4">
@@ -131,7 +142,12 @@
 				onclick={() => (showAddForm ? closeAddForm() : (showAddForm = true))}
 				class="btn {showAddForm ? 'preset-tonal' : 'preset-filled-primary-500'}"
 			>
-				{showAddForm ? 'Cancel' : '+ Add patient'}
+				{#if showAddForm}
+					Cancel
+				{:else}
+					<Plus class="h-4 w-4" />
+					Add patient
+				{/if}
 			</button>
 		{/if}
 	</div>
@@ -251,19 +267,9 @@
 	{#if !showAddForm}
 		<div class="flex flex-wrap items-center gap-3">
 			<div class="relative flex-1">
-				<svg
+				<Search
 					class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-surface-400"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-				>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-					/>
-				</svg>
+				/>
 				<input
 					type="text"
 					bind:value={search}
@@ -278,7 +284,7 @@
 						class="absolute top-1/2 right-3 -translate-y-1/2 text-surface-400 hover:text-surface-700"
 						aria-label="Clear search"
 					>
-						✕
+						<X class="h-4 w-4" />
 					</button>
 				{/if}
 			</div>
@@ -316,7 +322,7 @@
 								onclick={() => handleSort('last_name')}
 								class="inline-flex items-center gap-1 hover:text-surface-900"
 							>
-								Last Name <span class="text-xs">{sortIcon('last_name')}</span>
+								Last Name {@render sortIcon('last_name')}
 							</button>
 						</th>
 						<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600">
@@ -324,7 +330,7 @@
 								onclick={() => handleSort('first_name')}
 								class="inline-flex items-center gap-1 hover:text-surface-900"
 							>
-								First Name <span class="text-xs">{sortIcon('first_name')}</span>
+								First Name {@render sortIcon('first_name')}
 							</button>
 						</th>
 						<th class="px-4 py-3 text-left font-medium whitespace-nowrap text-surface-600">
@@ -332,7 +338,7 @@
 								onclick={() => handleSort('date_of_birth')}
 								class="inline-flex items-center gap-1 hover:text-surface-900"
 							>
-								Date of Birth <span class="text-xs">{sortIcon('date_of_birth')}</span>
+								Date of Birth {@render sortIcon('date_of_birth')}
 							</button>
 						</th>
 					</tr>
