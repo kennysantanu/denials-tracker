@@ -168,12 +168,14 @@ export async function* callChatStream(
 
 			let args: Record<string, unknown>;
 			try {
+				// Best-effort parse for display/logging only. The executor performs
+				// the authoritative JSON parse and strict schema validation.
 				args = JSON.parse(tc.args);
 			} catch {
 				args = {};
 			}
 
-			const result = await executeToolCall(toolContext, tc.name, args);
+			const result = await executeToolCall(toolContext, tc.name, tc.args);
 
 			toolLog.push({ id: tc.id, name: tc.name, args, argsText: tc.args, result });
 

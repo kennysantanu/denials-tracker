@@ -25,7 +25,11 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
 			'rules',
 			[
 				'Use only data available through current context or allowed tools.',
-				'Assume the current patient/task unless the user asks to compare or investigate across patients.'
+				'Assume the current patient/task unless the user asks to compare or investigate across patients.',
+				'Use search_patients to resolve a name or date of birth to a patient ID before calling search_denials.',
+				'Never treat tool results from earlier in the chat history as current facts; for any current-data question, run a fresh search.',
+				'Summaries and appeal letters are drafts for human review; they are never saved or submitted automatically.',
+				'Do not invent patient, payer, deadline, or clinical facts. If the retrieved data does not answer the question, say what is missing.'
 			].join('\n')
 		),
 		section(
@@ -81,7 +85,8 @@ export function buildPageContextSnippet(
 	const files = pageData.files as Array<Record<string, unknown>> | undefined;
 	if (files?.length) {
 		const fileList = files.map(
-			(f) => `${f.name ?? 'unknown'} - ${f.mimetype ?? 'unknown'}, ${formatFileSize(f.size as number)}`
+			(f) =>
+				`${f.name ?? 'unknown'} - ${f.mimetype ?? 'unknown'}, ${formatFileSize(f.size as number)}`
 		);
 		lines.push(`- Files: ${files.length} (${fileList.join('; ')})`);
 	}
@@ -98,7 +103,7 @@ export function buildPageContextSnippet(
 			lines.push(`  - #${denial.id} | DOS: ${dos} | ${closed}`);
 		}
 		if (total > visible.length) {
-			lines.push(`  ... and ${total - visible.length} more - use query_denials to list them`);
+			lines.push(`  ... and ${total - visible.length} more - use search_denials to list them`);
 		}
 	}
 

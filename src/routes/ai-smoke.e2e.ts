@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 /**
  * E2E: AI smoke tests
  * Prerequisites: A running app with AI configured (LM Studio or compatible),
- * and a user with ai.summary permission.
+ * and a user with ai.chat permission (plus patient.read, denial.read, and
+ * ai.query_denials to exercise the search tools).
  * Environment variables TEST_USER_EMAIL and TEST_USER_PASSWORD must be set.
  */
 

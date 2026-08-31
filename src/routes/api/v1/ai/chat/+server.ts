@@ -3,8 +3,7 @@ import type { RequestHandler } from './$types';
 import { isAIConfigured } from '$lib/server/ai/client';
 import { callChatStream, type StreamEvent, type ToolCallLog } from '$lib/server/ai/chat';
 import {
-	aiToolDefinitions,
-	toolPermissions,
+	getVisibleToolDefinitions,
 	toolInteractionType,
 	type ToolContext
 } from '$lib/server/ai/tools';
@@ -194,18 +193,16 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const effective = await loadEffectivePermissions(event);
-	const allowedTools: ChatCompletionTool[] = aiToolDefinitions.filter((tool) => {
-		const fn = tool as { type: 'function'; function: { name: string } };
-		if (fn.type !== 'function') return true;
-		const requiredPerm = toolPermissions[fn.function.name];
-		if (!requiredPerm) return true;
-		return effective[requiredPerm] === true;
-	});
+	// Expose only tools whose composite permission requirements are fully met
+	// right now. The executor re-checks every permission again immediately
+	// before running each tool (plans/AI_TOOL_ARCHITECTURE_PLAN.md §6).
+	const allowedTools: ChatCompletionTool[] = getVisibleToolDefinitions(effective);
 
 	const toolContext: ToolContext = {
 		supabase: locals.supabase,
 		userId: user.id,
-		patientId: contextData.patientId
+		patientId: contextData.patientId,
+		requestId: locals.requestId
 	};
 
 	const promptResult = await getSystemPreference(locals.supabase, 'ai_chat_system_prompt');
