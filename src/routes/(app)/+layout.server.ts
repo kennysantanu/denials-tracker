@@ -9,7 +9,10 @@ export const load: LayoutServerLoad = async (event) => {
 
 	const user = await locals.getUser();
 	if (!user) {
-		redirect(303, '/signin');
+		// Preserve the deep link so the sign-in page can send the user back
+		// after authenticating.
+		const redirectTo = encodeURIComponent(url.pathname + url.search);
+		redirect(303, `/signin?redirectTo=${redirectTo}`);
 	}
 
 	// Run user fetch, preferences, and effective-permissions in parallel.

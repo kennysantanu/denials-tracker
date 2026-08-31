@@ -15,6 +15,32 @@ interface AuditLogEntry {
 
 let auditClient: SupabaseClient<Database> | null = null;
 
+/**
+ * Resolves the client IP for rate limiting and audit. Prefers the SvelteKit
+ * adapter's getClientAddress() (sourced from the actual TCP peer, or the
+ * ADDRESS_HEADER when explicitly configured) over the freely spoofable
+ * X-Forwarded-For / X-Real-IP headers, falling back to those only when the
+ * adapter cannot provide an address. This is the single source of truth for
+ * "client IP" — keep it in sync with every audit_log writer.
+ */
+export function resolveClientIp(
+	request: Request,
+	getClientAddress?: () => string
+): string | null {
+	if (getClientAddress) {
+		try {
+			const address = getClientAddress();
+			if (address) return address;
+		} catch {
+			// Fall through to header-based resolution.
+		}
+	}
+	return (
+		request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+		request.headers.get('x-real-ip')
+	);
+}
+
 export function getAuditSupabaseClient(
 	fallbackClient: SupabaseClient<Database>
 ): SupabaseClient<Database> {
@@ -63,11 +89,7 @@ async function insertAuditLog(
 	let userAgent: string | null = null;
 
 	if (entry.request) {
-		ipAddress =
-			ipAddress ??
-			entry.request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-			entry.request.headers.get('x-real-ip') ??
-			null;
+		ipAddress = ipAddress ?? resolveClientIp(entry.request);
 		userAgent = entry.request.headers.get('user-agent');
 	}
 
