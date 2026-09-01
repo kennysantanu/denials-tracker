@@ -3,16 +3,14 @@ import { env } from '$env/dynamic/private';
 import { createClient } from '@supabase/supabase-js';
 import { getServerSupabaseUrl } from '$lib/server/supabaseUrl';
 import { logAudit } from '$lib/server/audit';
-import {
-	AI_REASONING_EFFORT_OPTIONS,
-	normalizeAIReasoningEffort
-} from '$lib/server/ai/reasoning';
+import { AI_REASONING_EFFORT_OPTIONS, normalizeAIReasoningEffort } from '$lib/server/ai/reasoning';
 import {
 	getSystemPreferences,
 	getSystemPreference,
 	setSystemPreference,
 	MANAGED_PREFERENCE_NAMES
 } from '$lib/server/db/preferences';
+import { getWikiStatus } from '$lib/server/ai/wiki';
 import { requirePermission } from '$lib/server/authz';
 import type { Database } from '$lib/supabase';
 import type { PageServerLoad, Actions } from './$types';
@@ -34,14 +32,18 @@ export const load: PageServerLoad = async (event) => {
 		aiModelNameResult,
 		idleTimeoutResult,
 		aiChatPromptResult,
-		aiReasoningEffortResult
+		aiReasoningEffortResult,
+		wikiEnabledResult,
+		wikiStatus
 	] = await Promise.all([
 		getSystemPreferences(locals.supabase),
 		getSystemPreference(locals.supabase, 'ai_base_url'),
 		getSystemPreference(locals.supabase, 'ai_model_name'),
 		getSystemPreference(locals.supabase, 'idle_timeout_minutes'),
 		getSystemPreference(locals.supabase, 'ai_chat_system_prompt'),
-		getSystemPreference(locals.supabase, 'ai_reasoning_effort')
+		getSystemPreference(locals.supabase, 'ai_reasoning_effort'),
+		getSystemPreference(locals.supabase, 'wiki_enabled'),
+		getWikiStatus(locals.supabase)
 	]);
 
 	// Filter out managed prefs from the generic list
@@ -59,7 +61,11 @@ export const load: PageServerLoad = async (event) => {
 			: 15,
 		maxIdleTimeout,
 		aiChatSystemPrompt: aiChatPromptResult.data?.value ?? '',
-		aiReasoningEffort: normalizeAIReasoningEffort(aiReasoningEffortResult.data?.value)
+		aiReasoningEffort: normalizeAIReasoningEffort(aiReasoningEffortResult.data?.value),
+		wikiEnabled: wikiEnabledResult.data?.value === 'true',
+		wikiStatus,
+		// Deployment-configured (env) — displayed read-only to admins, never editable here.
+		wikiPath: env.WIKI_PATH?.trim() || null
 	};
 };
 
@@ -154,6 +160,83 @@ export const actions: Actions = {
 		);
 
 		return { success: true };
+	},
+
+	saveWikiConfig: async (event) => {
+		const { request, locals } = event;
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'system_preferences.update', { resourceType: 'preference' });
+
+		const formData = await request.formData();
+		const enable = formData.get('wiki_enabled') === 'on';
+
+		// Enabling requires a working deployment path: validate WIKI_PATH and a
+		// readable Markdown scan before flipping the preference (plan §7).
+		if (enable) {
+			const status = await getWikiStatus(locals.supabase);
+			if (!status.supported) {
+				return fail(400, { error: 'Wiki search is not supported on this runtime.' });
+			}
+			if (!status.configured || !status.readable) {
+				return fail(400, {
+					error:
+						'Cannot enable the wiki: WIKI_PATH is not set or is not a readable directory. Fix the deployment configuration first.'
+				});
+			}
+		}
+
+		const { error } = await setSystemPreference(
+			getAdminClient(),
+			'wiki_enabled',
+			enable ? 'true' : 'false',
+			'boolean'
+		);
+		if (error) return fail(500, { error: error.message });
+
+		logAudit(
+			locals.supabase,
+			user.id,
+			'update',
+			'preference',
+			'wiki_enabled',
+			{ enabled: enable },
+			request
+		);
+
+		return { success: true };
+	},
+
+	testWiki: async (event) => {
+		const { request, locals } = event;
+		const user = await locals.getUser();
+		if (!user) redirect(303, '/signin');
+
+		await requirePermission(event, 'system_preferences.read', { resourceType: 'preference' });
+
+		const status = await getWikiStatus(locals.supabase);
+		logAudit(
+			locals.supabase,
+			user.id,
+			'view',
+			'preference',
+			'wiki_status',
+			{
+				supported: status.supported,
+				configured: status.configured,
+				readable: status.readable,
+				pageCount: status.pageCount
+			},
+			request
+		);
+
+		if (!status.supported || !status.configured || !status.readable) {
+			return fail(400, {
+				error: status.error ?? 'Wiki validation failed.'
+			});
+		}
+		return { success: true, wikiPageCount: status.pageCount ?? 0 };
 	},
 
 	saveAIReasoningEffort: async (event) => {

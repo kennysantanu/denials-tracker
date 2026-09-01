@@ -13,7 +13,8 @@ export const MANAGED_PREFERENCE_NAMES: ReadonlySet<string> = new Set([
 	'ai_enabled',
 	'idle_timeout_minutes',
 	'ai_chat_system_prompt',
-	'ai_reasoning_effort'
+	'ai_reasoning_effort',
+	'wiki_enabled'
 ]);
 
 export function getSystemPreferences(supabase: SupabaseClient<Database>) {

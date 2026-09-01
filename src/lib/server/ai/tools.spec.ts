@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import {
 	executeToolCall,
 	getVisibleToolDefinitions,
@@ -27,6 +30,13 @@ interface RecordedCall {
 
 const PATIENT_PERMISSIONS = ['ai.chat', 'patient.read'];
 const DENIAL_PERMISSIONS = ['ai.chat', 'ai.query_denials', 'denial.read'];
+const WIKI_PERMISSIONS = ['ai.chat', 'wiki.read'];
+const WIKI_ENABLED_TABLE = {
+	preferences: [{ name: 'wiki_enabled', value: 'true' }]
+};
+const WIKI_DISABLED_TABLE = {
+	preferences: [{ name: 'wiki_enabled', value: 'false' }]
+};
 
 function createMockSupabase(options: {
 	roleIds?: number[];
@@ -141,10 +151,12 @@ function lastAudit() {
 	return mockLogAppEvent.mock.calls.at(-1)?.[1];
 }
 
-function visibleToolNames(permissions: Record<string, boolean>): string[] {
-	return getVisibleToolDefinitions(permissions).map((tool) =>
-		tool.type === 'function' ? tool.function.name : tool.type
-	);
+async function visibleToolNames(
+	sb: MockSupabase,
+	permissions: Record<string, boolean>
+): Promise<string[]> {
+	const defs = await getVisibleToolDefinitions(makeCtx(sb), permissions);
+	return defs.map((tool) => (tool.type === 'function' ? tool.function.name : tool.type));
 }
 
 beforeEach(() => {
@@ -162,22 +174,25 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('getVisibleToolDefinitions', () => {
-	it('exposes nothing without permissions', () => {
-		expect(getVisibleToolDefinitions({})).toEqual([]);
-		expect(getVisibleToolDefinitions({ 'ai.chat': true })).toEqual([]);
+	it('exposes nothing without permissions', async () => {
+		const sb = createMockSupabase({});
+		expect(await visibleToolNames(sb, {})).toEqual([]);
+		expect(await visibleToolNames(sb, { 'ai.chat': true })).toEqual([]);
 	});
 
-	it('exposes search_patients only with the full composite', () => {
-		expect(visibleToolNames({ 'ai.chat': true, 'patient.read': true })).toEqual([
+	it('exposes search_patients only with the full composite', async () => {
+		const sb = createMockSupabase({});
+		expect(await visibleToolNames(sb, { 'ai.chat': true, 'patient.read': true })).toEqual([
 			'search_patients'
 		]);
 	});
 
-	it('exposes search_denials only with ai.chat + ai.query_denials + denial.read', () => {
-		expect(visibleToolNames({ 'ai.chat': true, 'denial.read': true })).toEqual([]);
+	it('exposes search_denials only with ai.chat + ai.query_denials + denial.read', async () => {
+		const sb = createMockSupabase({});
+		expect(await visibleToolNames(sb, { 'ai.chat': true, 'denial.read': true })).toEqual([]);
 
 		expect(
-			visibleToolNames({
+			await visibleToolNames(sb, {
 				'ai.chat': true,
 				'ai.query_denials': true,
 				'denial.read': true,
@@ -564,6 +579,139 @@ describe('search_denials: filtered list', () => {
 		expect(has('lte', 'follow_up_date', '2026-01-31')).toBe(true);
 		expect(has('gte', 'service_start_date', '2025-12-01')).toBe(true);
 		expect(has('lte', 'service_start_date', '2025-12-31')).toBe(true);
+	});
+});
+
+describe('search_wiki: feature gate', () => {
+	let wikiRoot: string;
+
+	beforeEach(async () => {
+		wikiRoot = await mkdtemp(path.join(tmpdir(), 'wiki-tool-test-'));
+		await mkdir(path.join(wikiRoot, 'denials'), { recursive: true });
+		await writeFile(
+			path.join(wikiRoot, 'denials', 'appeals.md'),
+			'---\ntitle: Appeals\ntags: [denials]\nconfidence: high\n---\n\n# Appeals\n\n## Appeal Criteria\n\nAppeal when the denial reason is wrong.\n',
+			'utf8'
+		);
+		process.env.WIKI_PATH = wikiRoot;
+	});
+
+	afterEach(async () => {
+		await rm(wikiRoot, { recursive: true, force: true });
+		delete process.env.WIKI_PATH;
+	});
+
+	it('is hidden when the feature is disabled, even with wiki.read', async () => {
+		const sb = createMockSupabase({
+			grantedPermissions: WIKI_PERMISSIONS,
+			tables: WIKI_DISABLED_TABLE
+		});
+
+		expect(await visibleToolNames(sb, { 'ai.chat': true, 'wiki.read': true })).toEqual([]);
+	});
+
+	it('is hidden without wiki.read even when enabled', async () => {
+		const sb = createMockSupabase({
+			grantedPermissions: WIKI_PERMISSIONS,
+			tables: WIKI_ENABLED_TABLE
+		});
+
+		expect(await visibleToolNames(sb, { 'ai.chat': true })).toEqual([]);
+	});
+
+	it('is visible when enabled and the composite permissions are held', async () => {
+		const sb = createMockSupabase({
+			grantedPermissions: WIKI_PERMISSIONS,
+			tables: WIKI_ENABLED_TABLE
+		});
+
+		expect(await visibleToolNames(sb, { 'ai.chat': true, 'wiki.read': true })).toEqual([
+			'search_wiki'
+		]);
+	});
+
+	it('cannot execute while disabled, even for a permitted user', async () => {
+		const sb = createMockSupabase({
+			grantedPermissions: WIKI_PERMISSIONS,
+			tables: WIKI_DISABLED_TABLE
+		});
+		const result = await executeToolCall(makeCtx(sb), 'search_wiki', '{"query": "appeal"}');
+
+		expect(result).toContain('currently unavailable');
+		expect(lastAudit()).toEqual(
+			expect.objectContaining({
+				outcome: 'denied',
+				metadata: expect.objectContaining({ tool: 'search_wiki', reason: 'feature_disabled' })
+			})
+		);
+	});
+
+	it('cannot execute without wiki.read even when enabled', async () => {
+		const sb = createMockSupabase({
+			grantedPermissions: ['ai.chat'],
+			tables: WIKI_ENABLED_TABLE
+		});
+		const result = await executeToolCall(makeCtx(sb), 'search_wiki', '{"query": "appeal"}');
+
+		// Permission denial wins over the feature gate, so a caller cannot probe
+		// whether the feature is enabled without the permission.
+		expect(result).toContain('Not authorized');
+		expect(lastAudit()).toEqual(expect.objectContaining({ permissionKey: 'wiki.read' }));
+	});
+
+	it('validates the query contract', async () => {
+		const sb = createMockSupabase({
+			grantedPermissions: WIKI_PERMISSIONS,
+			tables: WIKI_ENABLED_TABLE
+		});
+
+		expect(await executeToolCall(makeCtx(sb), 'search_wiki', '{}')).toContain(
+			'Invalid tool arguments'
+		);
+		expect(await executeToolCall(makeCtx(sb), 'search_wiki', '{"query": "a"}')).toContain(
+			'Invalid tool arguments'
+		);
+		expect(
+			await executeToolCall(makeCtx(sb), 'search_wiki', '{"query": "ok", "limit": 9}')
+		).toContain('Invalid tool arguments');
+	});
+
+	it('returns cited sections and audits citation IDs on success', async () => {
+		const sb = createMockSupabase({
+			grantedPermissions: WIKI_PERMISSIONS,
+			tables: WIKI_ENABLED_TABLE
+		});
+		const result = JSON.parse(
+			await executeToolCall(makeCtx(sb), 'search_wiki', '{"query": "appeal criteria"}')
+		);
+
+		expect(result.count).toBeGreaterThan(0);
+		expect(result.sections[0].relative_path).toBe('denials/appeals.md');
+		expect(result.sections[0].citation_id).toMatch(/^denials\/appeals\.md#/);
+		expect(JSON.stringify(result)).not.toContain(wikiRoot);
+		const audit = lastAudit();
+		expect(audit).toEqual(expect.objectContaining({ outcome: 'success' }));
+		const metadata = audit?.metadata as { tool: string; citationIds: string[] };
+		expect(metadata.tool).toBe('search_wiki');
+		expect(metadata.citationIds.length).toBeGreaterThan(0);
+		expect(metadata.citationIds[0]).toMatch(/^denials\/appeals\.md#/);
+	});
+
+	it('fails safely when the wiki path is unreadable', async () => {
+		process.env.WIKI_PATH = path.join(wikiRoot, 'missing');
+		const sb = createMockSupabase({
+			grantedPermissions: WIKI_PERMISSIONS,
+			tables: WIKI_ENABLED_TABLE
+		});
+		const result = await executeToolCall(makeCtx(sb), 'search_wiki', '{"query": "appeal"}');
+
+		expect(result).toContain('Wiki search is currently unavailable');
+		expect(lastAudit()).toEqual(
+			expect.objectContaining({
+				outcome: 'failed',
+				metadata: expect.objectContaining({ reason: 'unavailable' })
+			})
+		);
 	});
 });
 

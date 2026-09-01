@@ -46,8 +46,14 @@ services:
       SESSION_TIMEOUT_MINUTES: ${SESSION_TIMEOUT_MINUTES:-30}
       MAX_LOGIN_ATTEMPTS: ${MAX_LOGIN_ATTEMPTS:-5}
       PASSWORD_EXPIRY_DAYS: ${PASSWORD_EXPIRY_DAYS:-90}
+      # Optional office wiki for the search_wiki AI tool (container-side path).
+      WIKI_PATH: ${WIKI_PATH:-}
     restart: unless-stopped
     stop_grace_period: 10s
+    # Optional read-only office wiki mount. Point the left side at your wiki
+    # folder (or a host-mounted SMB share) and set WIKI_PATH=/wiki.
+    # volumes:
+    #   - /srv/office-wiki:/wiki:ro
     deploy:
       resources:
         limits:

@@ -48,6 +48,7 @@ export type Permission =
 	| 'ai.appeal'
 	| 'ai.chat'
 	| 'ai.query_denials'
+	| 'wiki.read'
 	| 'user.read'
 	| 'user.create'
 	| 'user.update'

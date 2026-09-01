@@ -23,8 +23,7 @@
 	let aiReasoningEffort = $state(initialData.aiReasoningEffort ?? 'low');
 	let permissions = $derived((page.data as any).effectivePermissions ?? {});
 	let canUpdate = $derived(
-		permissions['system_preferences.update'] === true ||
-			permissions['break_glass.admin'] === true
+		permissions['system_preferences.update'] === true || permissions['break_glass.admin'] === true
 	);
 
 	function handleResult() {
@@ -33,6 +32,16 @@
 				toastSuccess('Preference saved');
 			} else if (result.type === 'failure') {
 				toastError(result.data?.error ?? 'Failed to save preference');
+			}
+		};
+	}
+
+	function handleWikiTest() {
+		return ({ result }: any) => {
+			if (result.type === 'success') {
+				toastSuccess(`Wiki OK — ${result.data?.wikiPageCount ?? 0} Markdown pages found`);
+			} else if (result.type === 'failure') {
+				toastError(result.data?.error ?? 'Wiki validation failed');
 			}
 		};
 	}
@@ -107,9 +116,9 @@
 		</div>
 		<div class="mb-4 rounded-base border-l-4 border-primary-500 bg-primary-50 p-3">
 			<p class="text-sm text-surface-800">
-				AI features connect to a <strong>local AI server only</strong> (e.g. LM Studio, Ollama). The
-				chat backend must support OpenAI-compatible streaming chat completions with tool-call
-				deltas. No data is sent to external cloud services.
+				AI features connect to a <strong>local AI server only</strong> (e.g. LM Studio, Ollama). The chat
+				backend must support OpenAI-compatible streaming chat completions with tool-call deltas. No data
+				is sent to external cloud services.
 			</p>
 		</div>
 
@@ -246,7 +255,101 @@
 					</div>
 				{/if}
 			</form>
+		</div>
+	</section>
 
+	<!-- Office Wiki Section -->
+	<section class="card border border-surface-200 bg-white p-6 shadow-sm">
+		<div class="mb-4 flex items-center justify-between gap-3">
+			<h3 class="text-lg font-semibold text-surface-900">Office wiki (AI search)</h3>
+			{#if data.wikiEnabled}
+				<span class="badge preset-tonal-success">● Wiki enabled</span>
+			{:else}
+				<span class="badge preset-tonal-surface">○ Wiki disabled</span>
+			{/if}
+		</div>
+		<div class="mb-4 rounded-base border-l-4 border-primary-500 bg-primary-50 p-3">
+			<p class="text-sm text-surface-800">
+				Lets the AI assistant answer office-procedure questions from your Markdown wiki via the
+				<strong>search_wiki</strong> tool. Users also need the <code>wiki.read</code> permission. The
+				wiki folder is deployment configuration and is mounted read-only; it is never modified by the
+				app.
+			</p>
+		</div>
+
+		<dl class="mb-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+			<div>
+				<dt class="text-surface-500">Wiki path (WIKI_PATH)</dt>
+				<dd class="font-mono text-surface-800">{data.wikiPath ?? 'not set'}</dd>
+			</div>
+			<div>
+				<dt class="text-surface-500">Runtime</dt>
+				<dd class="text-surface-800">
+					{data.wikiStatus.supported ? 'Supported (Node)' : 'Not supported (Cloudflare build)'}
+				</dd>
+			</div>
+			<div>
+				<dt class="text-surface-500">Path status</dt>
+				<dd class="text-surface-800">
+					{#if data.wikiStatus.readable}
+						Readable — {data.wikiStatus.pageCount ?? 0} Markdown pages
+					{:else}
+						{data.wikiStatus.error ?? 'Not validated'}
+					{/if}
+				</dd>
+			</div>
+			<div>
+				<dt class="text-surface-500">Last scan</dt>
+				<dd class="text-surface-800">
+					{data.wikiStatus.scannedAt
+						? new Date(data.wikiStatus.scannedAt).toLocaleString()
+						: 'never'}
+				</dd>
+			</div>
+		</dl>
+		<p class="mb-4 text-xs text-surface-500">
+			The path is set by the deployment (environment variable <code>WIKI_PATH</code>), not here.
+			Changing the mounted folder requires updating the container; edits to Markdown files inside it
+			are picked up on the next search without a restart.
+		</p>
+
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+			<form
+				method="POST"
+				action="?/saveWikiConfig"
+				use:enhance={() =>
+					async ({ result, update }) => {
+						handleResult()({ result });
+						await update();
+					}}
+				class="flex items-center gap-2"
+			>
+				<label class="flex items-center gap-2 text-sm text-surface-700">
+					<input
+						id="wiki_enabled"
+						name="wiki_enabled"
+						type="checkbox"
+						class="checkbox"
+						checked={data.wikiEnabled}
+						disabled={!canUpdate}
+					/>
+					Enable wiki search
+				</label>
+				{#if canUpdate}
+					<button type="submit" class="btn preset-filled-primary-500 btn-sm">Save</button>
+				{/if}
+			</form>
+			<form
+				method="POST"
+				action="?/testWiki"
+				use:enhance={() =>
+					async ({ result, update }) => {
+						handleWikiTest()({ result });
+						await update();
+					}}
+			>
+				<button type="submit" class="btn preset-tonal btn-sm">Test wiki path</button>
+			</form>
 		</div>
 	</section>
 

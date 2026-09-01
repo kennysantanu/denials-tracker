@@ -15,7 +15,8 @@
 	// Friendly labels for the visible tool-call trace (plans/AI_TOOL_ARCHITECTURE_PLAN.md §13).
 	const TOOL_LABELS: Record<string, string> = {
 		search_patients: 'patient search',
-		search_denials: 'denial search'
+		search_denials: 'denial search',
+		search_wiki: 'wiki search'
 	};
 
 	function toolLabel(name: string | null | undefined): string {

@@ -3,12 +3,13 @@ import type { Database } from '$lib/supabase';
 import type { ChatCompletionTool } from 'openai/resources/chat/completions';
 import { z } from 'zod';
 import { logAppEvent } from '../appEvents';
+import { WikiUnavailableError, isWikiEnabled, isWikiRuntimeSupported, searchWiki } from './wiki';
 
 // ---------------------------------------------------------------------------
-// AI tool registry — Phase 1 of plans/AI_TOOL_ARCHITECTURE_PLAN.md
+// AI tool registry — plans/AI_TOOL_ARCHITECTURE_PLAN.md
 //
-// Exactly two read-only business-data tools: search_patients and search_denials.
-// (search_wiki is Phase 2.)
+// Exactly three read-only tools: search_patients, search_denials, and the
+// optional search_wiki (exposed only when the wiki feature is enabled).
 //
 // The JSON schema shown to the model helps it call a tool correctly; the
 // server-side executor is the real security boundary. For every call it:
@@ -36,6 +37,8 @@ export interface ToolExecutionData {
 		rowCount?: number;
 		patientIds?: number[];
 		denialIds?: number[];
+		/** Stable relative wiki citation IDs for search_wiki results. */
+		citationIds?: string[];
 	};
 }
 
@@ -54,6 +57,12 @@ export interface ToolDefinition<Input> {
 	requiredPermissions: string[];
 	timeoutMs: number;
 	maxResultChars: number;
+	/**
+	 * Optional feature gate (e.g. wiki_enabled). Checked when projecting tools
+	 * for a request and again at execution time; false means the tool neither
+	 * appears nor runs.
+	 */
+	isAvailable?(context: ToolContext): Promise<boolean>;
 	execute(context: ToolContext, input: Input): Promise<ToolExecutionData>;
 }
 
@@ -132,6 +141,13 @@ const searchDenialsSchema = z
 
 type SearchPatientsInput = z.infer<typeof searchPatientsSchema>;
 type SearchDenialsInput = z.infer<typeof searchDenialsSchema>;
+
+const searchWikiSchema = z.strictObject({
+	query: z.string().trim().min(2).max(300),
+	limit: z.number().int().min(1).max(5).default(4)
+});
+
+type SearchWikiInput = z.infer<typeof searchWikiSchema>;
 
 // --- Result helpers ---
 
@@ -430,23 +446,75 @@ const searchDenialsTool: ToolDefinition<SearchDenialsInput> = {
 	execute: executeSearchDenials
 };
 
+async function executeSearchWiki(
+	ctx: ToolContext,
+	input: SearchWikiInput
+): Promise<ToolExecutionData> {
+	const outcome = await searchWiki(ctx.supabase, input);
+	return {
+		data: {
+			sections: outcome.sections,
+			count: outcome.sections.length,
+			retrieved_at: new Date().toISOString()
+		},
+		meta: {
+			rowCount: outcome.sections.length,
+			citationIds: outcome.sections.map((section) => section.citation_id)
+		}
+	};
+}
+
+const searchWikiTool: ToolDefinition<SearchWikiInput> = {
+	name: 'search_wiki',
+	description:
+		'Search the office wiki for documented procedures, policies, definitions, payer workflows, and templates. Returns the most relevant heading-sized sections with citations. Use this for operational "how do we" questions; use search_denials for live case facts. If results are weak or absent, say the wiki does not document the answer rather than inventing one.',
+	parameters: {
+		type: 'object',
+		properties: {
+			query: {
+				type: 'string',
+				description: 'Operational question or keywords, 2-300 characters'
+			},
+			limit: { type: 'number', description: 'Maximum sections to return, 1-5. Default 4.' }
+		},
+		required: ['query']
+	},
+	schema: searchWikiSchema,
+	requiredPermissions: ['ai.chat', 'wiki.read'],
+	timeoutMs: 10_000,
+	maxResultChars: 16_000,
+	isAvailable: async (ctx) => isWikiRuntimeSupported() && (await isWikiEnabled(ctx.supabase)),
+	execute: executeSearchWiki
+};
+
 export const toolRegistry: Record<string, RegisteredTool> = {
 	search_patients: searchPatientsTool,
-	search_denials: searchDenialsTool
+	search_denials: searchDenialsTool,
+	search_wiki: searchWikiTool
 };
 
 // --- Model-facing projection ---
 
 /**
  * Tools to expose for one request: exactly those whose composite permission
- * requirements are fully satisfied right now. Execution-time authorization in
- * executeToolCall() is the second, authoritative check.
+ * requirements are fully satisfied right now AND whose feature gate is open.
+ * Execution-time checks in executeToolCall() are the second, authoritative
+ * boundary (plans/AI_TOOL_ARCHITECTURE_PLAN.md §6).
  */
-export function getVisibleToolDefinitions(
+export async function getVisibleToolDefinitions(
+	ctx: ToolContext,
 	effectivePermissions: Record<string, boolean>
-): ChatCompletionTool[] {
-	return Object.values(toolRegistry)
-		.filter((tool) => tool.requiredPermissions.every((key) => effectivePermissions[key] === true))
+): Promise<ChatCompletionTool[]> {
+	const permitted = Object.values(toolRegistry).filter((tool) =>
+		tool.requiredPermissions.every((key) => effectivePermissions[key] === true)
+	);
+	const availability = await Promise.all(
+		permitted.map((tool) =>
+			tool.isAvailable ? tool.isAvailable(ctx).catch(() => false) : Promise.resolve(true)
+		)
+	);
+	return permitted
+		.filter((_, index) => availability[index])
 		.map((tool) => ({
 			type: 'function',
 			function: {
@@ -461,7 +529,8 @@ export function getVisibleToolDefinitions(
 
 export const toolInteractionType: Record<string, string> = {
 	search_patients: 'patient_search_tool',
-	search_denials: 'denial_search_tool'
+	search_denials: 'denial_search_tool',
+	search_wiki: 'wiki_search_tool'
 };
 
 // --- Executor ---
@@ -561,7 +630,8 @@ function auditToolCall(ctx: ToolContext, entry: ToolAuditEntry): void {
 			reason: entry.reason ?? null,
 			resultChars: entry.resultChars ?? null,
 			patientIds: entry.meta?.patientIds ?? [],
-			denialIds: entry.meta?.denialIds ?? []
+			denialIds: entry.meta?.denialIds ?? [],
+			citationIds: entry.meta?.citationIds ?? []
 		}
 	});
 }
@@ -617,6 +687,19 @@ export async function executeToolCall(
 		return toolError('Not authorized to use this tool.');
 	}
 
+	// Feature gate after authorization: users without the permission always
+	// see "Not authorized" and cannot probe whether the feature is enabled.
+	if (tool.isAvailable && !(await tool.isAvailable(ctx).catch(() => false))) {
+		auditToolCall(ctx, {
+			tool: toolName,
+			outcome: 'denied',
+			reason: 'feature_disabled',
+			roleIds: auth.roleIds,
+			durationMs: Date.now() - startedAt
+		});
+		return toolError('This tool is currently unavailable.');
+	}
+
 	let parsedArgs: unknown;
 	try {
 		parsedArgs = rawArgs.trim() === '' ? {} : JSON.parse(rawArgs);
@@ -656,6 +739,18 @@ export async function executeToolCall(
 				durationMs: Date.now() - startedAt
 			});
 			return toolError('The query took too long. Try a narrower search.');
+		}
+		if (err instanceof WikiUnavailableError) {
+			// The feature was disabled or the wiki path became unreadable between
+			// the availability check and the read — fail safely (plan §8).
+			auditToolCall(ctx, {
+				tool: toolName,
+				outcome: 'failed',
+				reason: 'unavailable',
+				roleIds: auth.roleIds,
+				durationMs: Date.now() - startedAt
+			});
+			return toolError('Wiki search is currently unavailable.');
 		}
 		console.error(`[ai/tools] ${toolName} execution failed:`, err);
 		auditToolCall(ctx, {

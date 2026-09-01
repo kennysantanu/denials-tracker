@@ -193,17 +193,20 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const effective = await loadEffectivePermissions(event);
-	// Expose only tools whose composite permission requirements are fully met
-	// right now. The executor re-checks every permission again immediately
-	// before running each tool (plans/AI_TOOL_ARCHITECTURE_PLAN.md §6).
-	const allowedTools: ChatCompletionTool[] = getVisibleToolDefinitions(effective);
-
 	const toolContext: ToolContext = {
 		supabase: locals.supabase,
 		userId: user.id,
 		patientId: contextData.patientId,
 		requestId: locals.requestId
 	};
+	// Expose only tools whose composite permission requirements and feature
+	// gates (e.g. wiki_enabled) are satisfied right now. The executor re-checks
+	// both again immediately before running each tool
+	// (plans/AI_TOOL_ARCHITECTURE_PLAN.md §6).
+	const allowedTools: ChatCompletionTool[] = await getVisibleToolDefinitions(
+		toolContext,
+		effective
+	);
 
 	const promptResult = await getSystemPreference(locals.supabase, 'ai_chat_system_prompt');
 	const modelResult = await getSystemPreference(locals.supabase, 'ai_model_name');
