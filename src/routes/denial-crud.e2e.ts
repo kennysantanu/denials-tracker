@@ -1,122 +1,80 @@
-import { expect, test } from '@playwright/test';
+import { test, expect, signIn } from '../../tests/e2e/fixtures';
 
-/**
- * E2E: Denial CRUD
- * Prerequisites: A running app with a user who has create/update/delete denial permissions,
- * and at least one patient in the system.
- * Environment variables TEST_USER_EMAIL and TEST_USER_PASSWORD must be set.
- */
+test('editor creates, updates, closes and deletes a denial with persisted notes and audit', async ({
+	page,
+	testPatient,
+	dbAdmin
+}) => {
+	await signIn(page);
+	await page.goto(`/record/${testPatient.id}`);
+	await expect(page.getByRole('heading', { name: /^Open Claims/ })).toBeVisible();
+	await page.getByRole('button', { name: 'New Denial' }).click();
+	await page.locator('input[name="service_start_date"]').fill('2026-01-10');
+	await page.locator('input[name="billed_amount"]').fill('250.50');
+	await page
+		.locator('textarea[name="initial_note"]')
+		.fill('Synthetic denial reason for automated testing');
+	await page.getByRole('button', { name: 'Create Denial', exact: true }).click();
+	await expect(page.getByRole('button', { name: 'Create Denial', exact: true })).not.toBeVisible();
+	const readDenials = () => dbAdmin.from('denials').select('*').eq('patient_id', testPatient.id);
+	await expect.poll(async () => (await readDenials()).data?.length).toBe(1);
+	const { data: denials, error } = await readDenials();
+	expect(error).toBeNull();
+	const denial = denials![0];
+	expect(denial.billed_amount).toBe(250.5);
+	const notes = await dbAdmin.from('notes').select('note').eq('denial_id', denial.id);
+	expect(notes.error).toBeNull();
+	expect(notes.data).toEqual([{ note: 'Synthetic denial reason for automated testing' }]);
+	await page.getByTitle('Actions', { exact: true }).click();
+	await page.getByRole('button', { name: 'Edit', exact: true }).click();
+	await page.locator('input[name="paid_amount"]').fill('100');
+	await page.locator('input[name="is_closed"]').check();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect.poll(async () => (await readDenials()).data?.[0]?.is_closed).toBe(true);
+	expect((await readDenials()).data?.[0]?.paid_amount).toBe(100);
+	await page.getByRole('button', { name: /Closed Claims/ }).click();
+	await page.getByTitle('Actions', { exact: true }).click();
+	page.once('dialog', (dialog) => dialog.accept());
+	await page.getByRole('button', { name: 'Delete', exact: true }).click();
+	await expect.poll(async () => (await readDenials()).data?.length).toBe(0);
+	await expect
+		.poll(async () => {
+			const result = await dbAdmin
+				.from('audit_log')
+				.select('action')
+				.eq('resource_type', 'denial')
+				.eq('resource_id', String(denial.id));
+			if (result.error) throw result.error;
+			return result.data.map((row) => row.action);
+		})
+		.toEqual(expect.arrayContaining(['create', 'update', 'delete']));
+	await expect
+		.poll(async () => {
+			const result = await dbAdmin
+				.from('app_events')
+				.select('subject_denial_id, subject_patient_id')
+				.eq('event_name', 'denial.deleted')
+				.eq('resource_id', String(denial.id));
+			if (result.error) throw result.error;
+			return result.data;
+		})
+		.toEqual([{ subject_denial_id: null, subject_patient_id: testPatient.id }]);
+});
 
-const EMAIL = process.env.TEST_USER_EMAIL ?? 'admin@example.com';
-const PASSWORD = process.env.TEST_USER_PASSWORD ?? 'TestP@ssw0rd123!';
-
-test.describe('Denial CRUD', () => {
-	test.beforeEach(async ({ page }) => {
-		// Sign in
-		await page.goto('/signin');
-		await page.fill('input[name="email"]', EMAIL);
-		await page.fill('input[name="password"]', PASSWORD);
-		await page.click('button[type="submit"]');
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
+test('reader cannot create a denial through UI or direct form submission', async ({
+	page,
+	testPatient,
+	dbAdmin
+}) => {
+	await signIn(page, 'reader');
+	await page.goto(`/record/${testPatient.id}`);
+	await expect(page.getByRole('button', { name: 'New Denial' })).not.toBeVisible();
+	const response = await page.request.post(`/record/${testPatient.id}?/createDenial`, {
+		form: { service_start_date: '2026-01-10', initial_note: 'Must not persist' },
+		headers: { Origin: 'http://127.0.0.1:4173' }
 	});
-
-	test('record page loads and shows patient search', async ({ page }) => {
-		await page.goto('/record');
-
-		// Should have a search/combobox input
-		await expect(page.locator('input')).toBeVisible();
-	});
-
-	test('patient page shows open and closed claim sections', async ({ page }) => {
-		// Navigate to record page
-		await page.goto('/record');
-
-		// If there are patients, click the first link or option
-		const firstOption = page.locator('[role="option"]').first();
-		if (await firstOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await firstOption.click();
-
-			// Should see Open Claims section
-			await expect(page.getByText('Open Claims')).toBeVisible({ timeout: 5000 });
-
-			// Should see Closed Claims toggle
-			await expect(page.getByText('Closed Claims')).toBeVisible();
-		} else {
-			// No patients available — verify page loaded correctly
-			expect(true).toBe(true);
-		}
-	});
-
-	test('create new denial form appears when + New Denial is clicked', async ({ page }) => {
-		// Navigate to first patient if available
-		await page.goto('/record');
-
-		const firstOption = page.locator('[role="option"]').first();
-		if (await firstOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await firstOption.click();
-			await expect(page.getByText('Open Claims')).toBeVisible({ timeout: 5000 });
-
-			const newButton = page.getByText('+ New Denial');
-			if (await newButton.isVisible().catch(() => false)) {
-				await newButton.click();
-
-				// New denial form should appear
-				await expect(page.locator('input[name="service_start_date"]')).toBeVisible();
-				await expect(page.getByText('Create Denial')).toBeVisible();
-			}
-		}
-		expect(true).toBe(true);
-	});
-
-	test('denial card shows edit button for authorized users', async ({ page }) => {
-		await page.goto('/record');
-
-		const firstOption = page.locator('[role="option"]').first();
-		if (await firstOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await firstOption.click();
-			await expect(page.getByText('Open Claims')).toBeVisible({ timeout: 5000 });
-
-			// Check if any Edit buttons are present (depends on permissions and data)
-			const editButtons = page.getByRole('button', { name: 'Edit' });
-			const count = await editButtons.count();
-			// Just verify the page rendered correctly
-			expect(count).toBeGreaterThanOrEqual(0);
-		} else {
-			expect(true).toBe(true);
-		}
-	});
-
-	test('follow-up date is displayed on denial cards', async ({ page }) => {
-		await page.goto('/record');
-
-		const firstOption = page.locator('[role="option"]').first();
-		if (await firstOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await firstOption.click();
-			await expect(page.getByText('Open Claims')).toBeVisible({ timeout: 5000 });
-
-			// Follow-up date text should be present if any denials have it set
-			// This test verifies the page renders without errors
-			const pageContent = await page.textContent('body');
-			expect(pageContent).toBeTruthy();
-		} else {
-			expect(true).toBe(true);
-		}
-	});
-
-	test('closed claims section expands on click', async ({ page }) => {
-		await page.goto('/record');
-
-		const firstOption = page.locator('[role="option"]').first();
-		if (await firstOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await firstOption.click();
-			await expect(page.getByText('Open Claims')).toBeVisible({ timeout: 5000 });
-
-			const closedToggle = page.getByText('Closed Claims');
-			if (await closedToggle.isVisible().catch(() => false)) {
-				await closedToggle.click();
-				// Interaction succeeded
-			}
-		}
-		expect(true).toBe(true);
-	});
+	expect(response.status()).toBe(403);
+	const result = await dbAdmin.from('denials').select('id').eq('patient_id', testPatient.id);
+	expect(result.error).toBeNull();
+	expect(result.data).toEqual([]);
 });

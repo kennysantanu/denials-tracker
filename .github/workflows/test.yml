@@ -1,0 +1,41 @@
+name: Test
+on:
+  push:
+    branches: [staging, main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # SvelteKit derives $env/dynamic/private types from the env file, so a
+      # checkout without one fails `svelte-check`. Values here are placeholders;
+      # Playwright overrides every runtime setting from .env.test.local.
+      - run: cp .env.example .env
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:backend:up
+      - run: npm run test:ci
+      - name: Backend diagnostics
+        if: failure()
+        continue-on-error: true
+        run: npm run test:backend:status
+      - name: Stop test backend
+        if: always()
+        continue-on-error: true
+        run: npm run test:backend:down
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-failure-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

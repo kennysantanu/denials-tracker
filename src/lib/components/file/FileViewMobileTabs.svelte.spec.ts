@@ -70,6 +70,18 @@ describe('FileViewMobileTabs.svelte', () => {
 		await infoTab.click();
 
 		await expect.element(infoTab).toHaveAttribute('aria-selected', 'true');
-		await expect.element(page.getByText(fileRecord.name)).toBeInTheDocument();
+		await page.getByRole('button', { name: 'Edit', exact: true }).click();
+		await expect.element(page.getByText(fileRecord.name, { exact: true })).toBeVisible();
+		const note = page.getByRole('textbox', { name: 'Note', exact: true });
+		await note.fill('Unsaved review note');
+
+		await page.getByRole('tab', { name: 'Document' }).click();
+		await expect.element(infoTab).toHaveAttribute('aria-selected', 'false');
+		await page.getByRole('tab', { name: 'Files' }).click();
+		await infoTab.click();
+
+		await expect.element(infoTab).toHaveAttribute('aria-selected', 'true');
+		await expect.element(note).toHaveValue('Unsaved review note');
+		await expect.element(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 	});
 });

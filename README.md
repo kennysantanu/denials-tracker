@@ -74,16 +74,22 @@ Designed and built from the ground up with a security-first architecture: PHI is
 
 ## Testing
 
-The project includes both unit and end-to-end test suites:
-
-- **Unit tests** (Vitest + vitest-browser-svelte) — Component behavior, utility functions, DB layer logic
-- **E2E tests** (Playwright) — Auth flows, denial CRUD, HIPAA header assertions, AI chat interactions, idle session timeout
+Use the fast unit/component loop while developing, then run browser and real
+Supabase integration tests against the isolated synthetic-data backend:
 
 ```sh
-npm run test:unit   # Vitest
-npm run test:e2e    # Playwright
-npm run test        # Both
+npm run check
+npm run check:tests
+npm run test:unit:run
+npm run test:backend:up
+npm run test:e2e
+npm run test:backend:down
 ```
+
+Docker is required for the test backend; install the browser once with
+`npx playwright install chromium`. Tests never use the normal deployment `.env`.
+See [the testing workflow](docs/testing.md) for architecture boundaries, isolation,
+CI, fixtures, coverage, and remaining gaps.
 
 ---
 

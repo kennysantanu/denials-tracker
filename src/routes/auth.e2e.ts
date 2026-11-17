@@ -1,77 +1,51 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, signIn } from '../../tests/e2e/fixtures';
 
-/**
- * E2E: Auth flow
- * Prerequisites: A running app with at least one user account.
- * Environment variables TEST_USER_EMAIL and TEST_USER_PASSWORD must be set.
- */
-
-const EMAIL = process.env.TEST_USER_EMAIL ?? 'admin@example.com';
-const PASSWORD = process.env.TEST_USER_PASSWORD ?? 'TestP@ssw0rd123!';
-
-test.describe('Auth flow', () => {
-	test('unauthenticated user is redirected to /signin', async ({ page }) => {
-		await page.goto('/dashboard');
-		await expect(page).toHaveURL(/\/signin/);
+test.describe('Authentication', () => {
+	test('signed-out protected request preserves its deep link', async ({ request }) => {
+		const response = await request.get('/dashboard?from=auth-test', { maxRedirects: 0 });
+		expect(response.status()).toBe(303);
+		expect(response.headers()['location']).toBe(
+			'/signin?redirectTo=%2Fdashboard%3Ffrom%3Dauth-test'
+		);
 	});
 
-	test('sign in page renders email and password fields', async ({ page }) => {
+	test('invalid credentials display an error without authenticating', async ({ page }) => {
 		await page.goto('/signin');
-
-		await expect(page.locator('input[name="email"]')).toBeVisible();
-		await expect(page.locator('input[name="password"]')).toBeVisible();
+		await page.getByRole('textbox', { name: 'Email' }).fill('invalid@example.com');
+		await page.locator('input[name="password"]').fill('wrongpassword1');
+		await page.locator('button[type="submit"]').click();
+		await expect(page.getByText('Invalid email or password.', { exact: true })).toBeVisible();
+		await expect(page).toHaveURL(/\/signin$/);
+		const response = await page.request.get('/api/v1/audit/export', { maxRedirects: 0 });
+		expect(response.status()).toBe(401);
 	});
 
-	test('sign in with invalid credentials shows error', async ({ page }) => {
-		await page.goto('/signin');
-
-		await page.fill('input[name="email"]', 'invalid@example.com');
-		await page.fill('input[name="password"]', 'wrongpassword1');
-		await page.click('button[type="submit"]');
-
-		// Should stay on signin page with error
-		await expect(page).toHaveURL(/\/signin/);
+	test('valid sign-in reaches records and sign-out revokes access', async ({ page }) => {
+		await signIn(page);
+		await expect(page).toHaveURL(/\/record$/);
+		await page.getByRole('button', { name: 'Sign Out', exact: true }).click();
+		await expect(page).toHaveURL(/\/signin$/);
+		const protectedResponse = await page.request.get('/dashboard', { maxRedirects: 0 });
+		expect(protectedResponse.status()).toBe(303);
+		expect(protectedResponse.headers()['location']).toBe('/signin?redirectTo=%2Fdashboard');
+		const apiResponse = await page.request.get('/api/v1/audit/export', { maxRedirects: 0 });
+		expect(apiResponse.status()).toBe(401);
 	});
 
-	test('sign in with valid credentials redirects to dashboard', async ({ page }) => {
-		await page.goto('/signin');
-
-		await page.fill('input[name="email"]', EMAIL);
-		await page.fill('input[name="password"]', PASSWORD);
-		await page.click('button[type="submit"]');
-
-		// Should redirect to dashboard
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
+	test('reader can read records', async ({ page }) => {
+		await signIn(page, 'reader');
+		const allowed = await page.request.get('/record', { maxRedirects: 0 });
+		expect(allowed.status()).toBe(200);
 	});
 
-	test('sign out redirects to signin', async ({ page }) => {
-		// Sign in first
-		await page.goto('/signin');
-		await page.fill('input[name="email"]', EMAIL);
-		await page.fill('input[name="password"]', PASSWORD);
-		await page.click('button[type="submit"]');
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
-
-		// Sign out
-		await page.click('text=Sign Out');
-		await expect(page).toHaveURL(/\/signin/, { timeout: 10000 });
-	});
-
-	test('accessing protected route after sign-out redirects', async ({ page }) => {
-		await page.goto('/dashboard');
-		await expect(page).toHaveURL(/\/signin/);
-	});
-
-	test('session timeout warning elements exist on protected pages', async ({ page }) => {
-		// Sign in
-		await page.goto('/signin');
-		await page.fill('input[name="email"]', EMAIL);
-		await page.fill('input[name="password"]', PASSWORD);
-		await page.click('button[type="submit"]');
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
-
-		// Idle timeout form should be present (hidden)
-		const signoutForm = page.locator('#idle-signout-form');
-		await expect(signoutForm).toBeAttached();
+	test('ungranted user receives the patient.read denial', async ({ page }) => {
+		await signIn(page, 'denied');
+		// Page load errors render the HTML error boundary, not an API JSON response.
+		const response = await page.goto('/record');
+		expect(response?.status()).toBe(403);
+		await expect(page.getByRole('heading', { name: '403', exact: true })).toBeVisible();
+		await expect(
+			page.getByText("You don't have permission to access this page.", { exact: true })
+		).toBeVisible();
 	});
 });

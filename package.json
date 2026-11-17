@@ -17,7 +17,16 @@
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright test",
 		"setup:admin": "node --env-file=.env scripts/setup-admin.mjs",
-		"permissions:backfill": "node --env-file=.env scripts/backfill-permissions.mjs"
+		"permissions:backfill": "node --env-file=.env scripts/backfill-permissions.mjs",
+		"test:unit:run": "vitest run",
+		"test:server": "vitest run --project server",
+		"test:components": "vitest run --project client",
+		"test:backend:up": "node scripts/test-backend.mjs up",
+		"test:backend:down": "node scripts/test-backend.mjs down",
+		"test:backend:status": "node scripts/test-backend.mjs status",
+		"test:ci": "npm run check && npm run check:tests && npm run test:backend:unit && npm run test:unit:run && npm run test:e2e",
+		"check:tests": "svelte-kit sync && tsc -p tsconfig.test.json",
+		"test:backend:unit": "node --test scripts/test-backend.test.mjs"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.58.2",

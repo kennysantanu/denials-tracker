@@ -429,6 +429,12 @@ export const actions: Actions = {
 			subjectDenialId: denialId
 		});
 
+		const { data: subject, error: subjectError } = await locals.supabase
+			.from('denials')
+			.select('patient_id')
+			.eq('id', denialId)
+			.single();
+		if (subjectError) return fail(400, { error: subjectError.message });
 		const { error: deleteError } = await deleteDenial(locals.supabase, denialId);
 
 		if (deleteError) {
@@ -444,7 +450,9 @@ export const actions: Actions = {
 			permissionKey: 'denial.delete',
 			resourceType: 'denial',
 			resourceId: String(denialId),
-			subjectDenialId: denialId
+			// The record is gone; retain its ID in resourceId without an invalid FK.
+			subjectDenialId: null,
+			subjectPatientId: subject.patient_id
 		});
 
 		return { success: true };

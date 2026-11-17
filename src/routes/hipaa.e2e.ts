@@ -1,81 +1,70 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, signIn } from '../../tests/e2e/fixtures';
 
-/**
- * E2E: HIPAA compliance checks
- * Tests audit logging, cache headers, and access controls.
- * Environment variables TEST_USER_EMAIL and TEST_USER_PASSWORD must be set.
- */
-
-const EMAIL = process.env.TEST_USER_EMAIL ?? 'admin@example.com';
-const PASSWORD = process.env.TEST_USER_PASSWORD ?? 'TestP@ssw0rd123!';
-
-test.describe('HIPAA Compliance', () => {
-	test('protected routes return Cache-Control: no-store', async ({ page }) => {
-		// Sign in
-		await page.goto('/signin');
-		await page.fill('input[name="email"]', EMAIL);
-		await page.fill('input[name="password"]', PASSWORD);
-		await page.click('button[type="submit"]');
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
-
-		// Check Cache-Control on dashboard
-		const response = await page.goto('/dashboard');
-		const cacheControl = response?.headers()['cache-control'];
-		expect(cacheControl).toContain('no-store');
+test.describe('HIPAA security controls', () => {
+	test('patient pages and API responses cannot be cached', async ({ page }) => {
+		await signIn(page);
+		for (const path of ['/record', '/api/health']) {
+			const response = await page.request.get(path, { maxRedirects: 0 });
+			expect(response.status()).toBe(200);
+			expect(response.headers()['cache-control']).toBe('no-store');
+		}
 	});
 
-	test('API routes return Cache-Control: no-store', async ({ request }) => {
-		const response = await request.get('/api/health');
-		// Health endpoint is public but API routes get no-store
+	test('signed-out audit export is exactly 401, not a followed sign-in page', async ({
+		request
+	}) => {
+		const response = await request.get('/api/v1/audit/export', {
+			maxRedirects: 0,
+			headers: { Accept: 'application/json' }
+		});
+		expect(response.status()).toBe(401);
+		expect(await response.json()).toEqual({ message: 'Unauthorized' });
+		expect(response.headers()['cache-control']).toBe('no-store');
+	});
+
+	test('security headers protect the sign-in page', async ({ request }) => {
+		const response = await request.get('/signin', { maxRedirects: 0 });
 		expect(response.status()).toBe(200);
-	});
-
-	test('audit export requires authentication', async ({ request }) => {
-		const response = await request.get('/api/v1/audit/export');
-		// Should redirect to signin or return 401/403
-		expect([301, 302, 303, 401, 403]).toContain(response.status());
-	});
-
-	test('security headers are present on responses', async ({ page }) => {
-		const response = await page.goto('/signin');
-		const headers = response?.headers() ?? {};
-
-		// HSTS
-		expect(headers['strict-transport-security'] ?? headers['x-content-type-options']).toBeTruthy();
-
-		// X-Content-Type-Options
+		const headers = response.headers();
 		expect(headers['x-content-type-options']).toBe('nosniff');
-
-		// X-Frame-Options
 		expect(headers['x-frame-options']).toBe('DENY');
+		expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+		expect(headers['permissions-policy']).toBe('camera=(), microphone=(), geolocation=()');
 	});
 
-	test('idle timeout form is present on protected pages', async ({ page }) => {
-		// Sign in
-		await page.goto('/signin');
-		await page.fill('input[name="email"]', EMAIL);
-		await page.fill('input[name="password"]', PASSWORD);
-		await page.click('button[type="submit"]');
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
-
-		// Idle signout form should be in DOM
+	test('idle signout form posts to signout', async ({ page }) => {
+		await signIn(page);
 		const form = page.locator('#idle-signout-form');
 		await expect(form).toBeAttached();
-		expect(await form.getAttribute('action')).toBe('/signout');
+		await expect(form).toHaveAttribute('action', '/signout');
+		await expect(form).toHaveAttribute('method', 'POST');
 	});
 
-	test('non-admin cannot access audit log page', async ({ page }) => {
-		// This test checks the audit guard. With admin credentials
-		// it would succeed; with non-admin it should 403.
-		// We test that the route exists and responds.
-		await page.goto('/signin');
-		await page.fill('input[name="email"]', EMAIL);
-		await page.fill('input[name="password"]', PASSWORD);
-		await page.click('button[type="submit"]');
-		await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
+	test('reader cannot view or export audit logs', async ({ page }) => {
+		await signIn(page, 'reader');
+		const view = await page.request.get('/setting/admin/audit', { maxRedirects: 0 });
+		expect(view.status()).toBe(403);
+		const exported = await page.request.get('/api/v1/audit/export', {
+			maxRedirects: 0,
+			headers: { Accept: 'application/json' }
+		});
+		expect(exported.status()).toBe(403);
+		expect(await exported.json()).toEqual({
+			message: 'Forbidden: missing permission "audit.export"'
+		});
+	});
 
-		// Navigate to audit — should either show (admin) or error (non-admin)
-		const response = await page.goto('/setting/admin/audit');
-		expect([200, 403]).toContain(response?.status() ?? 0);
+	test('admin can view and export audit logs without caching PHI', async ({ page }) => {
+		await signIn(page, 'admin');
+		const view = await page.request.get('/setting/admin/audit', { maxRedirects: 0 });
+		expect(view.status()).toBe(200);
+		expect(view.headers()['cache-control']).toBe('no-store');
+		const exported = await page.request.get('/api/v1/audit/export', { maxRedirects: 0 });
+		expect(exported.status()).toBe(200);
+		expect(exported.headers()['cache-control']).toBe('no-store');
+		expect(exported.headers()['content-type']).toBe('text/csv; charset=utf-8');
+		expect((await exported.text()).split('\n')[0]).toBe(
+			'id,created_at,user_id,action,resource_type,resource_id,ip_address,user_agent,details'
+		);
 	});
 });
